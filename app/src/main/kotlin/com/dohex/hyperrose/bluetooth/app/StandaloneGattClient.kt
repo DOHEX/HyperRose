@@ -8,8 +8,12 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.dohex.hyperrose.domain.audio.AncDepth
+import com.dohex.hyperrose.domain.audio.AncMode
+import com.dohex.hyperrose.domain.audio.EqPreset
+import com.dohex.hyperrose.domain.audio.TransparencyLevel
+import com.dohex.hyperrose.domain.battery.TwsBatteryState
 import com.dohex.hyperrose.bluetooth.hook.HookProcessGattClient
-import com.dohex.hyperrose.model.*
 import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
 import com.dohex.hyperrose.bluetooth.protocol.RoseResponse
 import com.dohex.hyperrose.bluetooth.protocol.RoseResponseParser as RoseParser
@@ -36,8 +40,8 @@ class StandaloneGattClient(private val context: Context) {
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
-    private val _battery = MutableStateFlow<TwsBatteryInfo?>(null)
-    val battery: StateFlow<TwsBatteryInfo?> = _battery.asStateFlow()
+    private val _battery = MutableStateFlow<TwsBatteryState?>(null)
+    val battery: StateFlow<TwsBatteryState?> = _battery.asStateFlow()
 
     private val _ancMode = MutableStateFlow<AncMode?>(null)
     val ancMode: StateFlow<AncMode?> = _ancMode.asStateFlow()
@@ -45,11 +49,11 @@ class StandaloneGattClient(private val context: Context) {
     private val _ancDepth = MutableStateFlow<AncDepth?>(null)
     val ancDepth: StateFlow<AncDepth?> = _ancDepth.asStateFlow()
 
-    private val _transLevel = MutableStateFlow<TransLevel?>(null)
-    val transLevel: StateFlow<TransLevel?> = _transLevel.asStateFlow()
+    private val _transLevel = MutableStateFlow<TransparencyLevel?>(null)
+    val transLevel: StateFlow<TransparencyLevel?> = _transLevel.asStateFlow()
 
-    private val _eqMode = MutableStateFlow<EqMode?>(null)
-    val eqMode: StateFlow<EqMode?> = _eqMode.asStateFlow()
+    private val _eqMode = MutableStateFlow<EqPreset?>(null)
+    val eqMode: StateFlow<EqPreset?> = _eqMode.asStateFlow()
 
     private val _gameMode = MutableStateFlow<Boolean?>(null)
     val gameMode: StateFlow<Boolean?> = _gameMode.asStateFlow()
@@ -103,8 +107,8 @@ class StandaloneGattClient(private val context: Context) {
     // 便捷方法
     fun setAnc(mode: AncMode) = sendCommand(RosePackets.ancCommand(mode))
     fun setAncDepth(depth: AncDepth) = sendCommand(RosePackets.ancDepthCommand(depth))
-    fun setTransLevel(level: TransLevel) = sendCommand(RosePackets.transLevelCommand(level))
-    fun setEq(mode: EqMode) = sendCommand(RosePackets.eqCommand(mode))
+    fun setTransLevel(level: TransparencyLevel) = sendCommand(RosePackets.transLevelCommand(level))
+    fun setEq(mode: EqPreset) = sendCommand(RosePackets.eqCommand(mode))
     fun setGameMode(enabled: Boolean) = sendCommand(RosePackets.gameModeCommand(enabled))
     fun findLeft() = sendCommand(RosePackets.FIND_LEFT_ON)
     fun findRight() = sendCommand(RosePackets.FIND_RIGHT_ON)

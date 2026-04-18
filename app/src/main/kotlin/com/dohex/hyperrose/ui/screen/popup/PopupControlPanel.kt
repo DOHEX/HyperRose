@@ -11,7 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.dohex.hyperrose.model.EqMode
+import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.AncSelector
 import com.dohex.hyperrose.ui.component.SectionCard
@@ -72,14 +72,14 @@ fun PopupControlPanel(
                     onTransLevelChange = deviceControlStore::setTransLevel,
                     enabled = true
                 )
-                val eqItems = EqMode.entries.map { it.label }
-                val eqSelectedIndex = EqMode.entries.indexOf(eqMode).coerceAtLeast(0)
+                val eqItems = EqPreset.entries.map { it.label }
+                val eqSelectedIndex = EqPreset.entries.indexOf(eqMode).coerceAtLeast(0)
                 WindowDropdownPreference(
                     title = "音色",
                     items = eqItems,
                     selectedIndex = eqSelectedIndex,
                     onSelectedIndexChange = { index ->
-                        EqMode.entries.getOrNull(index)?.let(deviceControlStore::setEq)
+                        EqPreset.entries.getOrNull(index)?.let(deviceControlStore::setEq)
                     }
                 )
                 Card {

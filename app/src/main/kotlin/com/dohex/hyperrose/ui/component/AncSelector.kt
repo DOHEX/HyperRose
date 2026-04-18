@@ -5,19 +5,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dohex.hyperrose.model.AncDepth
-import com.dohex.hyperrose.model.AncMode
-import com.dohex.hyperrose.model.TransLevel
+import com.dohex.hyperrose.domain.audio.AncDepth
+import com.dohex.hyperrose.domain.audio.AncMode
+import com.dohex.hyperrose.domain.audio.TransparencyLevel
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 
 @Composable
 fun AncSelector(
     ancMode: AncMode?,
     ancDepth: AncDepth?,
-    transLevel: TransLevel?,
+    transLevel: TransparencyLevel?,
     onAncModeChange: (AncMode) -> Unit,
     onAncDepthChange: (AncDepth) -> Unit,
-    onTransLevelChange: (TransLevel) -> Unit,
+    onTransLevelChange: (TransparencyLevel) -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -59,15 +59,15 @@ fun AncSelector(
         }
 
         if (ancMode == AncMode.TRANSPARENT) {
-            val transOptions = TransLevel.entries.map { it.label }
-            val transSelectedIndex = TransLevel.entries.indexOf(transLevel).coerceAtLeast(0)
+            val transOptions = TransparencyLevel.entries.map { it.label }
+            val transSelectedIndex = TransparencyLevel.entries.indexOf(transLevel).coerceAtLeast(0)
 
             TabRowWithContour(
                 tabs = transOptions,
                 selectedTabIndex = transSelectedIndex,
                 onTabSelected = { index ->
                     if (enabled) {
-                        TransLevel.entries.getOrNull(index)?.let(onTransLevelChange)
+                        TransparencyLevel.entries.getOrNull(index)?.let(onTransLevelChange)
                     }
                 },
                 modifier = Modifier

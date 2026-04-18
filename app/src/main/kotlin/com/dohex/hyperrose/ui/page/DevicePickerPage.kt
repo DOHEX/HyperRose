@@ -12,10 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
-import com.dohex.hyperrose.ui.RoseDevice
-import com.dohex.hyperrose.ui.UiConnectionState
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.SectionCard
+import com.dohex.hyperrose.ui.state.DeviceConnectionState
+import com.dohex.hyperrose.ui.state.RoseDeviceItem
 import com.dohex.hyperrose.ui.theme.BlurredBar
 import com.dohex.hyperrose.ui.theme.LocalThemeMode
 import com.dohex.hyperrose.ui.theme.rememberBlurBackdrop
@@ -36,8 +36,8 @@ import top.yukonga.miuix.kmp.icon.extended.Settings
 @Composable
 fun DevicePickerPage(
     hasPermission: Boolean,
-    devices: List<RoseDevice>,
-    connectionState: UiConnectionState,
+    devices: List<RoseDeviceItem>,
+    connectionState: DeviceConnectionState,
     onRequestPermission: () -> Unit,
     onRefresh: () -> Unit,
     onConnect: (String) -> Unit,
@@ -118,7 +118,7 @@ fun DevicePickerPage(
                         text = "连接",
                         onClick = { onConnect(device.address) },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = connectionState != UiConnectionState.CONNECTING
+                        enabled = connectionState != DeviceConnectionState.CONNECTING
                     )
                 }
             }
@@ -126,8 +126,8 @@ fun DevicePickerPage(
     }
 }
 
-private fun stateText(state: UiConnectionState): String = when (state) {
-    UiConnectionState.CONNECTED -> "已连接"
-    UiConnectionState.CONNECTING -> "连接中"
-    UiConnectionState.DISCONNECTED -> "未连接"
+private fun stateText(state: DeviceConnectionState): String = when (state) {
+    DeviceConnectionState.CONNECTED -> "已连接"
+    DeviceConnectionState.CONNECTING -> "连接中"
+    DeviceConnectionState.DISCONNECTED -> "未连接"
 }

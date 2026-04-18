@@ -12,11 +12,10 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.util.Log
-import com.dohex.hyperrose.entry.QuickControlActivity
+import com.dohex.hyperrose.core.reflection.ReflectionHelper
 import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
-import com.dohex.hyperrose.model.HyperRoseAction
+import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import com.dohex.hyperrose.util.FocusIslandBridge
-import com.dohex.hyperrose.util.Reflect
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
@@ -33,10 +32,6 @@ object MiBtNotificationHook {
     private const val ISLAND_NOTIFICATION_ID = 10086
     private const val ISLAND_TIMEOUT_SECONDS = 30
     private const val QUICK_CONTROL_REQUEST_CODE = 10086
-    private const val QUICK_CONTROL_PACKAGE = "com.dohex.hyperrose"
-    private const val QUICK_CONTROL_ACTIVITY = "com.dohex.hyperrose.entry.QuickControlActivity"
-    private const val EXTRA_DEVICE_NAME = "com.dohex.hyperrose.extra.device_name"
-
     private var receiverRegistered = false
     private var showedIslandOnCurrentConnection = false
     private var lastIslandTimestamp = 0L
@@ -55,7 +50,7 @@ object MiBtNotificationHook {
                 val result = chain.proceed()
                 try {
                     val context = (chain.getArg(0) as? Context)
-                        ?: (try { Reflect.getField(chain.thisObject, "mContext") as? Context } catch (_: Throwable) { null })
+                        ?: (try { ReflectionHelper.getField(chain.thisObject, "mContext") as? Context } catch (_: Throwable) { null })
                     if (context != null) registerReceiver(module, context)
                 } catch (t: Throwable) {
                     module.log(Log.ERROR, TAG, "MiBtNotificationHook: register receiver failed", t)
@@ -83,7 +78,10 @@ object MiBtNotificationHook {
 
                         val left = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
                         val right = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
-                        if (left < 0 && right < 0) return
+                        val caseLevel = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
+                        val leftCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false)
+                        val rightCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, false)
+                        if (left < 0 && right < 0 && caseLevel < 0) return
 
                         val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             intent.getParcelableExtra(HyperRoseAction.EXTRA_DEVICE, BluetoothDevice::class.java)
@@ -92,7 +90,17 @@ object MiBtNotificationHook {
                             intent.getParcelableExtra(HyperRoseAction.EXTRA_DEVICE)
                         }
 
-                        runCatching { showIsland(ctx, device, left, right) }
+                        runCatching {
+                            showIsland(
+                                context = ctx,
+                                device = device,
+                                left = left,
+                                right = right,
+                                caseLevel = caseLevel,
+                                leftCharging = leftCharging,
+                                rightCharging = rightCharging,
+                            )
+                        }
                             .onSuccess {
                                 showedIslandOnCurrentConnection = true
                                 lastIslandTimestamp = now
@@ -122,20 +130,31 @@ object MiBtNotificationHook {
         module.log(Log.INFO, TAG, "MiBtNotificationHook: receiver registered")
     }
 
-    private fun showIsland(context: Context, device: BluetoothDevice?, left: Int, right: Int) {
+    private fun showIsland(
+        context: Context,
+        device: BluetoothDevice?,
+        left: Int,
+        right: Int,
+        caseLevel: Int,
+        leftCharging: Boolean,
+        rightCharging: Boolean,
+    ) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         ensureChannel(nm)
-        val content = buildString {
-            if (left >= 0) append("L: $left%")
-            if (right >= 0) {
-                if (isNotEmpty()) append("  ")
-                append("R: $right%")
-            }
-        }
+        val content = buildBatteryText(
+            left = left,
+            right = right,
+            caseLevel = caseLevel,
+            leftCharging = leftCharging,
+            rightCharging = rightCharging,
+        )
 
         val extras = FocusIslandBridge.buildBatteryIslandExtras(
             leftLevel = left,
             rightLevel = right,
+            caseLevel = caseLevel,
+            leftCharging = leftCharging,
+            rightCharging = rightCharging,
             islandTimeoutSeconds = ISLAND_TIMEOUT_SECONDS
         )
 
@@ -143,10 +162,36 @@ object MiBtNotificationHook {
             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
             .setContentTitle(device?.name ?: "HyperRose")
             .setContentText(content)
+            .setStyle(Notification.BigTextStyle().bigText(content))
+            .setOnlyAlertOnce(true)
             .setContentIntent(buildQuickControlPendingIntent(context, device, left, right))
         builder.addExtras(extras)
 
         nm.notify(ISLAND_NOTIFICATION_ID, builder.build())
+    }
+
+    private fun buildBatteryText(
+        left: Int,
+        right: Int,
+        caseLevel: Int,
+        leftCharging: Boolean,
+        rightCharging: Boolean,
+    ): String {
+        val segments = mutableListOf<String>()
+        if (left >= 0) {
+            segments += "左 ${formatEarBattery(left, leftCharging)}"
+        }
+        if (right >= 0) {
+            segments += "右 ${formatEarBattery(right, rightCharging)}"
+        }
+        if (caseLevel >= 0) {
+            segments += "盒 ${caseLevel}%"
+        }
+        return if (segments.isEmpty()) "电量未知" else segments.joinToString(" | ")
+    }
+
+    private fun formatEarBattery(level: Int, charging: Boolean): String {
+        return if (charging) "$level% ⚡" else "$level%"
     }
 
     private fun buildQuickControlPendingIntent(
@@ -156,11 +201,11 @@ object MiBtNotificationHook {
         right: Int
     ): PendingIntent {
         val intent = Intent().apply {
-            setClassName(QUICK_CONTROL_PACKAGE, QUICK_CONTROL_ACTIVITY)
-            putExtra(EXTRA_DEVICE_NAME, device?.name)
+            setClassName(HyperRoseAction.PACKAGE_APP, HyperRoseAction.QUICK_CONTROL_ACTIVITY)
+            putExtra(HyperRoseAction.EXTRA_DEVICE_NAME, device?.name)
             putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, left)
             putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, right)
-            putExtra(QuickControlActivity.EXTRA_FORCE_CONNECTED, true)
+            putExtra(HyperRoseAction.EXTRA_FORCE_CONNECTED, true)
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_NO_ANIMATION or

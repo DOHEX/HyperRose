@@ -3,9 +3,9 @@ package com.dohex.hyperrose.hook
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.dohex.hyperrose.entry.QuickControlActivity
+import com.dohex.hyperrose.core.reflection.ReflectionHelper
 import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
-import com.dohex.hyperrose.util.Reflect
+import com.dohex.hyperrose.ipc.HyperRoseIpc
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import java.lang.reflect.Method
@@ -18,9 +18,6 @@ import java.lang.reflect.Method
 object DeviceCardHook {
 
     private const val DEVICE_NAME_KEYWORD = "ROSE EARFREE"
-    private const val EXTRA_DEVICE_NAME = "com.dohex.hyperrose.extra.device_name"
-    private const val TARGET_PACKAGE = "com.dohex.hyperrose"
-    private const val QUICK_CONTROL_ACTIVITY = "com.dohex.hyperrose.entry.QuickControlActivity"
 
     private val wrapperClassNames = listOf(
         "miui.systemui.devicecenter.devices.DeviceInfoWrapper",
@@ -135,23 +132,23 @@ object DeviceCardHook {
     }
 
     private fun resolveDeviceInfo(wrapperObj: Any): Any? {
-        return runCatching { Reflect.callMethod(wrapperObj, "getDeviceInfo") }.getOrNull()
-            ?: runCatching { Reflect.getField(wrapperObj, "mDeviceInfo") }.getOrNull()
-            ?: runCatching { Reflect.getField(wrapperObj, "deviceInfo") }.getOrNull()
+        return runCatching { ReflectionHelper.callMethod(wrapperObj, "getDeviceInfo") }.getOrNull()
+            ?: runCatching { ReflectionHelper.getField(wrapperObj, "mDeviceInfo") }.getOrNull()
+            ?: runCatching { ReflectionHelper.getField(wrapperObj, "deviceInfo") }.getOrNull()
     }
 
     private fun readContext(target: Any, fieldName: String): Context? {
-        return runCatching { Reflect.getField(target, fieldName) as? Context }.getOrNull()
+        return runCatching { ReflectionHelper.getField(target, fieldName) as? Context }.getOrNull()
     }
 
     private fun readString(target: Any?, methodName: String, vararg fieldNames: String): String? {
         if (target == null) return null
 
-        val fromMethod = runCatching { Reflect.callMethod(target, methodName) as? String }.getOrNull()
+        val fromMethod = runCatching { ReflectionHelper.callMethod(target, methodName) as? String }.getOrNull()
         if (!fromMethod.isNullOrBlank()) return fromMethod
 
         fieldNames.forEach { fieldName ->
-            val value = runCatching { Reflect.getField(target, fieldName) as? String }.getOrNull()
+            val value = runCatching { ReflectionHelper.getField(target, fieldName) as? String }.getOrNull()
             if (!value.isNullOrBlank()) return value
         }
         return null
@@ -168,9 +165,9 @@ object DeviceCardHook {
     private fun startQuickControl(context: Context, deviceName: String?): Boolean {
         return runCatching {
             val intent = Intent().apply {
-                setClassName(TARGET_PACKAGE, QUICK_CONTROL_ACTIVITY)
-                putExtra(EXTRA_DEVICE_NAME, deviceName)
-                putExtra(QuickControlActivity.EXTRA_FORCE_CONNECTED, true)
+                setClassName(HyperRoseIpc.PACKAGE_APP, HyperRoseIpc.QUICK_CONTROL_ACTIVITY)
+                putExtra(HyperRoseIpc.EXTRA_DEVICE_NAME, deviceName)
+                putExtra(HyperRoseIpc.EXTRA_FORCE_CONNECTED, true)
                 addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_NO_ANIMATION or
@@ -185,7 +182,7 @@ object DeviceCardHook {
 
     private fun hideControlCenterPanel(module: XposedModule) {
         val panel = panelController ?: return
-        runCatching { Reflect.callMethod(panel, "exitOrHide") }
+        runCatching { ReflectionHelper.callMethod(panel, "exitOrHide") }
             .onFailure {
                 module.log(Log.DEBUG, TAG, "DeviceCardHook: exitOrHide not available", it)
             }

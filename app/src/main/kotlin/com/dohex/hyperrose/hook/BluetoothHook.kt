@@ -7,15 +7,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
+import com.dohex.hyperrose.core.reflection.ReflectionHelper
+import com.dohex.hyperrose.domain.audio.AncDepth
+import com.dohex.hyperrose.domain.audio.AncMode
+import com.dohex.hyperrose.domain.audio.EqPreset
+import com.dohex.hyperrose.domain.audio.TransparencyLevel
 import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
-import com.dohex.hyperrose.model.AncDepth
-import com.dohex.hyperrose.model.AncMode
-import com.dohex.hyperrose.model.EqMode
-import com.dohex.hyperrose.model.HyperRoseAction
-import com.dohex.hyperrose.model.TransLevel
-import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
 import com.dohex.hyperrose.bluetooth.hook.HookProcessGattClient
-import com.dohex.hyperrose.util.Reflect
+import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
+import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
@@ -96,13 +96,13 @@ object BluetoothHook {
         // 广播连接事件（给 App）
         context.sendBroadcast(Intent(HyperRoseAction.DEVICE_CONNECTED).apply {
             putExtra(HyperRoseAction.EXTRA_DEVICE, device)
-            setPackage("com.dohex.hyperrose")
+            setPackage(HyperRoseAction.PACKAGE_APP)
         })
 
         // 广播连接事件（给宿主蓝牙进程，用于超级岛状态重置）
         context.sendBroadcast(Intent(HyperRoseAction.DEVICE_CONNECTED).apply {
             putExtra(HyperRoseAction.EXTRA_DEVICE, device)
-            setPackage("com.xiaomi.bluetooth")
+            setPackage(HyperRoseAction.PACKAGE_MI_BLUETOOTH)
         })
     }
 
@@ -116,23 +116,23 @@ object BluetoothHook {
         // 广播断开事件（给 App）
         context.sendBroadcast(Intent(HyperRoseAction.DEVICE_DISCONNECTED).apply {
             putExtra(HyperRoseAction.EXTRA_DEVICE, device)
-            setPackage("com.dohex.hyperrose")
+            setPackage(HyperRoseAction.PACKAGE_APP)
         })
 
         // 广播断开事件（给宿主蓝牙进程，关闭超级岛）
         context.sendBroadcast(Intent(HyperRoseAction.DEVICE_DISCONNECTED).apply {
             putExtra(HyperRoseAction.EXTRA_DEVICE, device)
-            setPackage("com.xiaomi.bluetooth")
+            setPackage(HyperRoseAction.PACKAGE_MI_BLUETOOTH)
         })
 
     }
 
     private fun resolveContext(serviceObj: Any): Context? {
         return try {
-            Reflect.callMethod(serviceObj, "getApplicationContext") as? Context
+            ReflectionHelper.callMethod(serviceObj, "getApplicationContext") as? Context
         } catch (_: Throwable) {
             try {
-                Reflect.getField(serviceObj, "mContext") as? Context
+                ReflectionHelper.getField(serviceObj, "mContext") as? Context
             } catch (_: Throwable) {
                 null
             }
@@ -174,14 +174,14 @@ object BluetoothHook {
 
                         HyperRoseAction.SET_TRANS_LEVEL -> {
                             val level = intent.getStringExtra(HyperRoseAction.EXTRA_LEVEL)
-                                ?.let(TransLevel::valueOf)
+                                ?.let(TransparencyLevel::valueOf)
                                 ?: return
                             manager.sendCommand(RosePackets.transLevelCommand(level))
                         }
 
                         HyperRoseAction.SET_EQ -> {
                             val mode = intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
-                                ?.let(EqMode::valueOf)
+                                ?.let(EqPreset::valueOf)
                                 ?: return
                             manager.sendCommand(RosePackets.eqCommand(mode))
                         }
@@ -194,8 +194,8 @@ object BluetoothHook {
 
                         HyperRoseAction.FIND_EARPHONE -> {
                             when (intent.getStringExtra(HyperRoseAction.EXTRA_SIDE)?.uppercase()) {
-                                "LEFT" -> manager.sendCommand(RosePackets.FIND_LEFT_ON)
-                                "RIGHT" -> manager.sendCommand(RosePackets.FIND_RIGHT_ON)
+                                HyperRoseAction.SIDE_LEFT -> manager.sendCommand(RosePackets.FIND_LEFT_ON)
+                                HyperRoseAction.SIDE_RIGHT -> manager.sendCommand(RosePackets.FIND_RIGHT_ON)
                                 else -> manager.sendCommand(RosePackets.FIND_ALL_OFF)
                             }
                         }

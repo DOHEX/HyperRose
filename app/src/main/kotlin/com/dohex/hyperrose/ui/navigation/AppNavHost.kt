@@ -140,8 +140,6 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
 
             entry<AppDestination.Settings> {
                 SettingsPage(
-                    connectionState = connectionState,
-                    transport = transport,
                     onBack = { if (backStack.size > 1) backStack.removeLast() },
                     modifier = Modifier.fillMaxSize()
                 )

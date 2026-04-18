@@ -11,12 +11,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.dohex.hyperrose.model.TwsBatteryInfo
+import com.dohex.hyperrose.domain.battery.TwsBatteryState
 import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 fun BatteryCard(
-    battery: TwsBatteryInfo?,
+    battery: TwsBatteryState?,
     modifier: Modifier = Modifier
 ) {
     SectionCard(
@@ -77,7 +77,7 @@ private fun BatteryCell(
     }
 }
 
-private fun batterySubtitle(battery: TwsBatteryInfo?): String {
+private fun batterySubtitle(battery: TwsBatteryState?): String {
     if (battery == null) return "等待电量数据"
     val left = battery.left?.level?.toString() ?: "-"
     val right = battery.right?.level?.toString() ?: "-"

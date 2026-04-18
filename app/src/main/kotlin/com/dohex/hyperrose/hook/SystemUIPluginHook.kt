@@ -1,8 +1,8 @@
 package com.dohex.hyperrose.hook
 
 import android.util.Log
+import com.dohex.hyperrose.core.reflection.ReflectionHelper
 import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
-import com.dohex.hyperrose.util.Reflect
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
@@ -54,7 +54,7 @@ object SystemUIPluginHook {
             val result = chain.proceed()
             runCatching {
                 val pkgName = runCatching {
-                    Reflect.callMethod(chain.thisObject, "getPackage") as? String
+                    ReflectionHelper.callMethod(chain.thisObject, "getPackage") as? String
                 }.getOrNull()
                 module.log(Log.DEBUG, TAG, "SystemUIPluginHook: loadPlugin package=$pkgName")
                 if (pkgName == "miui.systemui.plugin") {
@@ -103,16 +103,16 @@ object SystemUIPluginHook {
         if (isPluginClassLoader(direct)) return direct
 
         val pluginFactory = runCatching {
-            Reflect.getField(pluginInstance, "mPluginFactory")
+            ReflectionHelper.getField(pluginInstance, "mPluginFactory")
         }.getOrNull() ?: return direct
 
         val classLoaderFactory = runCatching {
-            Reflect.getField(pluginFactory, "mClassLoaderFactory")
+            ReflectionHelper.getField(pluginFactory, "mClassLoaderFactory")
         }.getOrNull()
 
         val fromFactory: ClassLoader? = if (classLoaderFactory != null) {
             runCatching {
-                Reflect.callMethod(classLoaderFactory, "get") as? ClassLoader
+                ReflectionHelper.callMethod(classLoaderFactory, "get") as? ClassLoader
             }.getOrNull()
         } else {
             null

@@ -14,7 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import com.dohex.hyperrose.domain.battery.EarBatteryState
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
-import com.dohex.hyperrose.model.HyperRoseAction
+import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import com.dohex.hyperrose.ui.screen.popup.PopupControlPanel
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
@@ -30,8 +30,8 @@ import com.dohex.hyperrose.ui.theme.ThemeSettingsStore
 class QuickControlActivity : ComponentActivity() {
 
     companion object {
-        const val EXTRA_DEVICE_NAME = "com.dohex.hyperrose.extra.device_name"
-        const val EXTRA_FORCE_CONNECTED = "com.dohex.hyperrose.extra.force_connected"
+        const val EXTRA_DEVICE_NAME = HyperRoseAction.EXTRA_DEVICE_NAME
+        const val EXTRA_FORCE_CONNECTED = HyperRoseAction.EXTRA_FORCE_CONNECTED
         private const val DEFAULT_DEVICE_NAME = "ROSE EARFREE"
     }
 

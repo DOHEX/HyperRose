@@ -7,11 +7,16 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.dohex.hyperrose.domain.audio.AncDepth
+import com.dohex.hyperrose.domain.audio.AncMode
+import com.dohex.hyperrose.domain.audio.EqPreset
+import com.dohex.hyperrose.domain.audio.TransparencyLevel
+import com.dohex.hyperrose.domain.battery.TwsBatteryState
 import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
 import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
 import com.dohex.hyperrose.bluetooth.protocol.RoseResponse
 import com.dohex.hyperrose.bluetooth.protocol.RoseResponseParser as RoseParser
-import com.dohex.hyperrose.model.*
+import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import io.github.libxposed.api.XposedModule
 import java.util.UUID
 
@@ -43,11 +48,11 @@ class HookProcessGattClient(
     private val handler = Handler(Looper.getMainLooper())
 
     // 当前状态缓存
-    var currentBattery: TwsBatteryInfo? = null; private set
+    var currentBattery: TwsBatteryState? = null; private set
     var currentAnc: AncMode? = null; private set
     var currentAncDepth: AncDepth? = null; private set
-    var currentTransLevel: TransLevel? = null; private set
-    var currentEq: EqMode? = null; private set
+    var currentTransLevel: TransparencyLevel? = null; private set
+    var currentEq: EqPreset? = null; private set
     var currentGameMode: Boolean? = null; private set
 
     fun connect(device: BluetoothDevice) {
@@ -164,7 +169,7 @@ class HookProcessGattClient(
 
                 // 岛触发交给宿主进程（com.xiaomi.bluetooth）发送，提升模板命中率
                 context.sendBroadcast(Intent(HyperRoseAction.SHOW_ISLAND).apply {
-                    setPackage("com.xiaomi.bluetooth")
+                    setPackage(HyperRoseAction.PACKAGE_MI_BLUETOOTH)
                     putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, result.info.left?.level ?: -1)
                     putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, result.info.right?.level ?: -1)
                     putExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, result.info.left?.isCharging ?: false)
@@ -242,7 +247,7 @@ class HookProcessGattClient(
 
     private fun broadcastState(action: String, extras: Intent.() -> Unit) {
         context.sendBroadcast(Intent(action).apply {
-            setPackage("com.dohex.hyperrose")
+            setPackage(HyperRoseAction.PACKAGE_APP)
             extras()
         })
     }

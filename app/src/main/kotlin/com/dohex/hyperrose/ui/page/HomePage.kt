@@ -17,18 +17,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
-import com.dohex.hyperrose.model.AncDepth
-import com.dohex.hyperrose.model.AncMode
-import com.dohex.hyperrose.model.EqMode
-import com.dohex.hyperrose.model.TransLevel
-import com.dohex.hyperrose.model.TwsBatteryInfo
-import com.dohex.hyperrose.ui.ControlTransport
-import com.dohex.hyperrose.ui.UiConnectionState
+import com.dohex.hyperrose.domain.audio.AncDepth
+import com.dohex.hyperrose.domain.audio.AncMode
+import com.dohex.hyperrose.domain.audio.EqPreset
+import com.dohex.hyperrose.domain.audio.TransparencyLevel
+import com.dohex.hyperrose.domain.battery.TwsBatteryState
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.AncSelector
 import com.dohex.hyperrose.ui.component.BatteryCard
 import com.dohex.hyperrose.ui.component.EqSelector
 import com.dohex.hyperrose.ui.component.SectionCard
+import com.dohex.hyperrose.ui.state.ConnectionTransport
+import com.dohex.hyperrose.ui.state.DeviceConnectionState
 import com.dohex.hyperrose.ui.theme.BlurredBar
 import com.dohex.hyperrose.ui.theme.LocalThemeMode
 import com.dohex.hyperrose.ui.theme.rememberBlurBackdrop
@@ -50,19 +50,19 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 @Composable
 fun HomePage(
-    connectionState: UiConnectionState,
-    transport: ControlTransport,
+    connectionState: DeviceConnectionState,
+    transport: ConnectionTransport,
     deviceName: String?,
-    battery: TwsBatteryInfo?,
+    battery: TwsBatteryState?,
     ancMode: AncMode?,
     ancDepth: AncDepth?,
-    transLevel: TransLevel?,
-    eqMode: EqMode?,
+    transLevel: TransparencyLevel?,
+    eqMode: EqPreset?,
     gameMode: Boolean,
     onAncModeChange: (AncMode) -> Unit,
     onAncDepthChange: (AncDepth) -> Unit,
-    onTransLevelChange: (TransLevel) -> Unit,
-    onEqModeChange: (EqMode) -> Unit,
+    onTransLevelChange: (TransparencyLevel) -> Unit,
+    onEqModeChange: (EqPreset) -> Unit,
     onGameModeChange: (Boolean) -> Unit,
     onFindLeft: () -> Unit,
     onFindRight: () -> Unit,
@@ -72,7 +72,7 @@ fun HomePage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val connected = connectionState == UiConnectionState.CONNECTED
+    val connected = connectionState == DeviceConnectionState.CONNECTED
     val themeMode = LocalThemeMode.current
     val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
     val blurActive = themeMode.enableBlur && backdrop != null
@@ -238,15 +238,16 @@ fun HomePage(
 }
 
 private fun connectionSummary(
-    connectionState: UiConnectionState, transport: ControlTransport
+    connectionState: DeviceConnectionState,
+    transport: ConnectionTransport
 ): String {
     return when (connectionState) {
-        UiConnectionState.CONNECTING -> "连接中"
-        UiConnectionState.DISCONNECTED -> "未连接"
-        UiConnectionState.CONNECTED -> when (transport) {
-            ControlTransport.DIRECT_BLE -> "已连接 · 独立 BLE"
-            ControlTransport.HOOK_BRIDGE -> "已连接 · LSPosed 桥接"
-            ControlTransport.NONE -> "已连接"
+        DeviceConnectionState.CONNECTING -> "连接中"
+        DeviceConnectionState.DISCONNECTED -> "未连接"
+        DeviceConnectionState.CONNECTED -> when (transport) {
+            ConnectionTransport.DIRECT_BLE -> "已连接 · 独立 BLE"
+            ConnectionTransport.HOOK_BRIDGE -> "已连接 · LSPosed 桥接"
+            ConnectionTransport.NONE -> "已连接"
         }
     }
 }

@@ -4,6 +4,7 @@ import android.util.Log
 import com.dohex.hyperrose.hook.BluetoothHook
 import com.dohex.hyperrose.hook.MiBtNotificationHook
 import com.dohex.hyperrose.hook.SystemUIPluginHook
+import com.dohex.hyperrose.ipc.HyperRoseIpc
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 
@@ -28,15 +29,15 @@ class HyperRoseXposedEntry : XposedModule() {
 
         try {
             when (pkg) {
-                "com.android.bluetooth" -> {
+                HyperRoseIpc.PACKAGE_BLUETOOTH -> {
                     log(Log.INFO, TAG, "Initializing BluetoothHook")
                     BluetoothHook.init(this, param)
                 }
-                "com.xiaomi.bluetooth" -> {
+                HyperRoseIpc.PACKAGE_MI_BLUETOOTH -> {
                     log(Log.INFO, TAG, "Initializing MiBtNotificationHook")
                     MiBtNotificationHook.init(this, param)
                 }
-                "com.android.systemui" -> {
+                HyperRoseIpc.PACKAGE_SYSTEM_UI -> {
                     log(Log.INFO, TAG, "Initializing SystemUIPluginHook")
                     SystemUIPluginHook.init(this, param)
                 }

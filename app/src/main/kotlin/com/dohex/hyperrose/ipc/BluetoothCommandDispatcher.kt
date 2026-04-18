@@ -11,8 +11,6 @@ import com.dohex.hyperrose.domain.audio.TransparencyLevel
  * App/Popup 侧发送控制广播到 com.android.bluetooth 进程。
  */
 object BluetoothCommandDispatcher {
-    private const val TARGET_PACKAGE = "com.android.bluetooth"
-
     fun setAnc(context: Context, mode: AncMode) {
         send(context, HyperRoseIpc.SET_ANC) {
             putExtra(HyperRoseIpc.EXTRA_MODE, mode.name)
@@ -45,19 +43,19 @@ object BluetoothCommandDispatcher {
 
     fun findLeft(context: Context) {
         send(context, HyperRoseIpc.FIND_EARPHONE) {
-            putExtra(HyperRoseIpc.EXTRA_SIDE, "LEFT")
+            putExtra(HyperRoseIpc.EXTRA_SIDE, HyperRoseIpc.SIDE_LEFT)
         }
     }
 
     fun findRight(context: Context) {
         send(context, HyperRoseIpc.FIND_EARPHONE) {
-            putExtra(HyperRoseIpc.EXTRA_SIDE, "RIGHT")
+            putExtra(HyperRoseIpc.EXTRA_SIDE, HyperRoseIpc.SIDE_RIGHT)
         }
     }
 
     fun stopFind(context: Context) {
         send(context, HyperRoseIpc.FIND_EARPHONE) {
-            putExtra(HyperRoseIpc.EXTRA_SIDE, "STOP")
+            putExtra(HyperRoseIpc.EXTRA_SIDE, HyperRoseIpc.SIDE_STOP)
         }
     }
 
@@ -71,7 +69,7 @@ object BluetoothCommandDispatcher {
 
     private fun send(context: Context, action: String, extras: (Intent.() -> Unit)? = null) {
         val intent = Intent(action).apply {
-            setPackage(TARGET_PACKAGE)
+            setPackage(HyperRoseIpc.PACKAGE_BLUETOOTH)
             extras?.invoke(this)
         }
         context.sendBroadcast(intent)

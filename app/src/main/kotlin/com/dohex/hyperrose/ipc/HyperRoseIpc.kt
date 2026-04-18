@@ -5,6 +5,13 @@ package com.dohex.hyperrose.ipc
  * 用于 Hook 进程间通信（Bluetooth → MiBluetooth → App）。
  */
 object HyperRoseIpc {
+    const val PACKAGE_APP = "com.dohex.hyperrose"
+    const val PACKAGE_BLUETOOTH = "com.android.bluetooth"
+    const val PACKAGE_MI_BLUETOOTH = "com.xiaomi.bluetooth"
+    const val PACKAGE_SYSTEM_UI = "com.android.systemui"
+
+    const val QUICK_CONTROL_ACTIVITY = "$PACKAGE_APP.entry.QuickControlActivity"
+
     private const val PREFIX = "com.dohex.hyperrose.action"
 
     private const val EXTRA_PREFIX = "com.dohex.hyperrose.extra"
@@ -33,7 +40,9 @@ object HyperRoseIpc {
     const val DISCONNECT_GATT = "$PREFIX.disconnect_gatt"
 
     // 广播 Extra 键
-    const val EXTRA_DEVICE = "device"
+    const val EXTRA_DEVICE = "$EXTRA_PREFIX.device"
+    const val EXTRA_DEVICE_NAME = "$EXTRA_PREFIX.device_name"
+    const val EXTRA_FORCE_CONNECTED = "$EXTRA_PREFIX.force_connected"
     const val EXTRA_MODE = "$EXTRA_PREFIX.mode"
     const val EXTRA_DEPTH = "$EXTRA_PREFIX.depth"
     const val EXTRA_LEVEL = "$EXTRA_PREFIX.level"
@@ -44,4 +53,8 @@ object HyperRoseIpc {
     const val EXTRA_LEFT_CHARGING = "$EXTRA_PREFIX.left_charging"
     const val EXTRA_RIGHT_CHARGING = "$EXTRA_PREFIX.right_charging"
     const val EXTRA_CASE_LEVEL = "$EXTRA_PREFIX.case_level"
+
+    const val SIDE_LEFT = "LEFT"
+    const val SIDE_RIGHT = "RIGHT"
+    const val SIDE_STOP = "STOP"
 }

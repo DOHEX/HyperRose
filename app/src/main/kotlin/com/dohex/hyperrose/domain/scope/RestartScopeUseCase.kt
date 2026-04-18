@@ -1,14 +1,15 @@
 package com.dohex.hyperrose.domain.scope
 
 import android.util.Log
+import com.dohex.hyperrose.ipc.HyperRoseIpc
 import com.topjohnwu.superuser.Shell
 
 private const val TAG = "RestartScopeUseCase"
 
 val ScopePackagesToRestart = listOf(
-    "com.android.bluetooth",
-    "com.xiaomi.bluetooth",
-    "com.android.systemui"
+    HyperRoseIpc.PACKAGE_BLUETOOTH,
+    HyperRoseIpc.PACKAGE_MI_BLUETOOTH,
+    HyperRoseIpc.PACKAGE_SYSTEM_UI
 )
 
 data class ScopeRestartItemResult(

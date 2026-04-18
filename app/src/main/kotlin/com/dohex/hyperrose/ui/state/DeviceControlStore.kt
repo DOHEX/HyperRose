@@ -10,14 +10,14 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.dohex.hyperrose.bluetooth.app.StandaloneGattClient
-import com.dohex.hyperrose.model.AncDepth
-import com.dohex.hyperrose.model.AncMode
-import com.dohex.hyperrose.model.EqMode
-import com.dohex.hyperrose.model.HyperRoseAction
-import com.dohex.hyperrose.model.TwsBatteryInfo
-import com.dohex.hyperrose.model.TransLevel
-import com.dohex.hyperrose.model.EarBattery
-import com.dohex.hyperrose.util.CommandBridge
+import com.dohex.hyperrose.domain.audio.AncDepth
+import com.dohex.hyperrose.domain.audio.AncMode
+import com.dohex.hyperrose.domain.audio.EqPreset
+import com.dohex.hyperrose.domain.audio.TransparencyLevel
+import com.dohex.hyperrose.domain.battery.EarBatteryState
+import com.dohex.hyperrose.domain.battery.TwsBatteryState
+import com.dohex.hyperrose.ipc.BluetoothCommandDispatcher
+import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -47,8 +47,8 @@ data class RoseDeviceItem(
 
 /**
  * App 侧统一状态与控制入口。
- * - 直接模式：AppGattManager
- * - 桥接模式：接收 Hook 广播 + CommandBridge 下发控制命令
+ * - 直接模式：StandaloneGattClient
+ * - 桥接模式：接收 Hook 广播 + BluetoothCommandDispatcher 下发控制命令
  */
 class DeviceControlStore(private val context: Context) {
     private val appContext = context.applicationContext
@@ -70,8 +70,8 @@ class DeviceControlStore(private val context: Context) {
     private val _deviceName = MutableStateFlow<String?>(null)
     val deviceName: StateFlow<String?> = _deviceName.asStateFlow()
 
-    private val _battery = MutableStateFlow<TwsBatteryInfo?>(null)
-    val battery: StateFlow<TwsBatteryInfo?> = _battery.asStateFlow()
+    private val _battery = MutableStateFlow<TwsBatteryState?>(null)
+    val battery: StateFlow<TwsBatteryState?> = _battery.asStateFlow()
 
     private val _ancMode = MutableStateFlow<AncMode?>(null)
     val ancMode: StateFlow<AncMode?> = _ancMode.asStateFlow()
@@ -79,11 +79,11 @@ class DeviceControlStore(private val context: Context) {
     private val _ancDepth = MutableStateFlow<AncDepth?>(null)
     val ancDepth: StateFlow<AncDepth?> = _ancDepth.asStateFlow()
 
-    private val _transLevel = MutableStateFlow<TransLevel?>(null)
-    val transLevel: StateFlow<TransLevel?> = _transLevel.asStateFlow()
+    private val _transLevel = MutableStateFlow<TransparencyLevel?>(null)
+    val transLevel: StateFlow<TransparencyLevel?> = _transLevel.asStateFlow()
 
-    private val _eqMode = MutableStateFlow<EqMode?>(null)
-    val eqMode: StateFlow<EqMode?> = _eqMode.asStateFlow()
+    private val _eqMode = MutableStateFlow<EqPreset?>(null)
+    val eqMode: StateFlow<EqPreset?> = _eqMode.asStateFlow()
 
     private val _gameMode = MutableStateFlow(false)
     val gameMode: StateFlow<Boolean> = _gameMode.asStateFlow()
@@ -131,13 +131,13 @@ class DeviceControlStore(private val context: Context) {
 
                 HyperRoseAction.TRANS_LEVEL_CHANGED -> {
                     intent.getStringExtra(HyperRoseAction.EXTRA_LEVEL)
-                        ?.let { runCatching { TransLevel.valueOf(it) }.getOrNull() }
+                        ?.let { runCatching { TransparencyLevel.valueOf(it) }.getOrNull() }
                         ?.let { _transLevel.value = it }
                 }
 
                 HyperRoseAction.EQ_CHANGED -> {
                     intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
-                        ?.let { runCatching { EqMode.valueOf(it) }.getOrNull() }
+                        ?.let { runCatching { EqPreset.valueOf(it) }.getOrNull() }
                         ?.let { _eqMode.value = it }
                 }
 
@@ -206,89 +206,80 @@ class DeviceControlStore(private val context: Context) {
         if (isDirectConnected()) {
             appGattManager.setAnc(mode)
         } else {
-            CommandBridge.setAnc(appContext, mode)
+            BluetoothCommandDispatcher.setAnc(appContext, mode)
         }
     }
-
     fun setAncDepth(depth: AncDepth) {
         _ancDepth.value = depth
         if (isDirectConnected()) {
             appGattManager.setAncDepth(depth)
         } else {
-            CommandBridge.setAncDepth(appContext, depth)
+            BluetoothCommandDispatcher.setAncDepth(appContext, depth)
         }
     }
-
-    fun setTransLevel(level: TransLevel) {
+    fun setTransLevel(level: TransparencyLevel) {
         _transLevel.value = level
         if (isDirectConnected()) {
             appGattManager.setTransLevel(level)
         } else {
-            CommandBridge.setTransLevel(appContext, level)
+            BluetoothCommandDispatcher.setTransLevel(appContext, level)
         }
     }
-
-    fun setEq(mode: EqMode) {
+    fun setEq(mode: EqPreset) {
         _eqMode.value = mode
         if (isDirectConnected()) {
             appGattManager.setEq(mode)
         } else {
-            CommandBridge.setEq(appContext, mode)
+            BluetoothCommandDispatcher.setEq(appContext, mode)
         }
     }
-
     fun setGameMode(enabled: Boolean) {
         _gameMode.value = enabled
         if (isDirectConnected()) {
             appGattManager.setGameMode(enabled)
         } else {
-            CommandBridge.setGameMode(appContext, enabled)
+            BluetoothCommandDispatcher.setGameMode(appContext, enabled)
         }
     }
-
     fun findLeft() {
         if (isDirectConnected()) {
             appGattManager.findLeft()
         } else {
-            CommandBridge.findLeft(appContext)
+            BluetoothCommandDispatcher.findLeft(appContext)
         }
     }
-
     fun findRight() {
         if (isDirectConnected()) {
             appGattManager.findRight()
         } else {
-            CommandBridge.findRight(appContext)
+            BluetoothCommandDispatcher.findRight(appContext)
         }
     }
-
     fun stopFind() {
         if (isDirectConnected()) {
             appGattManager.stopFind()
         } else {
-            CommandBridge.stopFind(appContext)
+            BluetoothCommandDispatcher.stopFind(appContext)
         }
     }
-
     fun refreshStatus() {
         if (isDirectConnected()) {
             appGattManager.refreshStatus()
         } else {
-            CommandBridge.refreshStatus(appContext)
+            BluetoothCommandDispatcher.refreshStatus(appContext)
         }
     }
-
     fun disconnect() {
         if (isDirectConnected()) {
             appGattManager.disconnect()
         }
-        CommandBridge.disconnectGatt(appContext)
+        BluetoothCommandDispatcher.disconnectGatt(appContext)
         _connectionState.value = DeviceConnectionState.DISCONNECTED
         _transport.value = ConnectionTransport.NONE
         clearState()
     }
 
-    fun setTemporaryConnectionState(name: String, battery: TwsBatteryInfo?) {
+    fun setTemporaryConnectionState(name: String, battery: TwsBatteryState?) {
         if (_connectionState.value == DeviceConnectionState.CONNECTED) return
         _transport.value = ConnectionTransport.HOOK_BRIDGE
         _connectionState.value = DeviceConnectionState.CONNECTED
@@ -386,7 +377,7 @@ class DeviceControlStore(private val context: Context) {
         return appGattManager.connectionState.value == StandaloneGattClient.ConnectionState.CONNECTED
     }
 
-    private fun parseBattery(intent: Intent): TwsBatteryInfo? {
+    private fun parseBattery(intent: Intent): TwsBatteryState? {
         val leftLevel = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
         val rightLevel = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
         val caseLevel = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
@@ -396,7 +387,7 @@ class DeviceControlStore(private val context: Context) {
         }
 
         val left = if (leftLevel >= 0) {
-            EarBattery(
+            EarBatteryState(
                 level = leftLevel,
                 isCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false)
             )
@@ -405,7 +396,7 @@ class DeviceControlStore(private val context: Context) {
         }
 
         val right = if (rightLevel >= 0) {
-            EarBattery(
+            EarBatteryState(
                 level = rightLevel,
                 isCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, false)
             )
@@ -413,7 +404,7 @@ class DeviceControlStore(private val context: Context) {
             null
         }
 
-        return TwsBatteryInfo(
+        return TwsBatteryState(
             left = left,
             right = right,
             caseBattery = caseLevel.takeIf { it >= 0 }
