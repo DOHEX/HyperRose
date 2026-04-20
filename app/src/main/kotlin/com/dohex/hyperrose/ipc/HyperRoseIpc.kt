@@ -57,4 +57,32 @@ object HyperRoseIpc {
     const val SIDE_LEFT = "LEFT"
     const val SIDE_RIGHT = "RIGHT"
     const val SIDE_STOP = "STOP"
+
+    val SCOPE_PACKAGES: List<String> = listOf(
+        PACKAGE_BLUETOOTH,
+        PACKAGE_MI_BLUETOOTH,
+        PACKAGE_SYSTEM_UI
+    )
+
+    val BRIDGE_STATE_ACTIONS: List<String> = listOf(
+        DEVICE_CONNECTED,
+        DEVICE_DISCONNECTED,
+        BATTERY_CHANGED,
+        ANC_CHANGED,
+        ANC_DEPTH_CHANGED,
+        TRANS_LEVEL_CHANGED,
+        EQ_CHANGED,
+        GAME_MODE_CHANGED
+    )
+
+    val APP_CONTROL_ACTIONS: List<String> = listOf(
+        SET_ANC,
+        SET_ANC_DEPTH,
+        SET_TRANS_LEVEL,
+        SET_EQ,
+        SET_GAME_MODE,
+        FIND_EARPHONE,
+        REFRESH_STATUS,
+        DISCONNECT_GATT
+    )
 }

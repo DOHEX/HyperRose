@@ -1,11 +1,10 @@
-package com.dohex.hyperrose.hook
+package com.dohex.hyperrose.xposed.process.systemui
 
 import android.content.Context
-import android.content.Intent
 import android.util.Log
 import com.dohex.hyperrose.core.reflection.ReflectionHelper
-import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
-import com.dohex.hyperrose.ipc.HyperRoseIpc
+import com.dohex.hyperrose.ipc.QuickControlIntentFactory
+import com.dohex.hyperrose.xposed.entry.HyperRoseModuleEntry.Companion.TAG
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import java.lang.reflect.Method
@@ -13,9 +12,9 @@ import java.lang.reflect.Method
 /**
  * 控制中心设备卡片点击拦截。
  * 在 MIUI SystemUI plugin ClassLoader 中 hook DeviceInfoWrapper.performClicked()。
- * 如果点击的设备是 ROSE EARFREE，打开自定义 PopupActivity。
+ * 如果点击的设备是 ROSE EARFREE，打开自定义 QuickControlActivity。
  */
-object DeviceCardHook {
+object DeviceCardClickHook {
 
     private const val DEVICE_NAME_KEYWORD = "ROSE EARFREE"
 
@@ -44,12 +43,12 @@ object DeviceCardHook {
             if (hookClickMethod(module, wrapperClass)) {
                 hookedWrapperKeys += hookKey
                 hooked = true
-                module.log(Log.INFO, TAG, "DeviceCardHook: Hooked $className")
+                module.log(Log.INFO, TAG, "DeviceCardClickHook: Hooked $className")
             }
         }
 
         if (!hooked) {
-            module.log(Log.WARN, TAG, "DeviceCardHook: No compatible DeviceInfoWrapper found")
+            module.log(Log.WARN, TAG, "DeviceCardClickHook: No compatible DeviceInfoWrapper found")
         }
         return hooked
     }
@@ -68,7 +67,7 @@ object DeviceCardHook {
             result
         })
         panelHookClassLoaderId = clId
-        module.log(Log.INFO, TAG, "DeviceCardHook: MainPanelController hook installed")
+        module.log(Log.INFO, TAG, "DeviceCardClickHook: MainPanelController hook installed")
     }
 
     private fun hookClickMethod(module: XposedModule, wrapperClass: Class<*>): Boolean {
@@ -93,24 +92,24 @@ object DeviceCardHook {
                 module.log(
                     Log.DEBUG,
                     TAG,
-                    "DeviceCardHook: click type=$deviceType id=$deviceId name=$deviceName"
+                    "DeviceCardClickHook: click type=$deviceType id=$deviceId name=$deviceName"
                 )
 
                 if (!isTargetCard(deviceType, deviceName)) {
-                    module.log(Log.DEBUG, TAG, "DeviceCardHook: skip non-target card")
+                    module.log(Log.DEBUG, TAG, "DeviceCardClickHook: skip non-target card")
                     return@runCatching chain.proceed()
                 }
 
                 if (!startQuickControl(context, deviceName)) {
-                    module.log(Log.WARN, TAG, "DeviceCardHook: start quick control failed")
+                    module.log(Log.WARN, TAG, "DeviceCardClickHook: start quick control failed")
                     return@runCatching chain.proceed()
                 }
 
-                module.log(Log.INFO, TAG, "DeviceCardHook: opened quick control for $deviceName")
+                module.log(Log.INFO, TAG, "DeviceCardClickHook: opened quick control for $deviceName")
                 hideControlCenterPanel(module)
                 null
             }.getOrElse {
-                module.log(Log.WARN, TAG, "DeviceCardHook: click intercept failed", it)
+                module.log(Log.WARN, TAG, "DeviceCardClickHook: click intercept failed", it)
                 chain.proceed()
             }
 
@@ -164,18 +163,7 @@ object DeviceCardHook {
 
     private fun startQuickControl(context: Context, deviceName: String?): Boolean {
         return runCatching {
-            val intent = Intent().apply {
-                setClassName(HyperRoseIpc.PACKAGE_APP, HyperRoseIpc.QUICK_CONTROL_ACTIVITY)
-                putExtra(HyperRoseIpc.EXTRA_DEVICE_NAME, deviceName)
-                putExtra(HyperRoseIpc.EXTRA_FORCE_CONNECTED, true)
-                addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_NO_ANIMATION or
-                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP
-                )
-            }
+            val intent = QuickControlIntentFactory.createLaunchIntent(deviceName = deviceName)
             context.startActivity(intent)
         }.isSuccess
     }
@@ -184,7 +172,7 @@ object DeviceCardHook {
         val panel = panelController ?: return
         runCatching { ReflectionHelper.callMethod(panel, "exitOrHide") }
             .onFailure {
-                module.log(Log.DEBUG, TAG, "DeviceCardHook: exitOrHide not available", it)
+                module.log(Log.DEBUG, TAG, "DeviceCardClickHook: exitOrHide not available", it)
             }
     }
 }

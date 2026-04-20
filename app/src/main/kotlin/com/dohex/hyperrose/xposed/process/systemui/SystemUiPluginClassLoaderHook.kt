@@ -1,8 +1,8 @@
-package com.dohex.hyperrose.hook
+package com.dohex.hyperrose.xposed.process.systemui
 
 import android.util.Log
 import com.dohex.hyperrose.core.reflection.ReflectionHelper
-import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
+import com.dohex.hyperrose.xposed.entry.HyperRoseModuleEntry.Companion.TAG
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
@@ -10,9 +10,9 @@ import java.lang.reflect.Method
 
 /**
  * com.android.systemui 进程的 Hook。
- * 获取 miui.systemui.plugin 的 ClassLoader，用于后续 DeviceCardHook。
+ * 获取 miui.systemui.plugin 的 ClassLoader，用于后续 DeviceCardClickHook。
  */
-object SystemUIPluginHook {
+object SystemUiPluginClassLoaderHook {
 
     var pluginClassLoader: ClassLoader? = null
         private set
@@ -30,12 +30,12 @@ object SystemUIPluginHook {
         try {
             val hooked = hookPluginInstanceLoadPlugin(module, cl) or hookLegacyFactory(module, cl)
             if (hooked) {
-                module.log(Log.INFO, TAG, "SystemUIPluginHook: Hooked successfully")
+                module.log(Log.INFO, TAG, "SystemUiPluginClassLoaderHook: hooks installed")
             } else {
-                module.log(Log.WARN, TAG, "SystemUIPluginHook: No suitable method found")
+                module.log(Log.WARN, TAG, "SystemUiPluginClassLoaderHook: no suitable plugin entry found")
             }
         } catch (e: Throwable) {
-            module.log(Log.ERROR, TAG, "SystemUIPluginHook: Failed to hook", e)
+            module.log(Log.ERROR, TAG, "SystemUiPluginClassLoaderHook: failed to install hooks", e)
         }
     }
 
@@ -56,14 +56,14 @@ object SystemUIPluginHook {
                 val pkgName = runCatching {
                     ReflectionHelper.callMethod(chain.thisObject, "getPackage") as? String
                 }.getOrNull()
-                module.log(Log.DEBUG, TAG, "SystemUIPluginHook: loadPlugin package=$pkgName")
+                module.log(Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: loadPlugin package=$pkgName")
                 if (pkgName == "miui.systemui.plugin") {
                     extractPluginClassLoader(chain.thisObject)?.let {
-                        tryInitDeviceCardHook(module, it)
+                        tryInitDeviceCardClickHook(module, it)
                     }
                 }
             }.onFailure {
-                module.log(Log.DEBUG, TAG, "SystemUIPluginHook: loadPlugin inspect failed", it)
+                module.log(Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: loadPlugin inspect failed", it)
             }
             result
         })
@@ -86,11 +86,11 @@ object SystemUIPluginHook {
             val result = chain.proceed()
 
             if (result is ClassLoader) {
-                tryInitDeviceCardHook(module, result)
+                tryInitDeviceCardClickHook(module, result)
             } else if (result != null) {
                 val resultCl = result.javaClass.classLoader
                 if (resultCl != null && resultCl != cl) {
-                    tryInitDeviceCardHook(module, resultCl)
+                    tryInitDeviceCardClickHook(module, resultCl)
                 }
             }
             result
@@ -122,23 +122,23 @@ object SystemUIPluginHook {
         return direct
     }
 
-    private fun tryInitDeviceCardHook(module: XposedModule, classLoader: ClassLoader) {
+    private fun tryInitDeviceCardClickHook(module: XposedModule, classLoader: ClassLoader) {
         if (!isPluginClassLoader(classLoader)) {
-            module.log(Log.DEBUG, TAG, "SystemUIPluginHook: classLoader not plugin")
+            module.log(Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: classLoader is not plugin")
             return
         }
 
-        val hooked = DeviceCardHook.init(module, classLoader)
+        val hooked = DeviceCardClickHook.init(module, classLoader)
         if (!hooked) {
-            module.log(Log.DEBUG, TAG, "SystemUIPluginHook: DeviceCardHook not installed")
+            module.log(Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: DeviceCardClickHook not installed")
             return
         }
 
         if (pluginClassLoader != classLoader) {
             pluginClassLoader = classLoader
-            module.log(Log.INFO, TAG, "SystemUIPluginHook: Plugin ClassLoader captured")
+            module.log(Log.INFO, TAG, "SystemUiPluginClassLoaderHook: Plugin ClassLoader captured")
         } else {
-            module.log(Log.DEBUG, TAG, "SystemUIPluginHook: Plugin ClassLoader unchanged")
+            module.log(Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: Plugin ClassLoader unchanged")
         }
     }
 

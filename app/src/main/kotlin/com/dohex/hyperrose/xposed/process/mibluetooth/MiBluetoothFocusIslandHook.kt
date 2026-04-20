@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.hook
+package com.dohex.hyperrose.xposed.process.mibluetooth
 
 import android.annotation.SuppressLint
 import android.app.Notification
@@ -13,9 +13,10 @@ import android.content.IntentFilter
 import android.os.Build
 import android.util.Log
 import com.dohex.hyperrose.core.reflection.ReflectionHelper
-import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
+import com.dohex.hyperrose.ipc.QuickControlIntentFactory
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import com.dohex.hyperrose.util.FocusIslandBridge
+import com.dohex.hyperrose.xposed.entry.HyperRoseModuleEntry.Companion.TAG
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
@@ -25,7 +26,7 @@ import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
  * 对齐 HyperOriG 的“宿主发岛”策略。
  */
 @SuppressLint("MissingPermission")
-object MiBtNotificationHook {
+object MiBluetoothFocusIslandHook {
 
     private const val CHANNEL_ID = "hyperrose.focus"
     private const val CHANNEL_NAME = "HyperRose Focus"
@@ -42,7 +43,7 @@ object MiBtNotificationHook {
             val notifClass = cl.loadClass("com.android.bluetooth.ble.app.MiuiBluetoothNotification")
             val ctor = notifClass.declaredConstructors.firstOrNull { it.parameterCount >= 1 }
             if (ctor == null) {
-                module.log(Log.WARN, TAG, "MiBtNotificationHook: constructor not found")
+                module.log(Log.WARN, TAG, "MiBluetoothFocusIslandHook: MiuiBluetoothNotification constructor not found")
                 return
             }
 
@@ -53,14 +54,14 @@ object MiBtNotificationHook {
                         ?: (try { ReflectionHelper.getField(chain.thisObject, "mContext") as? Context } catch (_: Throwable) { null })
                     if (context != null) registerReceiver(module, context)
                 } catch (t: Throwable) {
-                    module.log(Log.ERROR, TAG, "MiBtNotificationHook: register receiver failed", t)
+                    module.log(Log.ERROR, TAG, "MiBluetoothFocusIslandHook: failed to register receiver", t)
                 }
                 result
             })
 
-            module.log(Log.INFO, TAG, "MiBtNotificationHook: hooked MiuiBluetoothNotification")
+            module.log(Log.INFO, TAG, "MiBluetoothFocusIslandHook: hooked MiuiBluetoothNotification constructor")
         } catch (t: Throwable) {
-            module.log(Log.ERROR, TAG, "MiBtNotificationHook: hook failed", t)
+            module.log(Log.ERROR, TAG, "MiBluetoothFocusIslandHook: failed to install hook", t)
         }
     }
 
@@ -105,7 +106,7 @@ object MiBtNotificationHook {
                                 showedIslandOnCurrentConnection = true
                                 lastIslandTimestamp = now
                             }
-                            .onFailure { module.log(Log.WARN, TAG, "MiBtNotificationHook: show island failed", it) }
+                            .onFailure { module.log(Log.WARN, TAG, "MiBluetoothFocusIslandHook: show island failed", it) }
                     }
 
                     HyperRoseAction.DEVICE_CONNECTED -> {
@@ -122,12 +123,14 @@ object MiBtNotificationHook {
         }
 
         val filter = IntentFilter(HyperRoseAction.SHOW_ISLAND).apply {
-            addAction(HyperRoseAction.DEVICE_CONNECTED)
-            addAction(HyperRoseAction.DEVICE_DISCONNECTED)
+            HyperRoseAction.BRIDGE_STATE_ACTIONS
+                .asSequence()
+                .filter { it == HyperRoseAction.DEVICE_CONNECTED || it == HyperRoseAction.DEVICE_DISCONNECTED }
+                .forEach(::addAction)
         }
         context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         receiverRegistered = true
-        module.log(Log.INFO, TAG, "MiBtNotificationHook: receiver registered")
+        module.log(Log.INFO, TAG, "MiBluetoothFocusIslandHook: receiver ready")
     }
 
     private fun showIsland(
@@ -200,20 +203,12 @@ object MiBtNotificationHook {
         left: Int,
         right: Int
     ): PendingIntent {
-        val intent = Intent().apply {
-            setClassName(HyperRoseAction.PACKAGE_APP, HyperRoseAction.QUICK_CONTROL_ACTIVITY)
-            putExtra(HyperRoseAction.EXTRA_DEVICE_NAME, device?.name)
-            putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, left)
-            putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, right)
-            putExtra(HyperRoseAction.EXTRA_FORCE_CONNECTED, true)
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_NO_ANIMATION or
-                    Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
-            )
-        }
+        val intent = QuickControlIntentFactory.createLaunchIntent(
+            deviceName = device?.name,
+            leftLevel = left,
+            rightLevel = right,
+            forceConnected = true
+        )
 
         return PendingIntent.getActivity(
             context,

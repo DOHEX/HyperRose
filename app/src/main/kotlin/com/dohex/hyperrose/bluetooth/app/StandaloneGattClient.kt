@@ -13,14 +13,15 @@ import com.dohex.hyperrose.domain.audio.AncMode
 import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
-import com.dohex.hyperrose.bluetooth.hook.HookProcessGattClient
+import com.dohex.hyperrose.bluetooth.protocol.RoseGattSpec
+import com.dohex.hyperrose.bluetooth.protocol.RoseGattTiming
+import com.dohex.hyperrose.bluetooth.protocol.RoseGattQueryScheduler
 import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
 import com.dohex.hyperrose.bluetooth.protocol.RoseResponse
 import com.dohex.hyperrose.bluetooth.protocol.RoseResponseParser as RoseParser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.UUID
 
 /**
  * 独立 App 用的 BLE GATT 通信管理器。
@@ -29,9 +30,7 @@ import java.util.UUID
 class StandaloneGattClient(private val context: Context) {
 
     companion object {
-        private const val TAG = "HyperRose.AppGatt"
-        private const val BATTERY_POLL_INTERVAL_MS = 30_000L
-        private const val QUERY_DELAY_MS = 300L
+        private const val TAG = "HyperRose.StandaloneGattClient"
     }
 
     enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED }
@@ -140,15 +139,15 @@ class StandaloneGattClient(private val context: Context) {
                 return
             }
 
-            val service = gatt.getService(HookProcessGattClient.SERVICE_UUID)
+            val service = gatt.getService(RoseGattSpec.SERVICE_UUID)
             if (service == null) {
                 Log.e(TAG, "Service not found")
                 _connectionState.value = ConnectionState.DISCONNECTED
                 return
             }
 
-            writeChar = service.getCharacteristic(HookProcessGattClient.WRITE_UUID)
-            val notifyChar = service.getCharacteristic(HookProcessGattClient.NOTIFY_UUID)
+            writeChar = service.getCharacteristic(RoseGattSpec.WRITE_UUID)
+            val notifyChar = service.getCharacteristic(RoseGattSpec.NOTIFY_UUID)
 
             if (writeChar == null || notifyChar == null) {
                 Log.e(TAG, "Characteristics not found")
@@ -158,7 +157,7 @@ class StandaloneGattClient(private val context: Context) {
 
             // 启用通知
             gatt.setCharacteristicNotification(notifyChar, true)
-            val descriptor = notifyChar.getDescriptor(HookProcessGattClient.CCCD_UUID)
+            val descriptor = notifyChar.getDescriptor(RoseGattSpec.CCCD_UUID)
             if (descriptor != null) {
                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 gatt.writeDescriptor(descriptor)
@@ -168,7 +167,7 @@ class StandaloneGattClient(private val context: Context) {
             Log.i(TAG, "GATT ready")
 
             // 查询全部状态
-            handler.postDelayed({ queryAllStatus() }, 500)
+            handler.postDelayed({ queryAllStatus() }, RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS)
         }
 
         override fun onCharacteristicChanged(
@@ -195,25 +194,8 @@ class StandaloneGattClient(private val context: Context) {
     }
 
     private fun queryAllStatus() {
-        val queries = listOf(
-            RosePackets.QUERY_BATTERY,
-            RosePackets.QUERY_ANC,
-            RosePackets.QUERY_ANC_DEPTH,
-            RosePackets.QUERY_TRANS_LEVEL,
-            RosePackets.QUERY_EQ,
-            RosePackets.QUERY_GAME_MODE
-        )
-        queries.forEachIndexed { index, query ->
-            handler.postDelayed({ sendCommand(query) }, QUERY_DELAY_MS * index)
-        }
+        RoseGattQueryScheduler.scheduleStatusQueries(handler, ::sendCommand)
         // 启动电量轮询
-        handler.postDelayed(batteryPollRunnable, BATTERY_POLL_INTERVAL_MS)
-    }
-
-    private val batteryPollRunnable = object : Runnable {
-        override fun run() {
-            sendCommand(RosePackets.QUERY_BATTERY)
-            handler.postDelayed(this, BATTERY_POLL_INTERVAL_MS)
-        }
+        RoseGattQueryScheduler.scheduleBatteryPolling(handler, ::sendCommand)
     }
 }

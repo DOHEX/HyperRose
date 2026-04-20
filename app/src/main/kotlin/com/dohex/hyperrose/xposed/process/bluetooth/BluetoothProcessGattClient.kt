@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.bluetooth.hook
+package com.dohex.hyperrose.xposed.process.bluetooth
 
 import android.annotation.SuppressLint
 import android.bluetooth.*
@@ -12,13 +12,15 @@ import com.dohex.hyperrose.domain.audio.AncMode
 import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
-import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
+import com.dohex.hyperrose.bluetooth.protocol.RoseGattSpec
+import com.dohex.hyperrose.bluetooth.protocol.RoseGattTiming
+import com.dohex.hyperrose.bluetooth.protocol.RoseGattQueryScheduler
 import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
 import com.dohex.hyperrose.bluetooth.protocol.RoseResponse
 import com.dohex.hyperrose.bluetooth.protocol.RoseResponseParser as RoseParser
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
+import com.dohex.hyperrose.xposed.entry.HyperRoseModuleEntry.Companion.TAG
 import io.github.libxposed.api.XposedModule
-import java.util.UUID
 
 /**
  * Hook 进程中的 BLE GATT 通信管理器。
@@ -26,21 +28,10 @@ import java.util.UUID
  * 通过广播将状态变化发送给其他进程（MiBluetooth、App）。
  */
 @SuppressLint("MissingPermission")
-class HookProcessGattClient(
+class BluetoothProcessGattClient(
     private val context: Context,
     private val module: XposedModule
 ) {
-
-    companion object {
-        // BLE GATT UUIDs（从 nRF Connect 推导，如连接失败需替换为完整 128-bit UUID）
-        val SERVICE_UUID: UUID = UUID.fromString("011bf5da-0000-1000-8000-00805f9b34fb")
-        val WRITE_UUID: UUID = UUID.fromString("00007777-0000-1000-8000-00805f9b34fb")
-        val NOTIFY_UUID: UUID = UUID.fromString("00008888-0000-1000-8000-00805f9b34fb")
-        val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-
-        private const val BATTERY_POLL_INTERVAL_MS = 30_000L
-        private const val QUERY_DELAY_MS = 300L
-    }
 
     private var gatt: BluetoothGatt? = null
     private var writeChar: BluetoothGattCharacteristic? = null
@@ -57,7 +48,7 @@ class HookProcessGattClient(
 
     fun connect(device: BluetoothDevice) {
         connectedDevice = device
-        module.log(Log.INFO, TAG, "GattManager: Connecting to ${device.address}")
+        module.log(Log.INFO, TAG, "BluetoothProcessGattClient: connecting to ${device.address}")
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
     }
 
@@ -95,51 +86,51 @@ class HookProcessGattClient(
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                module.log(Log.INFO, TAG, "GattManager: GATT connected, discovering services")
+                module.log(Log.INFO, TAG, "BluetoothProcessGattClient: GATT connected, discovering services")
                 gatt.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                module.log(Log.INFO, TAG, "GattManager: GATT disconnected")
+                module.log(Log.INFO, TAG, "BluetoothProcessGattClient: GATT disconnected")
                 handler.removeCallbacksAndMessages(null)
             }
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                module.log(Log.ERROR, TAG, "GattManager: Service discovery failed: $status")
+                module.log(Log.ERROR, TAG, "BluetoothProcessGattClient: service discovery failed: $status")
                 return
             }
 
-            val service = gatt.getService(SERVICE_UUID)
+            val service = gatt.getService(RoseGattSpec.SERVICE_UUID)
             if (service == null) {
-                module.log(Log.ERROR, TAG, "GattManager: Service $SERVICE_UUID not found")
+                module.log(Log.ERROR, TAG, "BluetoothProcessGattClient: service ${RoseGattSpec.SERVICE_UUID} not found")
                 return
             }
 
             // 获取 Write 特征
-            writeChar = service.getCharacteristic(WRITE_UUID)
+            writeChar = service.getCharacteristic(RoseGattSpec.WRITE_UUID)
             if (writeChar == null) {
-                module.log(Log.ERROR, TAG, "GattManager: Write characteristic $WRITE_UUID not found")
+                module.log(Log.ERROR, TAG, "BluetoothProcessGattClient: write characteristic ${RoseGattSpec.WRITE_UUID} not found")
                 return
             }
 
             // 获取 Notify 特征并启用通知
-            val notifyChar = service.getCharacteristic(NOTIFY_UUID)
+            val notifyChar = service.getCharacteristic(RoseGattSpec.NOTIFY_UUID)
             if (notifyChar == null) {
-                module.log(Log.ERROR, TAG, "GattManager: Notify characteristic $NOTIFY_UUID not found")
+                module.log(Log.ERROR, TAG, "BluetoothProcessGattClient: notify characteristic ${RoseGattSpec.NOTIFY_UUID} not found")
                 return
             }
 
             gatt.setCharacteristicNotification(notifyChar, true)
-            val descriptor = notifyChar.getDescriptor(CCCD_UUID)
+            val descriptor = notifyChar.getDescriptor(RoseGattSpec.CCCD_UUID)
             if (descriptor != null) {
                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 gatt.writeDescriptor(descriptor)
             }
 
-            module.log(Log.INFO, TAG, "GattManager: GATT ready, querying initial status")
+            module.log(Log.INFO, TAG, "BluetoothProcessGattClient: GATT ready, querying initial status")
 
             // 延迟查询全部状态
-            handler.postDelayed({ queryAllStatus() }, 500)
+            handler.postDelayed({ queryAllStatus() }, RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS)
         }
 
         override fun onCharacteristicChanged(
@@ -209,7 +200,7 @@ class HookProcessGattClient(
                 }
             }
             is RoseResponse.Unknown -> {
-                module.log(Log.DEBUG, TAG, "GattManager: Unknown response: ${data.toHexString()}")
+                module.log(Log.DEBUG, TAG, "BluetoothProcessGattClient: unknown response: ${data.toHexString()}")
             }
         }
     }
@@ -218,29 +209,10 @@ class HookProcessGattClient(
 
     /** 串行查询全部状态 */
     private fun queryAllStatus() {
-        val queries = listOf(
-            RosePackets.QUERY_BATTERY,
-            RosePackets.QUERY_ANC,
-            RosePackets.QUERY_ANC_DEPTH,
-            RosePackets.QUERY_TRANS_LEVEL,
-            RosePackets.QUERY_EQ,
-            RosePackets.QUERY_GAME_MODE
-        )
-        queries.forEachIndexed { index, query ->
-            handler.postDelayed({ sendCommand(query) }, QUERY_DELAY_MS * index)
-        }
+        RoseGattQueryScheduler.scheduleStatusQueries(handler, ::sendCommand)
 
         // 启动电量轮询
-        scheduleBatteryPoll()
-    }
-
-    private fun scheduleBatteryPoll() {
-        handler.postDelayed(object : Runnable {
-            override fun run() {
-                sendCommand(RosePackets.QUERY_BATTERY)
-                handler.postDelayed(this, BATTERY_POLL_INTERVAL_MS)
-            }
-        }, BATTERY_POLL_INTERVAL_MS)
+        RoseGattQueryScheduler.scheduleBatteryPolling(handler, ::sendCommand)
     }
 
     // ==================== 广播工具 ====================

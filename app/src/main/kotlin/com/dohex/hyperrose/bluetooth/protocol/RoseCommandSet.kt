@@ -89,6 +89,15 @@ object RoseCommandSet {
     val QUERY_GAME_MODE: ByteArray   = hexToBytes("08 EE 00 00 00 06 03 0A 00 09")
     val QUERY_BATTERY: ByteArray     = hexToBytes("08 EE 00 00 00 01 01 0A 00 02")
 
+    val STATUS_QUERY_SEQUENCE: Array<ByteArray> = arrayOf(
+        QUERY_BATTERY,
+        QUERY_ANC,
+        QUERY_ANC_DEPTH,
+        QUERY_TRANS_LEVEL,
+        QUERY_EQ,
+        QUERY_GAME_MODE
+    )
+
     // ==================== 工具方法 ====================
 
     /**

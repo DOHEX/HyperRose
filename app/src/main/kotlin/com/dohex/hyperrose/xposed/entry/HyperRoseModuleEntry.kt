@@ -1,10 +1,10 @@
-package com.dohex.hyperrose.entry
+package com.dohex.hyperrose.xposed.entry
 
 import android.util.Log
-import com.dohex.hyperrose.hook.BluetoothHook
-import com.dohex.hyperrose.hook.MiBtNotificationHook
-import com.dohex.hyperrose.hook.SystemUIPluginHook
 import com.dohex.hyperrose.ipc.HyperRoseIpc
+import com.dohex.hyperrose.xposed.process.bluetooth.BluetoothProcessHook
+import com.dohex.hyperrose.xposed.process.mibluetooth.MiBluetoothFocusIslandHook
+import com.dohex.hyperrose.xposed.process.systemui.SystemUiPluginClassLoaderHook
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 
@@ -16,7 +16,7 @@ import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
  * - onPackageLoaded() 在目标进程默认 classloader 就绪后调用
  * - hook 使用 interceptor-chain 模型
  */
-class HyperRoseXposedEntry : XposedModule() {
+class HyperRoseModuleEntry : XposedModule() {
 
     companion object {
         const val TAG = "HyperRose"
@@ -30,16 +30,16 @@ class HyperRoseXposedEntry : XposedModule() {
         try {
             when (pkg) {
                 HyperRoseIpc.PACKAGE_BLUETOOTH -> {
-                    log(Log.INFO, TAG, "Initializing BluetoothHook")
-                    BluetoothHook.init(this, param)
+                    log(Log.INFO, TAG, "Initializing BluetoothProcessHook")
+                    BluetoothProcessHook.init(this, param)
                 }
                 HyperRoseIpc.PACKAGE_MI_BLUETOOTH -> {
-                    log(Log.INFO, TAG, "Initializing MiBtNotificationHook")
-                    MiBtNotificationHook.init(this, param)
+                    log(Log.INFO, TAG, "Initializing MiBluetoothFocusIslandHook")
+                    MiBluetoothFocusIslandHook.init(this, param)
                 }
                 HyperRoseIpc.PACKAGE_SYSTEM_UI -> {
-                    log(Log.INFO, TAG, "Initializing SystemUIPluginHook")
-                    SystemUIPluginHook.init(this, param)
+                    log(Log.INFO, TAG, "Initializing SystemUiPluginClassLoaderHook")
+                    SystemUiPluginClassLoaderHook.init(this, param)
                 }
             }
         } catch (e: Throwable) {

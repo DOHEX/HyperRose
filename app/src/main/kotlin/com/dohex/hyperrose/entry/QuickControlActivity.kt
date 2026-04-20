@@ -14,6 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import com.dohex.hyperrose.domain.battery.EarBatteryState
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
+import com.dohex.hyperrose.ipc.QuickControlLaunchValidator
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import com.dohex.hyperrose.ui.screen.popup.PopupControlPanel
 import com.dohex.hyperrose.ui.state.DeviceControlStore
@@ -25,7 +26,7 @@ import com.dohex.hyperrose.ui.theme.ThemeSettingsStore
 
 /**
  * 控制中心弹出面板 Activity。
- * 由 DeviceCardHook 从 SystemUI 启动。
+ * 由 DeviceCardClickHook 从 SystemUI 启动。
  */
 class QuickControlActivity : ComponentActivity() {
 
@@ -37,6 +38,12 @@ class QuickControlActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (!QuickControlLaunchValidator.isTrustedCaller(callingActivity)) {
+            finish()
+            return
+        }
+
         runCatching {
             setFinishOnTouchOutside(true)
         }

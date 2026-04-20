@@ -6,11 +6,7 @@ import com.topjohnwu.superuser.Shell
 
 private const val TAG = "RestartScopeUseCase"
 
-val ScopePackagesToRestart = listOf(
-    HyperRoseIpc.PACKAGE_BLUETOOTH,
-    HyperRoseIpc.PACKAGE_MI_BLUETOOTH,
-    HyperRoseIpc.PACKAGE_SYSTEM_UI
-)
+val ScopePackagesToRestart = HyperRoseIpc.SCOPE_PACKAGES
 
 data class ScopeRestartItemResult(
     val packageName: String,

@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.hook
+package com.dohex.hyperrose.xposed.process.bluetooth
 
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothProfile
@@ -7,15 +7,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
+import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
 import com.dohex.hyperrose.core.reflection.ReflectionHelper
 import com.dohex.hyperrose.domain.audio.AncDepth
 import com.dohex.hyperrose.domain.audio.AncMode
 import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
-import com.dohex.hyperrose.entry.HyperRoseXposedEntry.Companion.TAG
-import com.dohex.hyperrose.bluetooth.hook.HookProcessGattClient
-import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
+import com.dohex.hyperrose.xposed.entry.HyperRoseModuleEntry.Companion.TAG
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
@@ -24,12 +23,12 @@ import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
  * com.android.bluetooth 进程的 Hook。
  * 监听 A2DP 连接状态变化，识别 ROSE EARFREE 耳机并启动 GATT 通信。
  */
-object BluetoothHook {
+object BluetoothProcessHook {
 
     /** 蓝牙名称关键字，用于识别目标耳机 */
     private const val DEVICE_NAME_KEYWORD = "ROSE EARFREE"
 
-    private var gattManager: HookProcessGattClient? = null
+    private var gattClient: BluetoothProcessGattClient? = null
     private var commandReceiverRegistered = false
 
     fun init(module: XposedModule, param: PackageLoadedParam) {
@@ -72,9 +71,9 @@ object BluetoothHook {
                 result
             })
 
-            module.log(Log.INFO, TAG, "BluetoothHook: A2dpService hooked successfully")
+            module.log(Log.INFO, TAG, "BluetoothProcessHook: hooked A2dpService")
         } catch (e: Throwable) {
-            module.log(Log.ERROR, TAG, "BluetoothHook: Failed to hook A2dpService", e)
+            module.log(Log.ERROR, TAG, "BluetoothProcessHook: failed to hook A2dpService", e)
         }
     }
 
@@ -88,8 +87,8 @@ object BluetoothHook {
         registerCommandReceiverIfNeeded(module, context)
 
         // 启动 GATT 通信
-        gattManager?.disconnect()
-        gattManager = HookProcessGattClient(context, module).also {
+        gattClient?.disconnect()
+        gattClient = BluetoothProcessGattClient(context, module).also {
             it.connect(device)
         }
 
@@ -108,8 +107,8 @@ object BluetoothHook {
 
     private fun onDeviceDisconnected(module: XposedModule, serviceObj: Any, device: BluetoothDevice) {
         // 断开 GATT
-        gattManager?.disconnect()
-        gattManager = null
+        gattClient?.disconnect()
+        gattClient = null
 
         val context = resolveContext(serviceObj) ?: return
 
@@ -143,19 +142,12 @@ object BluetoothHook {
         if (commandReceiverRegistered) return
 
         val filter = IntentFilter().apply {
-            addAction(HyperRoseAction.SET_ANC)
-            addAction(HyperRoseAction.SET_ANC_DEPTH)
-            addAction(HyperRoseAction.SET_TRANS_LEVEL)
-            addAction(HyperRoseAction.SET_EQ)
-            addAction(HyperRoseAction.SET_GAME_MODE)
-            addAction(HyperRoseAction.FIND_EARPHONE)
-            addAction(HyperRoseAction.REFRESH_STATUS)
-            addAction(HyperRoseAction.DISCONNECT_GATT)
+            HyperRoseAction.APP_CONTROL_ACTIONS.forEach(::addAction)
         }
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
-                val manager = gattManager ?: return
+                val manager = gattClient ?: return
                 try {
                     when (intent.action) {
                         HyperRoseAction.SET_ANC -> {
@@ -204,20 +196,18 @@ object BluetoothHook {
 
                         HyperRoseAction.DISCONNECT_GATT -> {
                             manager.disconnect()
-                            gattManager = null
+                            gattClient = null
                         }
                     }
                 } catch (e: Throwable) {
-                    module.log(Log.ERROR, TAG, "BluetoothHook: command receiver error", e)
+                    module.log(Log.ERROR, TAG, "BluetoothProcessHook: command handling failed", e)
                 }
             }
         }
 
         context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         commandReceiverRegistered = true
-        module.log(Log.INFO, TAG, "BluetoothHook: command receiver registered")
+        module.log(Log.INFO, TAG, "BluetoothProcessHook: command receiver ready")
     }
 
-    /** 供外部获取当前 GattManager */
-    fun getGattManager(): HookProcessGattClient? = gattManager
 }
