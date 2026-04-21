@@ -1,5 +1,6 @@
 package com.dohex.hyperrose.xposed.process.bluetooth
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
@@ -7,17 +8,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
-import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
 import com.dohex.hyperrose.core.reflection.ReflectionHelper
 import com.dohex.hyperrose.domain.audio.AncDepth
 import com.dohex.hyperrose.domain.audio.AncMode
 import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
-import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import com.dohex.hyperrose.xposed.entry.HyperRoseModuleEntry.Companion.TAG
-import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
+import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
+import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
 /**
  * com.android.bluetooth 进程的 Hook。
@@ -28,23 +28,23 @@ object BluetoothProcessHook {
     /** 蓝牙名称关键字，用于识别目标耳机 */
     private const val DEVICE_NAME_KEYWORD = "ROSE EARFREE"
 
+    @SuppressLint("StaticFieldLeak")
     private var gattClient: BluetoothProcessGattClient? = null
     private var commandReceiverRegistered = false
 
+    @SuppressLint("PrivateApi")
     fun init(module: XposedModule, param: PackageLoadedParam) {
-        val cl = param.getDefaultClassLoader()
+        val cl = param.defaultClassLoader
 
         // Hook A2dpService.handleConnectionStateChanged(BluetoothDevice, int, int)
         try {
             val a2dpClass = cl.loadClass("com.android.bluetooth.a2dp.A2dpService")
             val method = a2dpClass.getDeclaredMethod(
-                "handleConnectionStateChanged",
-                BluetoothDevice::class.java,
-                Int::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType
+                "handleConnectionStateChanged", BluetoothDevice::class.java,
+                Int::class.javaPrimitiveType, Int::class.javaPrimitiveType
             )
 
-            module.hook(method).intercept(XposedInterface.Hooker { chain ->
+            module.hook(method).intercept { chain ->
                 val result = chain.proceed()
 
                 val device = chain.getArg(0) as? BluetoothDevice
@@ -56,11 +56,16 @@ object BluetoothProcessHook {
                     try {
                         when (currState) {
                             BluetoothProfile.STATE_CONNECTED -> {
-                                module.log(Log.INFO, TAG, "ROSE EARFREE connected: ${device.address}")
+                                module.log(
+                                    Log.INFO, TAG, "ROSE EARFREE connected: ${device.address}"
+                                )
                                 onDeviceConnected(module, serviceObj, device)
                             }
+
                             BluetoothProfile.STATE_DISCONNECTED -> {
-                                module.log(Log.INFO, TAG, "ROSE EARFREE disconnected: ${device.address}")
+                                module.log(
+                                    Log.INFO, TAG, "ROSE EARFREE disconnected: ${device.address}"
+                                )
                                 onDeviceDisconnected(module, serviceObj, device)
                             }
                         }
@@ -69,7 +74,7 @@ object BluetoothProcessHook {
                     }
                 }
                 result
-            })
+            }
 
             module.log(Log.INFO, TAG, "BluetoothProcessHook: hooked A2dpService")
         } catch (e: Throwable) {
@@ -77,6 +82,8 @@ object BluetoothProcessHook {
         }
     }
 
+
+    @SuppressLint("MissingPermission")
     private fun isRoseEarphone(device: BluetoothDevice): Boolean {
         return device.name?.contains(DEVICE_NAME_KEYWORD, ignoreCase = true) == true
     }
@@ -105,7 +112,9 @@ object BluetoothProcessHook {
         })
     }
 
-    private fun onDeviceDisconnected(module: XposedModule, serviceObj: Any, device: BluetoothDevice) {
+    private fun onDeviceDisconnected(
+        module: XposedModule, serviceObj: Any, device: BluetoothDevice
+    ) {
         // 断开 GATT
         gattClient?.disconnect()
         gattClient = null
@@ -152,42 +161,45 @@ object BluetoothProcessHook {
                     when (intent.action) {
                         HyperRoseAction.SET_ANC -> {
                             val mode = intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
-                                ?.let(AncMode::valueOf)
-                                ?: return
+                                ?.let(AncMode::valueOf) ?: return
                             manager.sendCommand(RosePackets.ancCommand(mode))
                         }
 
                         HyperRoseAction.SET_ANC_DEPTH -> {
                             val depth = intent.getStringExtra(HyperRoseAction.EXTRA_DEPTH)
-                                ?.let(AncDepth::valueOf)
-                                ?: return
+                                ?.let(AncDepth::valueOf) ?: return
                             manager.sendCommand(RosePackets.ancDepthCommand(depth))
                         }
 
                         HyperRoseAction.SET_TRANS_LEVEL -> {
                             val level = intent.getStringExtra(HyperRoseAction.EXTRA_LEVEL)
-                                ?.let(TransparencyLevel::valueOf)
-                                ?: return
+                                ?.let(TransparencyLevel::valueOf) ?: return
                             manager.sendCommand(RosePackets.transLevelCommand(level))
                         }
 
                         HyperRoseAction.SET_EQ -> {
                             val mode = intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
-                                ?.let(EqPreset::valueOf)
-                                ?: return
+                                ?.let(EqPreset::valueOf) ?: return
                             manager.sendCommand(RosePackets.eqCommand(mode))
                         }
 
                         HyperRoseAction.SET_GAME_MODE -> {
                             if (!intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) return
-                            val enabled = intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
+                            val enabled =
+                                intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
                             manager.sendCommand(RosePackets.gameModeCommand(enabled))
                         }
 
                         HyperRoseAction.FIND_EARPHONE -> {
                             when (intent.getStringExtra(HyperRoseAction.EXTRA_SIDE)?.uppercase()) {
-                                HyperRoseAction.SIDE_LEFT -> manager.sendCommand(RosePackets.FIND_LEFT_ON)
-                                HyperRoseAction.SIDE_RIGHT -> manager.sendCommand(RosePackets.FIND_RIGHT_ON)
+                                HyperRoseAction.SIDE_LEFT -> manager.sendCommand(
+                                    RosePackets.FIND_LEFT_ON
+                                )
+
+                                HyperRoseAction.SIDE_RIGHT -> manager.sendCommand(
+                                    RosePackets.FIND_RIGHT_ON
+                                )
+
                                 else -> manager.sendCommand(RosePackets.FIND_ALL_OFF)
                             }
                         }

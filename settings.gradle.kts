@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 pluginManagement {
     repositories {
         google {
@@ -25,4 +27,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "HyperRose"
 include(":app")
- 

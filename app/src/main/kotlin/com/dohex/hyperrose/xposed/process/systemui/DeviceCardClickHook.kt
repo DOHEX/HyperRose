@@ -5,7 +5,6 @@ import android.util.Log
 import com.dohex.hyperrose.core.reflection.ReflectionHelper
 import com.dohex.hyperrose.ipc.QuickControlIntentFactory
 import com.dohex.hyperrose.xposed.entry.HyperRoseModuleEntry.Companion.TAG
-import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import java.lang.reflect.Method
 
@@ -39,7 +38,8 @@ object DeviceCardClickHook {
                 hooked = true
                 return@forEach
             }
-            val wrapperClass = runCatching { pluginCl.loadClass(className) }.getOrNull() ?: return@forEach
+            val wrapperClass =
+                runCatching { pluginCl.loadClass(className) }.getOrNull() ?: return@forEach
             if (hookClickMethod(module, wrapperClass)) {
                 hookedWrapperKeys += hookKey
                 hooked = true
@@ -60,12 +60,13 @@ object DeviceCardClickHook {
             pluginCl.loadClass("miui.systemui.controlcenter.panel.main.MainPanelController")
         }.getOrNull() ?: return
 
-        val onCreateMethod = panelClass.declaredMethods.firstOrNull { it.name == "onCreate" } ?: return
-        module.hook(onCreateMethod).intercept(XposedInterface.Hooker { chain ->
+        val onCreateMethod =
+            panelClass.declaredMethods.firstOrNull { it.name == "onCreate" } ?: return
+        module.hook(onCreateMethod).intercept { chain ->
             val result = chain.proceed()
             panelController = chain.thisObject
             result
-        })
+        }
         panelHookClassLoaderId = clId
         module.log(Log.INFO, TAG, "DeviceCardClickHook: MainPanelController hook installed")
     }
@@ -73,25 +74,23 @@ object DeviceCardClickHook {
     private fun hookClickMethod(module: XposedModule, wrapperClass: Class<*>): Boolean {
         val clickMethod = findClickMethod(wrapperClass) ?: return false
 
-        module.hook(clickMethod).intercept(XposedInterface.Hooker { chain ->
+        module.hook(clickMethod).intercept { chain ->
             val result = runCatching {
                 val wrapperObj = chain.thisObject
-                val context = (chain.getArg(0) as? Context)
-                    ?: readContext(wrapperObj, "mContext")
-                    ?: readContext(wrapperObj, "context")
-                    ?: readContext(wrapperObj, "mHostContext")
+                val context = (chain.getArg(0) as? Context) ?: readContext(wrapperObj, "mContext")
+                ?: readContext(wrapperObj, "context") ?: readContext(wrapperObj, "mHostContext")
                 if (context == null) return@runCatching chain.proceed()
 
                 val deviceInfo = resolveDeviceInfo(wrapperObj)
-                val deviceType = readString(deviceInfo, "getDeviceType", "deviceType", "mDeviceType")
+                val deviceType =
+                    readString(deviceInfo, "getDeviceType", "deviceType", "mDeviceType")
                 val deviceId = readString(deviceInfo, "getId", "id", "mId")
-                val deviceName =
-                    readString(deviceInfo, "getName", "name", "mName")
-                        ?: readString(wrapperObj, "getName", "name", "mDeviceName")
+                val deviceName = readString(deviceInfo, "getName", "name", "mName") ?: readString(
+                    wrapperObj, "getName", "name", "mDeviceName"
+                )
 
                 module.log(
-                    Log.DEBUG,
-                    TAG,
+                    Log.DEBUG, TAG,
                     "DeviceCardClickHook: click type=$deviceType id=$deviceId name=$deviceName"
                 )
 
@@ -105,7 +104,9 @@ object DeviceCardClickHook {
                     return@runCatching chain.proceed()
                 }
 
-                module.log(Log.INFO, TAG, "DeviceCardClickHook: opened quick control for $deviceName")
+                module.log(
+                    Log.INFO, TAG, "DeviceCardClickHook: opened quick control for $deviceName"
+                )
                 hideControlCenterPanel(module)
                 null
             }.getOrElse {
@@ -114,7 +115,7 @@ object DeviceCardClickHook {
             }
 
             result
-        })
+        }
 
         return true
     }
@@ -122,12 +123,11 @@ object DeviceCardClickHook {
     private fun findClickMethod(wrapperClass: Class<*>): Method? {
         val methods = wrapperClass.declaredMethods
         return methods.firstOrNull {
-            it.name == "performClicked" &&
-                it.parameterCount == 1 &&
-                Context::class.java.isAssignableFrom(it.parameterTypes[0])
-        }
-            ?: methods.firstOrNull { it.name == "performClicked" }
-            ?: methods.firstOrNull { it.name == "onClick" }
+            it.name == "performClicked" && it.parameterCount == 1 && Context::class.java.isAssignableFrom(
+                it.parameterTypes[0]
+            )
+        } ?: methods.firstOrNull { it.name == "performClicked" }
+        ?: methods.firstOrNull { it.name == "onClick" }
     }
 
     private fun resolveDeviceInfo(wrapperObj: Any): Any? {
@@ -143,11 +143,13 @@ object DeviceCardClickHook {
     private fun readString(target: Any?, methodName: String, vararg fieldNames: String): String? {
         if (target == null) return null
 
-        val fromMethod = runCatching { ReflectionHelper.callMethod(target, methodName) as? String }.getOrNull()
+        val fromMethod =
+            runCatching { ReflectionHelper.callMethod(target, methodName) as? String }.getOrNull()
         if (!fromMethod.isNullOrBlank()) return fromMethod
 
         fieldNames.forEach { fieldName ->
-            val value = runCatching { ReflectionHelper.getField(target, fieldName) as? String }.getOrNull()
+            val value =
+                runCatching { ReflectionHelper.getField(target, fieldName) as? String }.getOrNull()
             if (!value.isNullOrBlank()) return value
         }
         return null
@@ -170,8 +172,7 @@ object DeviceCardClickHook {
 
     private fun hideControlCenterPanel(module: XposedModule) {
         val panel = panelController ?: return
-        runCatching { ReflectionHelper.callMethod(panel, "exitOrHide") }
-            .onFailure {
+        runCatching { ReflectionHelper.callMethod(panel, "exitOrHide") }.onFailure {
                 module.log(Log.DEBUG, TAG, "DeviceCardClickHook: exitOrHide not available", it)
             }
     }

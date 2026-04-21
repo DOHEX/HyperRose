@@ -2,7 +2,6 @@ package com.dohex.hyperrose.ui.theme
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
@@ -31,10 +30,7 @@ fun BlurredBar(
 ) {
     val blurModifier = if (blurEnabled && backdrop != null) {
         Modifier.textureBlur(
-            backdrop = backdrop,
-            shape = RectangleShape,
-            blurRadius = 25f,
-            colors = BlurColors(
+            backdrop = backdrop, shape = RectangleShape, blurRadius = 25f, colors = BlurColors(
                 blendColors = listOf(
                     BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(alpha = 0.8f))
                 )

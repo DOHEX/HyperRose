@@ -1,12 +1,11 @@
 package com.dohex.hyperrose.ui.page
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -86,8 +85,7 @@ fun HomePage(
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
-                                MiuixIcons.ChevronBackward,
-                                contentDescription = "返回"
+                                MiuixIcons.ChevronBackward, contentDescription = "返回"
                             )
                         }
                     },
@@ -108,17 +106,14 @@ fun HomePage(
                     .overScrollVertical()
                     .nestedScroll(scrollBehavior.nestedScrollConnection),
                 contentPadding = PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    start = 10.dp,
-                    end = 10.dp
+                    top = paddingValues.calculateTopPadding(), start = 10.dp, end = 10.dp
                 )
             ) {
                 item {
                     SectionCard(
                         title = deviceName ?: "ROSE EARFREE",
                         subtitle = connectionSummary(
-                            connectionState,
-                            transport
+                            connectionState, transport
                         ),
                     ) {
                         Row(
@@ -133,8 +128,7 @@ fun HomePage(
                             ActionButton(
                                 text = if (connected) "断开" else "返回",
                                 onClick = if (connected) onDisconnect else onBack,
-                                modifier = Modifier.weight(1f),
-                                danger = connected
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -182,8 +176,7 @@ fun HomePage(
                 item {
                     Card {
                         SwitchPreference(
-                            title = "游戏模式",
-                            checked = gameMode,
+                            title = "游戏模式", checked = gameMode,
                             onCheckedChange = onGameModeChange
                         )
                     }
@@ -191,46 +184,36 @@ fun HomePage(
                 item {
                     Card {
                         ArrowPreference(
-                            title = "查找耳机",
-                            onClick = { showFindDialog = true })
+                            title = "查找耳机", onClick = { showFindDialog = true })
                     }
                 }
             }
         }
 
         OverlayDialog(
-            title = "查找耳机",
-            summary = "请不要佩戴耳机",
-            show = showFindDialog,
+            title = "查找耳机", summary = "请不要佩戴耳机", show = showFindDialog,
             onDismissRequest = { showFindDialog = false }) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ActionButton(
-                    text = "左耳",
-                    onClick = {
+                    text = "左耳", onClick = {
                         onFindLeft()
                         showFindDialog = false
-                    },
-                    modifier = Modifier.weight(1f)
+                    }, modifier = Modifier.weight(1f)
                 )
                 ActionButton(
-                    text = "停止",
-                    onClick = {
+                    text = "停止", onClick = {
                         onStopFind()
                         showFindDialog = false
-                    },
-                    modifier = Modifier.weight(1f),
-                    danger = true
+                    }, modifier = Modifier.weight(1f)
                 )
                 ActionButton(
-                    text = "右耳",
-                    onClick = {
+                    text = "右耳", onClick = {
                         onFindRight()
                         showFindDialog = false
-                    },
-                    modifier = Modifier.weight(1f)
+                    }, modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -238,8 +221,7 @@ fun HomePage(
 }
 
 private fun connectionSummary(
-    connectionState: DeviceConnectionState,
-    transport: ConnectionTransport
+    connectionState: DeviceConnectionState, transport: ConnectionTransport
 ): String {
     return when (connectionState) {
         DeviceConnectionState.CONNECTING -> "连接中"

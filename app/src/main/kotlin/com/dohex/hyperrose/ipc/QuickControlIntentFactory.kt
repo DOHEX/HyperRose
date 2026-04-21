@@ -3,7 +3,7 @@ package com.dohex.hyperrose.ipc
 import android.content.Intent
 
 object QuickControlIntentFactory {
-    private val launchFlags =
+    private const val launchFlags =
         Intent.FLAG_ACTIVITY_NEW_TASK or
             Intent.FLAG_ACTIVITY_NO_ANIMATION or
             Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or

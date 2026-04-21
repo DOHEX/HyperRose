@@ -70,20 +70,34 @@ object RoseResponseParser {
      * - LC/RC: 左/右耳充电标记 (01=充电中)
      * - CC: 充电盒电量 (0-100)
      * - CS: 校验和 (前面所有字节之和 & 0xFF)
+     *
+     * 优先使用严格校验和校验；若校验失败但字段值合理，使用容错解析，
+     * 以降低首包偶发损坏导致的状态丢失。
      */
     private fun parseBattery(data: ByteArray): RoseResponse {
+        val leftLevel = data[11].toInt() and 0xFF
+        val rightLevel = data[12].toInt() and 0xFF
+        val leftChargingRaw = data[13].toInt() and 0xFF
+        val rightChargingRaw = data[14].toInt() and 0xFF
+        val caseLevel = data[15].toInt() and 0xFF
+
         // 校验和验证
         val expectedChecksum = data.last().toInt() and 0xFF
         val calculatedChecksum = data.dropLast(1).sumOf { it.toInt() and 0xFF } and 0xFF
-        if (expectedChecksum != calculatedChecksum) {
+        val checksumValid = expectedChecksum == calculatedChecksum
+        if (!checksumValid && !isPlausibleBatteryFrame(
+                leftLevel = leftLevel,
+                rightLevel = rightLevel,
+                leftChargingRaw = leftChargingRaw,
+                rightChargingRaw = rightChargingRaw,
+                caseLevel = caseLevel,
+            )
+        ) {
             return RoseResponse.Unknown
         }
 
-        val leftLevel = data[11].toInt() and 0xFF
-        val rightLevel = data[12].toInt() and 0xFF
-        val leftCharging = data[13].toInt() == 0x01
-        val rightCharging = data[14].toInt() == 0x01
-        val caseLevel = data[15].toInt() and 0xFF
+        val leftCharging = leftChargingRaw == 0x01
+        val rightCharging = rightChargingRaw == 0x01
 
         return RoseResponse.Battery(
             TwsBatteryState(
@@ -101,10 +115,6 @@ object RoseResponseParser {
      * 完整模式: 降噪 01 00 00 00 / 普通 00 01 00 00 / 风噪 00 00 01 00 / 通透 00 00 00 01
      */
     private fun parseAnc(data: ByteArray): RoseResponse {
-        val b8 = data[8].toInt() and 0xFF
-        val b9 = data[9].toInt() and 0xFF
-        val b10 = data[10].toInt() and 0xFF
-        val b11 = data[11].toInt() and 0xFF
         // 根据文档回包判定：索引从0开始，header是 09 FF 00 00 01 06 02 0E (8 bytes)
         // 后续 00 [降噪] [普通] [风噪] [通透] [校验]
         // 实际 data[8]=00, data[9]= 降噪flag, data[10]=普通flag, data[11]=风噪flag, data[12]=通透flag
@@ -185,6 +195,24 @@ object RoseResponseParser {
             else -> RoseResponse.Unknown
         }
     }
+
+    private fun isPlausibleBatteryFrame(
+        leftLevel: Int,
+        rightLevel: Int,
+        leftChargingRaw: Int,
+        rightChargingRaw: Int,
+        caseLevel: Int,
+    ): Boolean {
+        return isValidBatteryLevel(leftLevel) &&
+            isValidBatteryLevel(rightLevel) &&
+            isValidBatteryLevel(caseLevel) &&
+            isValidChargingByte(leftChargingRaw) &&
+            isValidChargingByte(rightChargingRaw)
+    }
+
+    private fun isValidBatteryLevel(level: Int): Boolean = level in 0..100
+
+    private fun isValidChargingByte(value: Int): Boolean = value == 0x00 || value == 0x01
 
     // ==================== 工具方法 ====================
 

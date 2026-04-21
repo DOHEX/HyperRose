@@ -32,22 +32,22 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.androidx.datastore.preferences)
     testImplementation(libs.junit)
+    implementation(libs.kotlinx.coroutines.android)
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.navigation3.runtime)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
-    implementation(libs.compose.foundation)
-    implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
-
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.compose.foundation)
 
     implementation(libs.miuix.ui)
     implementation(libs.miuix.icons)
@@ -55,7 +55,7 @@ dependencies {
     implementation(libs.miuix.preference)
     implementation(libs.miuix.blur)
 
-    compileOnly(libs.libxposed)
+    compileOnly(libs.libxposed.api)
     implementation(libs.kavaref.core)
     implementation(libs.libsu.core)
     implementation(libs.libsu.service)

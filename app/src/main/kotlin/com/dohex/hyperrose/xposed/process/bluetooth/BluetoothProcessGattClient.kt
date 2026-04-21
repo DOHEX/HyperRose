@@ -129,6 +129,9 @@ class BluetoothProcessGattClient(
 
             module.log(Log.INFO, TAG, "BluetoothProcessGattClient: GATT ready, querying initial status")
 
+            // 优先发一次电量查询，尽快触发首次超级岛
+            sendCommand(RosePackets.QUERY_BATTERY)
+
             // 延迟查询全部状态
             handler.postDelayed({ queryAllStatus() }, RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS)
         }

@@ -24,7 +24,7 @@ class HyperRoseModuleEntry : XposedModule() {
 
     override fun onPackageLoaded(param: PackageLoadedParam) {
         super.onPackageLoaded(param)
-        val pkg = param.getPackageName()
+        val pkg = param.packageName
         log(Log.INFO, TAG, "onPackageLoaded: $pkg")
 
         try {

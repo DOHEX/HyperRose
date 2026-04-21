@@ -15,10 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
@@ -35,8 +33,7 @@ fun SectionCard(
             Text(text = title, fontWeight = FontWeight.SemiBold)
             if (subtitle != null) {
                 Text(
-                    text = subtitle,
-                    color = Color(0xFF5A6675),
+                    text = subtitle, color = Color(0xFF5A6675),
                     modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
                 )
             } else {
@@ -74,18 +71,10 @@ fun ChipButton(
 
 @Composable
 fun ActionButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    danger: Boolean = false
+    text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true
 ) {
-    // Miuix Button might not support `danger` color by default without custom ButtonColors, 
-    // so we'll just pass the standard ones or we can define colors.
     Button(
-        onClick = onClick,
-        modifier = modifier,
-        enabled = enabled
+        onClick = onClick, modifier = modifier, enabled = enabled
     ) {
         Text(text = text)
     }

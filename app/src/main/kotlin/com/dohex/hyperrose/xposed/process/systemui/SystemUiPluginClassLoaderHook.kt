@@ -1,9 +1,9 @@
 package com.dohex.hyperrose.xposed.process.systemui
 
+import android.annotation.SuppressLint
 import android.util.Log
 import com.dohex.hyperrose.core.reflection.ReflectionHelper
 import com.dohex.hyperrose.xposed.entry.HyperRoseModuleEntry.Companion.TAG
-import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import java.lang.reflect.Method
@@ -25,20 +25,23 @@ object SystemUiPluginClassLoaderHook {
     )
 
     fun init(module: XposedModule, param: PackageLoadedParam) {
-        val cl = param.getDefaultClassLoader()
+        val cl = param.defaultClassLoader
 
         try {
             val hooked = hookPluginInstanceLoadPlugin(module, cl) or hookLegacyFactory(module, cl)
             if (hooked) {
                 module.log(Log.INFO, TAG, "SystemUiPluginClassLoaderHook: hooks installed")
             } else {
-                module.log(Log.WARN, TAG, "SystemUiPluginClassLoaderHook: no suitable plugin entry found")
+                module.log(
+                    Log.WARN, TAG, "SystemUiPluginClassLoaderHook: no suitable plugin entry found"
+                )
             }
         } catch (e: Throwable) {
             module.log(Log.ERROR, TAG, "SystemUiPluginClassLoaderHook: failed to install hooks", e)
         }
     }
 
+    @SuppressLint("PrivateApi")
     private fun hookPluginInstanceLoadPlugin(module: XposedModule, cl: ClassLoader): Boolean {
         if (pluginLoadHookInstalled) return true
 
@@ -50,31 +53,36 @@ object SystemUiPluginClassLoaderHook {
             it.name == "loadPlugin"
         } ?: return false
 
-        module.hook(loadPluginMethod).intercept(XposedInterface.Hooker { chain ->
+        module.hook(loadPluginMethod).intercept { chain ->
             val result = chain.proceed()
             runCatching {
                 val pkgName = runCatching {
                     ReflectionHelper.callMethod(chain.thisObject, "getPackage") as? String
                 }.getOrNull()
-                module.log(Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: loadPlugin package=$pkgName")
+                module.log(
+                    Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: loadPlugin package=$pkgName"
+                )
                 if (pkgName == "miui.systemui.plugin") {
                     extractPluginClassLoader(chain.thisObject)?.let {
                         tryInitDeviceCardClickHook(module, it)
                     }
                 }
             }.onFailure {
-                module.log(Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: loadPlugin inspect failed", it)
+                module.log(
+                    Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: loadPlugin inspect failed", it
+                )
             }
             result
-        })
+        }
 
         pluginLoadHookInstalled = true
         return true
     }
 
+    @SuppressLint("PrivateApi")
     private fun hookLegacyFactory(module: XposedModule, cl: ClassLoader): Boolean {
         val pluginFactoryClass = runCatching {
-            cl.loadClass("com.android.systemui.shared.plugins.PluginInstance\$Factory")
+            cl.loadClass($$"com.android.systemui.shared.plugins.PluginInstance$Factory")
         }.getOrNull() ?: return false
 
         val methods: Array<Method> = pluginFactoryClass.declaredMethods
@@ -82,7 +90,7 @@ object SystemUiPluginClassLoaderHook {
             m.name == "create" || m.name == "createPlugin" || m.name == "getClassLoader"
         } ?: return false
 
-        module.hook(createMethod).intercept(XposedInterface.Hooker { chain ->
+        module.hook(createMethod).intercept { chain ->
             val result = chain.proceed()
 
             if (result is ClassLoader) {
@@ -94,7 +102,7 @@ object SystemUiPluginClassLoaderHook {
                 }
             }
             result
-        })
+        }
         return true
     }
 
@@ -130,7 +138,9 @@ object SystemUiPluginClassLoaderHook {
 
         val hooked = DeviceCardClickHook.init(module, classLoader)
         if (!hooked) {
-            module.log(Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: DeviceCardClickHook not installed")
+            module.log(
+                Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: DeviceCardClickHook not installed"
+            )
             return
         }
 
@@ -138,7 +148,9 @@ object SystemUiPluginClassLoaderHook {
             pluginClassLoader = classLoader
             module.log(Log.INFO, TAG, "SystemUiPluginClassLoaderHook: Plugin ClassLoader captured")
         } else {
-            module.log(Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: Plugin ClassLoader unchanged")
+            module.log(
+                Log.DEBUG, TAG, "SystemUiPluginClassLoaderHook: Plugin ClassLoader unchanged"
+            )
         }
     }
 
