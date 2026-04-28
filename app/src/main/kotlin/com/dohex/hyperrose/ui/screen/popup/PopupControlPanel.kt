@@ -59,33 +59,27 @@ fun PopupControlPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
-                .padding(top = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (connected) {
                 AncSelector(
-                    ancMode = ancMode,
-                    ancDepth = ancDepth,
-                    transLevel = transLevel,
+                    ancMode = ancMode, ancDepth = ancDepth, transLevel = transLevel,
                     onAncModeChange = deviceControlStore::setAnc,
                     onAncDepthChange = deviceControlStore::setAncDepth,
-                    onTransLevelChange = deviceControlStore::setTransLevel,
-                    enabled = true
+                    onTransLevelChange = deviceControlStore::setTransLevel, enabled = true
                 )
                 val eqItems = EqPreset.entries.map { it.label }
                 val eqSelectedIndex = EqPreset.entries.indexOf(eqMode).coerceAtLeast(0)
-                WindowDropdownPreference(
-                    title = "音色",
-                    items = eqItems,
-                    selectedIndex = eqSelectedIndex,
-                    onSelectedIndexChange = { index ->
-                        EqPreset.entries.getOrNull(index)?.let(deviceControlStore::setEq)
-                    }
-                )
+                Card {
+                    WindowDropdownPreference(
+                        title = "音色", items = eqItems, selectedIndex = eqSelectedIndex,
+                        onSelectedIndexChange = { index ->
+                            EqPreset.entries.getOrNull(index)?.let(deviceControlStore::setEq)
+                        })
+                }
                 Card {
                     SwitchPreference(
-                        title = "游戏模式",
-                        checked = gameMode,
+                        title = "游戏模式", checked = gameMode,
                         onCheckedChange = deviceControlStore::setGameMode
                     )
                 }
@@ -104,13 +98,11 @@ fun PopupControlPanel(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ActionButton(
-                            text = "刷新状态",
-                            onClick = deviceControlStore::refreshStatus,
+                            text = "刷新状态", onClick = deviceControlStore::refreshStatus,
                             modifier = Modifier.weight(1f)
                         )
                         ActionButton(
-                            text = "关闭",
-                            onClick = onDismissRequest,
+                            text = "关闭", onClick = onDismissRequest,
                             modifier = Modifier.weight(1f)
                         )
                     }
