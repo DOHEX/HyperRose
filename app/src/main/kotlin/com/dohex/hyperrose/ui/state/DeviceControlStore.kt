@@ -16,6 +16,8 @@ import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
 import com.dohex.hyperrose.domain.battery.EarBatteryState
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
+import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
+import com.dohex.hyperrose.domain.battery.withLastKnownCaseBattery
 import com.dohex.hyperrose.ipc.BluetoothCommandDispatcher
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import kotlinx.coroutines.CoroutineScope
@@ -109,7 +111,9 @@ class DeviceControlStore(context: Context) {
                 }
 
                 HyperRoseAction.BATTERY_CHANGED -> {
-                    _battery.value = parseBattery(intent)
+                    parseBattery(intent)?.let {
+                        _battery.value = it.withLastKnownCaseBattery(_battery.value)
+                    }
                 }
 
                 HyperRoseAction.ANC_CHANGED -> {
@@ -309,7 +313,9 @@ class DeviceControlStore(context: Context) {
             }
         }.launchIn(scope)
 
-        directGattClient.battery.onEach { _battery.value = it }.launchIn(scope)
+        directGattClient.battery.onEach {
+            _battery.value = it?.withLastKnownCaseBattery(_battery.value)
+        }.launchIn(scope)
 
         directGattClient.ancMode.onEach { if (it != null) _ancMode.value = it }.launchIn(scope)
 
@@ -350,33 +356,32 @@ class DeviceControlStore(context: Context) {
 
     private fun parseBattery(intent: Intent): TwsBatteryState? {
         val leftLevel = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
+            .asBatteryLevelOrNull()
         val rightLevel = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
+            .asBatteryLevelOrNull()
         val caseLevel = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
+            .asBatteryLevelOrNull()
 
-        if (leftLevel < 0 && rightLevel < 0 && caseLevel < 0) {
+        if (leftLevel == null && rightLevel == null && caseLevel == null) {
             return null
         }
 
-        val left = if (leftLevel >= 0) {
+        val left = leftLevel?.let {
             EarBatteryState(
-                level = leftLevel,
+                level = it,
                 isCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false)
             )
-        } else {
-            null
         }
 
-        val right = if (rightLevel >= 0) {
+        val right = rightLevel?.let {
             EarBatteryState(
-                level = rightLevel,
+                level = it,
                 isCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, false)
             )
-        } else {
-            null
         }
 
         return TwsBatteryState(
-            left = left, right = right, caseBattery = caseLevel.takeIf { it >= 0 })
+            left = left, right = right, caseBattery = caseLevel)
     }
 
     private fun clearState() {

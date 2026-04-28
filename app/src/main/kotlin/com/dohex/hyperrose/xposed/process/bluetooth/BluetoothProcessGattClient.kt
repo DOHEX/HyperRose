@@ -12,6 +12,7 @@ import com.dohex.hyperrose.domain.audio.AncMode
 import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
+import com.dohex.hyperrose.domain.battery.withLastKnownCaseBattery
 import com.dohex.hyperrose.bluetooth.protocol.RoseGattSpec
 import com.dohex.hyperrose.bluetooth.protocol.RoseGattTiming
 import com.dohex.hyperrose.bluetooth.protocol.RoseGattQueryScheduler
@@ -150,25 +151,26 @@ class BluetoothProcessGattClient(
     private fun handleResponse(data: ByteArray) {
         when (val result = RoseParser.parse(data)) {
             is RoseResponse.Battery -> {
-                currentBattery = result.info
+                val battery = result.info.withLastKnownCaseBattery(currentBattery)
+                currentBattery = battery
 
                 broadcastState(HyperRoseAction.BATTERY_CHANGED) {
-                    putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, result.info.left?.level ?: -1)
-                    putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, result.info.right?.level ?: -1)
-                    putExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, result.info.left?.isCharging ?: false)
-                    putExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, result.info.right?.isCharging ?: false)
-                    putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, result.info.caseBattery ?: -1)
+                    putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, battery.left?.level ?: -1)
+                    putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, battery.right?.level ?: -1)
+                    putExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, battery.left?.isCharging ?: false)
+                    putExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, battery.right?.isCharging ?: false)
+                    putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, battery.caseBattery ?: -1)
                     putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
                 }
 
                 // 岛触发交给宿主进程（com.xiaomi.bluetooth）发送，提升模板命中率
                 context.sendBroadcast(Intent(HyperRoseAction.SHOW_ISLAND).apply {
                     setPackage(HyperRoseAction.PACKAGE_MI_BLUETOOTH)
-                    putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, result.info.left?.level ?: -1)
-                    putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, result.info.right?.level ?: -1)
-                    putExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, result.info.left?.isCharging ?: false)
-                    putExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, result.info.right?.isCharging ?: false)
-                    putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, result.info.caseBattery ?: -1)
+                    putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, battery.left?.level ?: -1)
+                    putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, battery.right?.level ?: -1)
+                    putExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, battery.left?.isCharging ?: false)
+                    putExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, battery.right?.isCharging ?: false)
+                    putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, battery.caseBattery ?: -1)
                     putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
                 })
             }

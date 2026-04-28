@@ -1,5 +1,9 @@
 package com.dohex.hyperrose.ui.page
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -47,10 +51,47 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import androidx.core.net.toUri
+
+private data class GithubLink(
+    val title: String,
+    val summary: String,
+    val url: String
+)
+
+private val HyperRoseGithubLink = GithubLink(
+    title = "HyperRose",
+    summary = "DOHEX/HyperRose",
+    url = "https://github.com/DOHEX/HyperRose"
+)
+
+private val ThanksGithubLinks = listOf(
+    GithubLink(
+        title = "OppoPods",
+        summary = "Leaf-lsgtky/OppoPods",
+        url = "https://github.com/Leaf-lsgtky/OppoPods"
+    ),
+    GithubLink(
+        title = "HyperPods",
+        summary = "Art-Chen/HyperPods",
+        url = "https://github.com/Art-Chen/HyperPods"
+    ),
+    GithubLink(
+        title = "HyperOriG",
+        summary = "KiriChen-Wind/HyperOriG",
+        url = "https://github.com/KiriChen-Wind/HyperOriG"
+    ),
+    GithubLink(
+        title = "Miuix",
+        summary = "compose-miuix-ui/miuix",
+        url = "https://github.com/compose-miuix-ui/miuix"
+    )
+)
 
 @Composable
 fun SettingsPage(
@@ -138,6 +179,26 @@ fun SettingsPage(
                     )
                 }
             }
+            item {
+                Card {
+                    ArrowPreference(
+                        title = HyperRoseGithubLink.title,
+                        summary = HyperRoseGithubLink.summary,
+                        onClick = { openExternalUrl(context, HyperRoseGithubLink.url) }
+                    )
+                }
+            }
+            item {
+                Card {
+                    ThanksGithubLinks.forEach { link ->
+                        ArrowPreference(
+                            title = link.title,
+                            summary = link.summary,
+                            onClick = { openExternalUrl(context, link.url) }
+                        )
+                    }
+                }
+            }
         }
 
         OverlayDialog(
@@ -186,5 +247,16 @@ fun SettingsPage(
                 }
             }
         }
+    }
+}
+
+private fun openExternalUrl(context: Context, url: String) {
+    val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+        addCategory(Intent.CATEGORY_BROWSABLE)
+    }
+    try {
+        context.startActivity(intent)
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, "未找到可打开链接的应用", Toast.LENGTH_SHORT).show()
     }
 }

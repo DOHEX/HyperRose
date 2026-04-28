@@ -6,6 +6,8 @@ import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
 import com.dohex.hyperrose.domain.battery.EarBatteryState
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
+import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
+import com.dohex.hyperrose.domain.battery.isBatteryLevelOrUnknown
 
 /**
  * ROSE EARFREE i5 回包解析器。
@@ -68,41 +70,48 @@ object RoseResponseParser {
      * 格式: [header 11B] [LL] [RR] [LC] [RC] [CC] [CS]
      * - LL/RR: 左/右耳电量 (0-100)
      * - LC/RC: 左/右耳充电标记 (01=充电中)
-     * - CC: 充电盒电量 (0-100)
+     * - CC: 充电盒电量 (0-100)，0xFF 表示未上报/不可用
      * - CS: 校验和 (前面所有字节之和 & 0xFF)
      *
      * 优先使用严格校验和校验；若校验失败但字段值合理，使用容错解析，
      * 以降低首包偶发损坏导致的状态丢失。
      */
     private fun parseBattery(data: ByteArray): RoseResponse {
-        val leftLevel = data[11].toInt() and 0xFF
-        val rightLevel = data[12].toInt() and 0xFF
+        val leftLevelRaw = data[11].toInt() and 0xFF
+        val rightLevelRaw = data[12].toInt() and 0xFF
         val leftChargingRaw = data[13].toInt() and 0xFF
         val rightChargingRaw = data[14].toInt() and 0xFF
-        val caseLevel = data[15].toInt() and 0xFF
+        val caseLevelRaw = data[15].toInt() and 0xFF
 
         // 校验和验证
         val expectedChecksum = data.last().toInt() and 0xFF
         val calculatedChecksum = data.dropLast(1).sumOf { it.toInt() and 0xFF } and 0xFF
         val checksumValid = expectedChecksum == calculatedChecksum
         if (!checksumValid && !isPlausibleBatteryFrame(
-                leftLevel = leftLevel,
-                rightLevel = rightLevel,
+                leftLevel = leftLevelRaw,
+                rightLevel = rightLevelRaw,
                 leftChargingRaw = leftChargingRaw,
                 rightChargingRaw = rightChargingRaw,
-                caseLevel = caseLevel,
+                caseLevel = caseLevelRaw,
             )
         ) {
             return RoseResponse.Unknown
         }
 
+        val leftLevel = leftLevelRaw.asBatteryLevelOrNull()
+        val rightLevel = rightLevelRaw.asBatteryLevelOrNull()
+        val caseLevel = caseLevelRaw.asBatteryLevelOrNull()
         val leftCharging = leftChargingRaw == 0x01
         val rightCharging = rightChargingRaw == 0x01
 
+        if (leftLevel == null && rightLevel == null && caseLevel == null) {
+            return RoseResponse.Unknown
+        }
+
         return RoseResponse.Battery(
             TwsBatteryState(
-                left = EarBatteryState(leftLevel, leftCharging),
-                right = EarBatteryState(rightLevel, rightCharging),
+                left = leftLevel?.let { EarBatteryState(it, leftCharging) },
+                right = rightLevel?.let { EarBatteryState(it, rightCharging) },
                 caseBattery = caseLevel
             )
         )
@@ -203,14 +212,12 @@ object RoseResponseParser {
         rightChargingRaw: Int,
         caseLevel: Int,
     ): Boolean {
-        return isValidBatteryLevel(leftLevel) &&
-            isValidBatteryLevel(rightLevel) &&
-            isValidBatteryLevel(caseLevel) &&
+        return leftLevel.isBatteryLevelOrUnknown() &&
+            rightLevel.isBatteryLevelOrUnknown() &&
+            caseLevel.isBatteryLevelOrUnknown() &&
             isValidChargingByte(leftChargingRaw) &&
             isValidChargingByte(rightChargingRaw)
     }
-
-    private fun isValidBatteryLevel(level: Int): Boolean = level in 0..100
 
     private fun isValidChargingByte(value: Int): Boolean = value == 0x00 || value == 0x01
 

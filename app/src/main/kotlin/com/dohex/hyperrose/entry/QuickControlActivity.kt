@@ -14,6 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import com.dohex.hyperrose.domain.battery.EarBatteryState
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
+import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
 import com.dohex.hyperrose.ipc.QuickControlLaunchValidator
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 import com.dohex.hyperrose.ui.screen.popup.PopupControlPanel
@@ -107,10 +108,12 @@ class QuickControlActivity : ComponentActivity() {
     }
 
     private fun buildPresetBattery(leftLevel: Int, rightLevel: Int): TwsBatteryState? {
-        if (leftLevel < 0 && rightLevel < 0) return null
+        val normalizedLeftLevel = leftLevel.asBatteryLevelOrNull()
+        val normalizedRightLevel = rightLevel.asBatteryLevelOrNull()
+        if (normalizedLeftLevel == null && normalizedRightLevel == null) return null
         return TwsBatteryState(
-            left = leftLevel.takeIf { it >= 0 }?.let { EarBatteryState(it, false) },
-            right = rightLevel.takeIf { it >= 0 }?.let { EarBatteryState(it, false) },
+            left = normalizedLeftLevel?.let { EarBatteryState(it, false) },
+            right = normalizedRightLevel?.let { EarBatteryState(it, false) },
             caseBattery = null
         )
     }

@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
+import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
 import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
@@ -63,7 +64,7 @@ private fun BatteryCell(
     ) {
         Text(text = label, color = Color(0xFF5F6D7D))
         Text(
-            text = value?.let { "$it%" } ?: "-",
+            text = formatBatteryLevel(value),
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 4.dp)
         )
@@ -79,8 +80,12 @@ private fun BatteryCell(
 
 private fun batterySubtitle(battery: TwsBatteryState?): String {
     if (battery == null) return "等待电量数据"
-    val left = battery.left?.level?.toString() ?: "-"
-    val right = battery.right?.level?.toString() ?: "-"
-    val caseLevel = battery.caseBattery?.toString() ?: "-"
-    return "L $left%  ·  R $right%  ·  C $caseLevel%"
+    val left = formatBatteryLevel(battery.left?.level)
+    val right = formatBatteryLevel(battery.right?.level)
+    val caseLevel = formatBatteryLevel(battery.caseBattery)
+    return "L $left  ·  R $right  ·  C $caseLevel"
+}
+
+private fun formatBatteryLevel(level: Int?): String {
+    return level?.asBatteryLevelOrNull()?.let { "$it%" } ?: "-"
 }

@@ -1,6 +1,7 @@
 package com.dohex.hyperrose.util
 
 import android.os.Bundle
+import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
 import com.xzakota.hyper.notification.focus.FocusNotification
 
 object FocusIslandBridge {
@@ -14,12 +15,15 @@ object FocusIslandBridge {
         rightCharging: Boolean,
         islandTimeoutSeconds: Int
     ): Bundle {
-        val leftText = if (leftLevel >= 0) leftLevel.toString() else "-"
-        val rightText = if (rightLevel >= 0) rightLevel.toString() else "-"
+        val normalizedLeftLevel = leftLevel.asBatteryLevelOrNull()
+        val normalizedRightLevel = rightLevel.asBatteryLevelOrNull()
+        val normalizedCaseLevel = caseLevel.asBatteryLevelOrNull()
+        val leftText = normalizedLeftLevel?.toString() ?: "-"
+        val rightText = normalizedRightLevel?.toString() ?: "-"
         val baseContent = buildBaseContent(
-            leftLevel = leftLevel,
-            rightLevel = rightLevel,
-            caseLevel = caseLevel,
+            leftLevel = normalizedLeftLevel,
+            rightLevel = normalizedRightLevel,
+            caseLevel = normalizedCaseLevel,
             leftCharging = leftCharging,
             rightCharging = rightCharging,
         )
@@ -58,21 +62,21 @@ object FocusIslandBridge {
     }
 
     private fun buildBaseContent(
-        leftLevel: Int,
-        rightLevel: Int,
-        caseLevel: Int,
+        leftLevel: Int?,
+        rightLevel: Int?,
+        caseLevel: Int?,
         leftCharging: Boolean,
         rightCharging: Boolean,
     ): String {
         val segments = mutableListOf<String>()
-        if (leftLevel >= 0) {
-            segments += "左耳 ${formatEarBattery(leftLevel, leftCharging)}"
+        if (leftLevel != null) {
+            segments += "L ${formatEarBattery(leftLevel, leftCharging)}"
         }
-        if (rightLevel >= 0) {
-            segments += "右耳 ${formatEarBattery(rightLevel, rightCharging)}"
+        if (rightLevel != null) {
+            segments += "R ${formatEarBattery(rightLevel, rightCharging)}"
         }
-        if (caseLevel >= 0) {
-            segments += "充电盒 ${caseLevel}%"
+        if (caseLevel != null) {
+            segments += "C ${caseLevel}%"
         }
         return if (segments.isEmpty()) "电量未知" else segments.joinToString(" | ")
     }

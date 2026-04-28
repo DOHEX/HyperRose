@@ -13,6 +13,7 @@ import com.dohex.hyperrose.domain.audio.AncMode
 import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
+import com.dohex.hyperrose.domain.battery.withLastKnownCaseBattery
 import com.dohex.hyperrose.bluetooth.protocol.RoseGattSpec
 import com.dohex.hyperrose.bluetooth.protocol.RoseGattTiming
 import com.dohex.hyperrose.bluetooth.protocol.RoseGattQueryScheduler
@@ -183,7 +184,9 @@ class StandaloneGattClient(private val context: Context) {
 
     private fun handleResponse(data: ByteArray) {
         when (val result = RoseParser.parse(data)) {
-            is RoseResponse.Battery -> _battery.value = result.info
+            is RoseResponse.Battery -> _battery.value =
+                result.info.withLastKnownCaseBattery(_battery.value)
+
             is RoseResponse.Anc -> _ancMode.value = result.mode
             is RoseResponse.AncDepthChanged -> _ancDepth.value = result.depth
             is RoseResponse.TransparencyChanged -> _transLevel.value = result.level

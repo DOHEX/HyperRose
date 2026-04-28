@@ -32,6 +32,7 @@ captures/
 .cxx/
 *.aab
 *.apk
+app/release/
 output-metadata.json
 
 # IntelliJ
@@ -52,6 +53,6 @@ google-services.json
 *.hprof
 
 
-
+.agent/
 docs/
 AGENTS.md

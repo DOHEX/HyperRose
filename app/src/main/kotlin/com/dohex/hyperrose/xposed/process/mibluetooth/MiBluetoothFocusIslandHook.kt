@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
 import com.dohex.hyperrose.core.reflection.ReflectionHelper
+import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
 import com.dohex.hyperrose.ipc.QuickControlIntentFactory
 import com.dohex.hyperrose.util.FocusIslandBridge
 import com.dohex.hyperrose.xposed.entry.HyperRoseModuleEntry.Companion.TAG
@@ -30,8 +31,7 @@ object MiBluetoothFocusIslandHook {
     private const val ISLAND_TIMEOUT_SECONDS = 30
     private const val QUICK_CONTROL_REQUEST_CODE = 10086
     private var receiverRegistered = false
-    private var showedIslandOnCurrentConnection = false
-    private var lastIslandTimestamp = 0L
+    private var lastKnownCaseLevel: Int? = null
 
     @SuppressLint("PrivateApi")
     fun init(module: XposedModule, param: PackageLoadedParam) {
@@ -80,14 +80,17 @@ object MiBluetoothFocusIslandHook {
             override fun onReceive(ctx: Context, intent: Intent) {
                 when (intent.action) {
                     HyperRoseAction.SHOW_ISLAND -> {
-                        val now = System.currentTimeMillis()
-                        val allowByFirstShow = !showedIslandOnCurrentConnection
-                        val allowByInterval = now - lastIslandTimestamp >= 20_000L
-                        if (!allowByFirstShow && !allowByInterval) return
-
                         val left = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
+                            .asBatteryLevelOrNull() ?: -1
                         val right = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
-                        val caseLevel = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
+                            .asBatteryLevelOrNull() ?: -1
+                        val currentCaseLevel =
+                            intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
+                                .asBatteryLevelOrNull()
+                        val caseLevel = currentCaseLevel ?: lastKnownCaseLevel ?: -1
+                        if (currentCaseLevel != null) {
+                            lastKnownCaseLevel = currentCaseLevel
+                        }
                         val leftCharging =
                             intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false)
                         val rightCharging =
@@ -108,9 +111,6 @@ object MiBluetoothFocusIslandHook {
                                 leftCharging = leftCharging,
                                 rightCharging = rightCharging,
                             )
-                        }.onSuccess {
-                            showedIslandOnCurrentConnection = true
-                            lastIslandTimestamp = now
                         }.onFailure {
                             module.log(
                                 Log.WARN, TAG, "MiBluetoothFocusIslandHook: show island failed", it
@@ -119,12 +119,11 @@ object MiBluetoothFocusIslandHook {
                     }
 
                     HyperRoseAction.DEVICE_CONNECTED -> {
-                        showedIslandOnCurrentConnection = false
+                        lastKnownCaseLevel = null
                     }
 
                     HyperRoseAction.DEVICE_DISCONNECTED -> {
-                        showedIslandOnCurrentConnection = false
-                        lastIslandTimestamp = 0L
+                        lastKnownCaseLevel = null
                         cancelIsland(ctx)
                     }
                 }
@@ -186,13 +185,13 @@ object MiBluetoothFocusIslandHook {
     ): String {
         val segments = mutableListOf<String>()
         if (left >= 0) {
-            segments += "左 ${formatEarBattery(left, leftCharging)}"
+            segments += "L ${formatEarBattery(left, leftCharging)}"
         }
         if (right >= 0) {
-            segments += "右 ${formatEarBattery(right, rightCharging)}"
+            segments += "R ${formatEarBattery(right, rightCharging)}"
         }
         if (caseLevel >= 0) {
-            segments += "盒 ${caseLevel}%"
+            segments += "C ${caseLevel}%"
         }
         return if (segments.isEmpty()) "电量未知" else segments.joinToString(" | ")
     }
