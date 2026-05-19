@@ -140,10 +140,7 @@ fun HomePage(
                             title = "未连接耳机",
                             subtitle = "可直接在 App 内连接，或等待 LSPosed 桥接状态同步",
                         ) {
-                            Text(
-                                text = "连接后可控制 ANC、EQ、游戏模式，并显示电量通知/超级岛。",
-                                color = Color(0xFF5C6775)
-                            )
+
                         }
                     }
                     return@LazyColumn

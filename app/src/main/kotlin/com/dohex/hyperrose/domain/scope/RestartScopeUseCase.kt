@@ -16,9 +16,16 @@ data class ScopeRestartItemResult(
 
 fun restartScopePackages(packages: List<String> = ScopePackagesToRestart): List<ScopeRestartItemResult> {
     return try {
+        // 先关闭缓存的非 root shell，否则 KSU 授权后重试仍会返回旧的缓存实例
+        Shell.getCachedShell()?.let { cached ->
+            if (!cached.isRoot) {
+                Log.d(TAG, "Closing cached non-root shell to force fresh root attempt")
+                cached.close()
+            }
+        }
         val shell = Shell.getShell()
         if (!shell.isRoot) {
-            Log.e(TAG, "Root unavailable or denied")
+            Log.e(TAG, "Root unavailable or denied — prompt SU manager grant first")
             return packages.map {
                 ScopeRestartItemResult(
                     packageName = it,
@@ -30,8 +37,6 @@ fun restartScopePackages(packages: List<String> = ScopePackagesToRestart): List<
 
         packages.map { pkg ->
             val result = Shell.cmd("pkill -f $pkg").exec()
-            val stderr = result.err.joinToString("; ").ifBlank { "-" }
-
             if (result.isSuccess) {
                 Log.i(TAG, "Restart scope package success: $pkg")
                 ScopeRestartItemResult(
@@ -40,6 +45,7 @@ fun restartScopePackages(packages: List<String> = ScopePackagesToRestart): List<
                     details = "pkill 执行成功"
                 )
             } else {
+                val stderr = result.err.joinToString("; ").ifBlank { "-" }
                 Log.w(TAG, "Restart scope package failed: $pkg, code=${result.code}, err=$stderr")
                 ScopeRestartItemResult(
                     packageName = pkg,

@@ -97,6 +97,9 @@ jobs:
 
           if [[ "${GITHUB_REF_NAME}" == *"-"* ]]; then
             args+=(--prerelease)
+            args+=(--make-latest=false) # 明确不将测试版标记为 Latest
+          else
+            args+=(--make-latest=true)  # 正式版本明确标记为 Latest
           fi
 
           gh release create "${args[@]}"

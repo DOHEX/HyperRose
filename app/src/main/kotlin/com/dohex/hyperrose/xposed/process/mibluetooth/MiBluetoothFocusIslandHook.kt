@@ -2,6 +2,7 @@ package com.dohex.hyperrose.xposed.process.mibluetooth
 
 import android.annotation.SuppressLint
 import android.app.Notification
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.bluetooth.BluetoothDevice
@@ -165,6 +166,14 @@ object MiBluetoothFocusIslandHook {
             leftCharging = leftCharging, rightCharging = rightCharging,
             islandTimeoutSeconds = ISLAND_TIMEOUT_SECONDS
         )
+
+        val channel = NotificationChannel(
+            CHANNEL_ID, "HyperRose 通知", NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "耳机状态通知"
+            setShowBadge(false)
+        }
+        nm.createNotificationChannel(channel)
 
         val builder = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)

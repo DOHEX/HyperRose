@@ -105,6 +105,7 @@ fun SettingsPage(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showRestartDialog by remember { mutableStateOf(false) }
+    var showNoRootDialog by remember { mutableStateOf(false) }
     val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
     val blurActive = themeMode.enableBlur && backdrop != null
 
@@ -233,14 +234,52 @@ fun SettingsPage(
                                 val results = withContext(Dispatchers.IO) { restartScopePackages() }
                                 val successCount = results.count { it.success }
                                 val failItems = results.filterNot { it.success }
-                                val message = if (failItems.isEmpty()) {
-                                    "已重启作用域进程（$successCount/${results.size}）"
-                                } else {
-                                    val failedPkgText = failItems.joinToString("、") { it.packageName }
-                                    "部分失败（$successCount/${results.size}），失败：$failedPkgText"
+                                when {
+                                    failItems.isEmpty() -> {
+                                        Toast.makeText(context, "已重启作用域进程（$successCount/${results.size}）", Toast.LENGTH_SHORT).show()
+                                    }
+                                    failItems.all { it.details == "root 未授权" } -> {
+                                        showNoRootDialog = true
+                                    }
+                                    else -> {
+                                        val failedPkgText = failItems.joinToString("、") { it.packageName }
+                                        Toast.makeText(context, "部分成功（$successCount/${results.size}），失败：$failedPkgText", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                             }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        OverlayDialog(
+            title = "需要 Root 权限",
+            show = showNoRootDialog,
+            onDismissRequest = { showNoRootDialog = false }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "重启作用域进程需要 Root 权限。\n\n请在 Magisk / KernelSU / APatch 中授予本应用超级用户权限后重试。",
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    TextButton(
+                        text = "取消",
+                        onClick = { showNoRootDialog = false },
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        text = "重试",
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                        onClick = {
+                            showNoRootDialog = false
+                            showRestartDialog = true
                         },
                         modifier = Modifier.weight(1f)
                     )

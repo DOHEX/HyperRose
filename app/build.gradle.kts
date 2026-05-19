@@ -21,8 +21,8 @@ android {
         applicationId = "com.dohex.hyperrose"
         minSdk = 35
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
     }
     signingConfigs {
         if (hasReleaseSigningConfig) {
@@ -39,7 +39,8 @@ android {
             if (hasReleaseSigningConfig) {
                 signingConfig = signingConfigs.getByName("release")
             }
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             )
