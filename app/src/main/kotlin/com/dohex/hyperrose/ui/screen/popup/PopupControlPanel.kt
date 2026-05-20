@@ -87,10 +87,6 @@ fun PopupControlPanel(
                 SectionCard(
                     title = "耳机未连接", subtitle = "请先在 App 主页或系统蓝牙中连接耳机"
                 ) {
-                    Text(
-                        text = "连接后可在这里直接调节降噪、通透、音色和游戏模式。",
-                        color = Color(0xFF5C6775)
-                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

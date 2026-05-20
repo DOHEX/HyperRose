@@ -27,11 +27,20 @@ object FocusIslandBridge {
             leftCharging = leftCharging,
             rightCharging = rightCharging,
         )
+        val aodTitle = buildString {
+            append("L$leftText%")
+            if (leftCharging) append("⚡")
+            append(" R$rightText%")
+            if (rightCharging) append("⚡")
+        }
         return FocusNotification.buildV3 {
             enableFloat = false
+            islandFirstFloat = true
             ticker = TICKER_TEXT
             updatable = true
             isShowNotification = true
+            //aodPic = "miui.focus.pic_aod"
+            this.aodTitle = aodTitle
             island {
                 islandProperty = 1
                 islandTimeout = islandTimeoutSeconds
@@ -43,7 +52,6 @@ object FocusIslandBridge {
                             content = "%"
                         }
                     }
-
                     imageTextInfoRight {
                         type = 2
                         textInfo {
@@ -57,7 +65,9 @@ object FocusIslandBridge {
                     title = "ROSESELSA EARFREE i5"
                     content = baseContent
                 }
+
             }
+            
         }
     }
 

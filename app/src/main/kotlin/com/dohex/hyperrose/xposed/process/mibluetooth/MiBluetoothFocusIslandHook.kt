@@ -168,7 +168,7 @@ object MiBluetoothFocusIslandHook {
         )
 
         val channel = NotificationChannel(
-            CHANNEL_ID, "HyperRose 通知", NotificationManager.IMPORTANCE_DEFAULT
+            CHANNEL_ID, "HyperRose 通知", NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "耳机状态通知"
             setShowBadge(false)
