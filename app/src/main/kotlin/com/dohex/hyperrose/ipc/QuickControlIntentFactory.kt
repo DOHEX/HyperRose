@@ -4,7 +4,7 @@ import android.content.Intent
 import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
 
 object QuickControlIntentFactory {
-    private const val launchFlags =
+    private const val LAUNCH_FLAGS =
         Intent.FLAG_ACTIVITY_NEW_TASK or
             Intent.FLAG_ACTIVITY_NO_ANIMATION or
             Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
@@ -16,14 +16,12 @@ object QuickControlIntentFactory {
         leftLevel: Int? = null,
         rightLevel: Int? = null,
         forceConnected: Boolean = true,
-    ): Intent {
-        return Intent().apply {
-            setClassName(HyperRoseIpc.PACKAGE_APP, HyperRoseIpc.QUICK_CONTROL_ACTIVITY)
-            putExtra(HyperRoseIpc.EXTRA_DEVICE_NAME, deviceName)
-            leftLevel?.asBatteryLevelOrNull()?.let { putExtra(HyperRoseIpc.EXTRA_LEFT_LEVEL, it) }
-            rightLevel?.asBatteryLevelOrNull()?.let { putExtra(HyperRoseIpc.EXTRA_RIGHT_LEVEL, it) }
-            putExtra(HyperRoseIpc.EXTRA_FORCE_CONNECTED, forceConnected)
-            addFlags(launchFlags)
-        }
+    ): Intent = Intent().apply {
+        setClassName(HyperRoseIpc.PACKAGE_APP, HyperRoseIpc.QUICK_CONTROL_ACTIVITY)
+        putExtra(HyperRoseIpc.EXTRA_DEVICE_NAME, deviceName)
+        leftLevel?.asBatteryLevelOrNull()?.let { putExtra(HyperRoseIpc.EXTRA_LEFT_LEVEL, it) }
+        rightLevel?.asBatteryLevelOrNull()?.let { putExtra(HyperRoseIpc.EXTRA_RIGHT_LEVEL, it) }
+        putExtra(HyperRoseIpc.EXTRA_FORCE_CONNECTED, forceConnected)
+        addFlags(LAUNCH_FLAGS)
     }
 }

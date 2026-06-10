@@ -3,38 +3,45 @@
 package com.dohex.hyperrose.bluetooth.app
 
 import android.annotation.SuppressLint
-import android.bluetooth.*
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.dohex.hyperrose.bluetooth.protocol.RoseGattQueryScheduler
+import com.dohex.hyperrose.bluetooth.protocol.RoseGattSpec
+import com.dohex.hyperrose.bluetooth.protocol.RoseGattTiming
+import com.dohex.hyperrose.bluetooth.protocol.RoseResponse
 import com.dohex.hyperrose.domain.audio.AncDepth
 import com.dohex.hyperrose.domain.audio.AncMode
 import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
 import com.dohex.hyperrose.domain.battery.TwsBatteryState
 import com.dohex.hyperrose.domain.battery.withLastKnownCaseBattery
-import com.dohex.hyperrose.bluetooth.protocol.RoseGattSpec
-import com.dohex.hyperrose.bluetooth.protocol.RoseGattTiming
-import com.dohex.hyperrose.bluetooth.protocol.RoseGattQueryScheduler
-import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
-import com.dohex.hyperrose.bluetooth.protocol.RoseResponse
-import com.dohex.hyperrose.bluetooth.protocol.RoseResponseParser as RoseParser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
+import com.dohex.hyperrose.bluetooth.protocol.RoseResponseParser as RoseParser
 
-/**
- * 独立 App 用的 BLE GATT 通信管理器。
- * 所有状态通过 StateFlow 暴露给 Compose UI。
- */
-class StandaloneGattClient(private val context: Context) {
-
+/** 独立 App 用的 BLE GATT 通信管理器。 所有状态通过 StateFlow 暴露给 Compose UI。 */
+class StandaloneGattClient(
+    private val context: Context,
+) {
     companion object {
         private const val TAG = "HyperRose.StandaloneGattClient"
     }
 
-    enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED }
+    enum class ConnectionState {
+        DISCONNECTED,
+        CONNECTING,
+        CONNECTED,
+    }
 
     // 状态 Flow
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
@@ -106,93 +113,126 @@ class StandaloneGattClient(private val context: Context) {
 
     // 便捷方法
     fun setAnc(mode: AncMode) = sendCommand(RosePackets.ancCommand(mode))
+
     fun setAncDepth(depth: AncDepth) = sendCommand(RosePackets.ancDepthCommand(depth))
+
     fun setTransLevel(level: TransparencyLevel) = sendCommand(RosePackets.transLevelCommand(level))
+
     fun setEq(mode: EqPreset) = sendCommand(RosePackets.eqCommand(mode))
+
     fun setGameMode(enabled: Boolean) = sendCommand(RosePackets.gameModeCommand(enabled))
+
     fun findLeft() = sendCommand(RosePackets.FIND_LEFT_ON)
+
     fun findRight() = sendCommand(RosePackets.FIND_RIGHT_ON)
+
     fun stopFind() = sendCommand(RosePackets.FIND_ALL_OFF)
 
     // ==================== GATT Callback ====================
 
     @Suppress("DEPRECATION")
-    private val gattCallback = object : BluetoothGattCallback() {
+    private val gattCallback =
+        object : BluetoothGattCallback() {
+            override fun onConnectionStateChange(
+                gatt: BluetoothGatt,
+                status: Int,
+                newState: Int,
+            ) {
+                when (newState) {
+                    BluetoothProfile.STATE_CONNECTED -> {
+                        Log.i(TAG, "GATT connected, discovering services")
+                        gatt.discoverServices()
+                    }
 
-        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            when (newState) {
-                BluetoothProfile.STATE_CONNECTED -> {
-                    Log.i(TAG, "GATT connected, discovering services")
-                    gatt.discoverServices()
+                    BluetoothProfile.STATE_DISCONNECTED -> {
+                        Log.i(TAG, "GATT disconnected")
+                        _connectionState.value = ConnectionState.DISCONNECTED
+                        handler.removeCallbacksAndMessages(null)
+                    }
                 }
-                BluetoothProfile.STATE_DISCONNECTED -> {
-                    Log.i(TAG, "GATT disconnected")
+            }
+
+            override fun onServicesDiscovered(
+                gatt: BluetoothGatt,
+                status: Int,
+            ) {
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    Log.e(TAG, "Service discovery failed: $status")
                     _connectionState.value = ConnectionState.DISCONNECTED
-                    handler.removeCallbacksAndMessages(null)
+                    return
                 }
+
+                val service = gatt.getService(RoseGattSpec.SERVICE_UUID)
+                if (service == null) {
+                    Log.e(TAG, "Service not found")
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                    return
+                }
+
+                writeChar = service.getCharacteristic(RoseGattSpec.WRITE_UUID)
+                val notifyChar = service.getCharacteristic(RoseGattSpec.NOTIFY_UUID)
+
+                if (writeChar == null || notifyChar == null) {
+                    Log.e(TAG, "Characteristics not found")
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                    return
+                }
+
+                // 启用通知
+                gatt.setCharacteristicNotification(notifyChar, true)
+                val descriptor = notifyChar.getDescriptor(RoseGattSpec.CCCD_UUID)
+                if (descriptor != null) {
+                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    gatt.writeDescriptor(descriptor)
+                }
+
+                _connectionState.value = ConnectionState.CONNECTED
+                Log.i(TAG, "GATT ready")
+
+                // 查询全部状态
+                handler.postDelayed({ queryAllStatus() }, RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS)
+            }
+
+            override fun onCharacteristicChanged(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+            ) {
+                val data = characteristic.value ?: return
+                handleResponse(data)
             }
         }
-
-        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                Log.e(TAG, "Service discovery failed: $status")
-                _connectionState.value = ConnectionState.DISCONNECTED
-                return
-            }
-
-            val service = gatt.getService(RoseGattSpec.SERVICE_UUID)
-            if (service == null) {
-                Log.e(TAG, "Service not found")
-                _connectionState.value = ConnectionState.DISCONNECTED
-                return
-            }
-
-            writeChar = service.getCharacteristic(RoseGattSpec.WRITE_UUID)
-            val notifyChar = service.getCharacteristic(RoseGattSpec.NOTIFY_UUID)
-
-            if (writeChar == null || notifyChar == null) {
-                Log.e(TAG, "Characteristics not found")
-                _connectionState.value = ConnectionState.DISCONNECTED
-                return
-            }
-
-            // 启用通知
-            gatt.setCharacteristicNotification(notifyChar, true)
-            val descriptor = notifyChar.getDescriptor(RoseGattSpec.CCCD_UUID)
-            if (descriptor != null) {
-                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                gatt.writeDescriptor(descriptor)
-            }
-
-            _connectionState.value = ConnectionState.CONNECTED
-            Log.i(TAG, "GATT ready")
-
-            // 查询全部状态
-            handler.postDelayed({ queryAllStatus() }, RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS)
-        }
-
-        override fun onCharacteristicChanged(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic
-        ) {
-            val data = characteristic.value ?: return
-            handleResponse(data)
-        }
-    }
 
     // ==================== 回包处理 ====================
 
     private fun handleResponse(data: ByteArray) {
         when (val result = RoseParser.parse(data)) {
-            is RoseResponse.Battery -> _battery.value =
-                result.info.withLastKnownCaseBattery(_battery.value)
+            is RoseResponse.Battery -> {
+                _battery.value = result.info.withLastKnownCaseBattery(_battery.value)
+            }
 
-            is RoseResponse.Anc -> _ancMode.value = result.mode
-            is RoseResponse.AncDepthChanged -> _ancDepth.value = result.depth
-            is RoseResponse.TransparencyChanged -> _transLevel.value = result.level
-            is RoseResponse.Eq -> _eqMode.value = result.mode
-            is RoseResponse.GameMode -> _gameMode.value = result.enabled
-            is RoseResponse.Unknown -> Log.d(TAG, "Unknown: ${data.joinToString(" ") { "%02X".format(it) }}")
+            is RoseResponse.Anc -> {
+                _ancMode.value = result.mode
+            }
+
+            is RoseResponse.AncDepthChanged -> {
+                _ancDepth.value = result.depth
+            }
+
+            is RoseResponse.TransparencyChanged -> {
+                _transLevel.value = result.level
+            }
+
+            is RoseResponse.Eq -> {
+                _eqMode.value = result.mode
+            }
+
+            is RoseResponse.GameMode -> {
+                _gameMode.value = result.enabled
+            }
+
+            is RoseResponse.Unknown -> {
+                Log.d(TAG, "Unknown: ${data.joinToString(" ") { "%02X".format(it) }}")
+            }
         }
     }
 

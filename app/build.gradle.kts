@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.spotless)
 }
 
 val releaseKeystoreFile: String? = System.getenv("ANDROID_KEYSTORE_FILE")
@@ -21,8 +22,8 @@ android {
         applicationId = "com.dohex.hyperrose"
         minSdk = 35
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.1.3"
     }
     signingConfigs {
         if (hasReleaseSigningConfig) {
@@ -53,6 +54,37 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
+    }
+}
+
+spotless {
+    ratchetFrom("origin/master")
+    kotlin {
+        target("src/*/java/**/*.kt", "src/*/kotlin/**/*.kt")
+        ktlint()
+            .editorConfigOverride(
+                mapOf(
+                    "ktlint_standard_function-naming" to "disabled",
+                )
+            )
+            .customRuleSets(
+                listOf(
+                    "io.nlopez.compose.rules:ktlint:0.5.9"
+                )
+            )
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    kotlinGradle {
+        ktlint()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    format("misc") {
+        target("*.xml","*.md","*.gradle", ".gitattributes", ".gitignore")
+        trimTrailingWhitespace()
+        leadingSpacesToTabs()
+        endWithNewline()
     }
 }
 

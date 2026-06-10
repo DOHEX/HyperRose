@@ -11,7 +11,7 @@ val ScopePackagesToRestart = HyperRoseIpc.SCOPE_PACKAGES
 data class ScopeRestartItemResult(
     val packageName: String,
     val success: Boolean,
-    val details: String
+    val details: String,
 )
 
 fun restartScopePackages(packages: List<String> = ScopePackagesToRestart): List<ScopeRestartItemResult> {
@@ -30,7 +30,7 @@ fun restartScopePackages(packages: List<String> = ScopePackagesToRestart): List<
                 ScopeRestartItemResult(
                     packageName = it,
                     success = false,
-                    details = "root 未授权"
+                    details = "root 未授权",
                 )
             }
         }
@@ -42,7 +42,7 @@ fun restartScopePackages(packages: List<String> = ScopePackagesToRestart): List<
                 ScopeRestartItemResult(
                     packageName = pkg,
                     success = true,
-                    details = "pkill 执行成功"
+                    details = "pkill 执行成功",
                 )
             } else {
                 val stderr = result.err.joinToString("; ").ifBlank { "-" }
@@ -50,7 +50,7 @@ fun restartScopePackages(packages: List<String> = ScopePackagesToRestart): List<
                 ScopeRestartItemResult(
                     packageName = pkg,
                     success = false,
-                    details = "code=${result.code}, err=$stderr"
+                    details = "code=${result.code}, err=$stderr",
                 )
             }
         }
@@ -60,7 +60,7 @@ fun restartScopePackages(packages: List<String> = ScopePackagesToRestart): List<
             ScopeRestartItemResult(
                 packageName = it,
                 success = false,
-                details = t.message ?: "unknown"
+                details = t.message ?: "unknown",
             )
         }
     }

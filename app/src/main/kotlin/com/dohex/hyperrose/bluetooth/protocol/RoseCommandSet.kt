@@ -5,13 +5,8 @@ import com.dohex.hyperrose.domain.audio.AncMode
 import com.dohex.hyperrose.domain.audio.EqPreset
 import com.dohex.hyperrose.domain.audio.TransparencyLevel
 
-/**
- * ROSE EARFREE i5 全部控制/查询命令。
- * 协议帧前缀：请求 08 EE / 回包 09 FF
- * 通信通道：BLE GATT
- */
+/** ROSE EARFREE i5 全部控制/查询命令。 协议帧前缀：请求 08 EE / 回包 09 FF 通信通道：BLE GATT */
 object RoseCommandSet {
-
     // ==================== ANC 模式切换 ====================
 
     val ANC_NOISE_CANCEL: ByteArray = hexToBytes("08 EE 00 00 00 06 82 0E 00 01 00 00 00 8D")
@@ -86,16 +81,18 @@ object RoseCommandSet {
     val QUERY_GAME_MODE: ByteArray = hexToBytes("08 EE 00 00 00 06 03 0A 00 09")
     val QUERY_BATTERY: ByteArray = hexToBytes("08 EE 00 00 00 01 01 0A 00 02")
 
-    val STATUS_QUERY_SEQUENCE: Array<ByteArray> = arrayOf(
-        QUERY_BATTERY, QUERY_ANC, QUERY_ANC_DEPTH, QUERY_TRANS_LEVEL, QUERY_EQ, QUERY_GAME_MODE
-    )
+    val STATUS_QUERY_SEQUENCE: Array<ByteArray> =
+        arrayOf(
+            QUERY_BATTERY,
+            QUERY_ANC,
+            QUERY_ANC_DEPTH,
+            QUERY_TRANS_LEVEL,
+            QUERY_EQ,
+            QUERY_GAME_MODE,
+        )
 
     // ==================== 工具方法 ====================
 
-    /**
-     * 将空格分隔的十六进制字符串转为 ByteArray。
-     * 例如 "08 EE 00" → byteArrayOf(0x08, 0xEE.toByte(), 0x00)
-     */
-    private fun hexToBytes(hex: String): ByteArray =
-        hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
+    /** 将空格分隔的十六进制字符串转为 ByteArray。 例如 "08 EE 00" → byteArrayOf(0x08, 0xEE.toByte(), 0x00) */
+    private fun hexToBytes(hex: String): ByteArray = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
 }

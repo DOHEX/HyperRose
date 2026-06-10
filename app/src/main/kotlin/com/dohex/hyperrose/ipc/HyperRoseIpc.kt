@@ -1,14 +1,11 @@
 package com.dohex.hyperrose.ipc
 
-/**
- * 广播 Action 常量。
- * 用于 Hook 进程间通信（Bluetooth → MiBluetooth → App）。
- */
+/** 广播 Action 常量。 用于 Hook 进程间通信（Bluetooth → MiBluetooth → App）。 */
 object HyperRoseIpc {
     const val PACKAGE_APP = "com.dohex.hyperrose"
     const val PACKAGE_BLUETOOTH = "com.android.bluetooth"
     const val PACKAGE_MI_BLUETOOTH = "com.xiaomi.bluetooth"
-    const val PACKAGE_SYSTEM_UI = "com.android.systemui"
+    const val PACKAGE_MILINK = "com.milink.service"
 
     const val QUICK_CONTROL_ACTIVITY = "$PACKAGE_APP.entry.QuickControlActivity"
 
@@ -39,6 +36,9 @@ object HyperRoseIpc {
     const val REFRESH_STATUS = "$PREFIX.refresh_status"
     const val DISCONNECT_GATT = "$PREFIX.disconnect_gatt"
 
+    // MiLink 进程 → Bluetooth 进程（ANC 控制命令）
+    const val ANC_SELECT = "$PREFIX.anc_select"
+
     // 广播 Extra 键
     const val EXTRA_DEVICE = "$EXTRA_PREFIX.device"
     const val EXTRA_DEVICE_NAME = "$EXTRA_PREFIX.device_name"
@@ -58,31 +58,35 @@ object HyperRoseIpc {
     const val SIDE_RIGHT = "RIGHT"
     const val SIDE_STOP = "STOP"
 
-    val SCOPE_PACKAGES: List<String> = listOf(
-        PACKAGE_BLUETOOTH,
-        PACKAGE_MI_BLUETOOTH,
-        PACKAGE_SYSTEM_UI
-    )
+    val SCOPE_PACKAGES: List<String> =
+        listOf(
+            PACKAGE_BLUETOOTH,
+            PACKAGE_MI_BLUETOOTH,
+            PACKAGE_MILINK,
+        )
 
-    val BRIDGE_STATE_ACTIONS: List<String> = listOf(
-        DEVICE_CONNECTED,
-        DEVICE_DISCONNECTED,
-        BATTERY_CHANGED,
-        ANC_CHANGED,
-        ANC_DEPTH_CHANGED,
-        TRANS_LEVEL_CHANGED,
-        EQ_CHANGED,
-        GAME_MODE_CHANGED
-    )
+    val BRIDGE_STATE_ACTIONS: List<String> =
+        listOf(
+            DEVICE_CONNECTED,
+            DEVICE_DISCONNECTED,
+            BATTERY_CHANGED,
+            ANC_CHANGED,
+            ANC_DEPTH_CHANGED,
+            TRANS_LEVEL_CHANGED,
+            EQ_CHANGED,
+            GAME_MODE_CHANGED,
+        )
 
-    val APP_CONTROL_ACTIONS: List<String> = listOf(
-        SET_ANC,
-        SET_ANC_DEPTH,
-        SET_TRANS_LEVEL,
-        SET_EQ,
-        SET_GAME_MODE,
-        FIND_EARPHONE,
-        REFRESH_STATUS,
-        DISCONNECT_GATT
-    )
+    val APP_CONTROL_ACTIONS: List<String> =
+        listOf(
+            SET_ANC,
+            SET_ANC_DEPTH,
+            SET_TRANS_LEVEL,
+            SET_EQ,
+            SET_GAME_MODE,
+            FIND_EARPHONE,
+            REFRESH_STATUS,
+            DISCONNECT_GATT,
+            ANC_SELECT,
+        )
 }

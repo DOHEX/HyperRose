@@ -19,13 +19,9 @@ fun AncSelector(
     onAncDepthChange: (AncDepth) -> Unit,
     onTransLevelChange: (TransparencyLevel) -> Unit,
     enabled: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    SectionCard(
-        title = "降噪/通透",
-        subtitle = ancMode?.label ?: "未获取模式",
-        modifier = modifier
-    ) {
+    SectionCard(title = "降噪/通透", subtitle = ancMode?.label ?: "未获取模式", modifier = modifier) {
         val modeOptions = AncMode.entries.map { it.label }
         val modeSelectedIndex = AncMode.entries.indexOf(ancMode).coerceAtLeast(0)
 
@@ -37,7 +33,7 @@ fun AncSelector(
                     AncMode.entries.getOrNull(index)?.let(onAncModeChange)
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
 
         if (ancMode == AncMode.NOISE_CANCEL) {
@@ -52,9 +48,7 @@ fun AncSelector(
                         AncDepth.entries.getOrNull(index)?.let(onAncDepthChange)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
             )
         }
 
@@ -70,9 +64,7 @@ fun AncSelector(
                         TransparencyLevel.entries.getOrNull(index)?.let(onTransLevelChange)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
             )
         }
     }

@@ -9,7 +9,6 @@ import top.yukonga.miuix.kmp.theme.ThemeController
 @Composable
 fun HyperRoseTheme(
     colorMode: Int = 0,
-    smoothRounding: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val controller = remember(colorMode) {
@@ -26,7 +25,6 @@ fun HyperRoseTheme(
     }
     MiuixTheme(
         controller = controller,
-        smoothRounding = smoothRounding,
         content = content,
     )
 }

@@ -13,33 +13,35 @@ object FocusIslandBridge {
         caseLevel: Int,
         leftCharging: Boolean,
         rightCharging: Boolean,
-        islandTimeoutSeconds: Int
+        islandTimeoutSeconds: Int,
     ): Bundle {
         val normalizedLeftLevel = leftLevel.asBatteryLevelOrNull()
         val normalizedRightLevel = rightLevel.asBatteryLevelOrNull()
         val normalizedCaseLevel = caseLevel.asBatteryLevelOrNull()
         val leftText = normalizedLeftLevel?.toString() ?: "-"
         val rightText = normalizedRightLevel?.toString() ?: "-"
-        val baseContent = buildBaseContent(
-            leftLevel = normalizedLeftLevel,
-            rightLevel = normalizedRightLevel,
-            caseLevel = normalizedCaseLevel,
-            leftCharging = leftCharging,
-            rightCharging = rightCharging,
-        )
-        val aodTitle = buildString {
-            append("L$leftText%")
-            if (leftCharging) append("⚡")
-            append(" R$rightText%")
-            if (rightCharging) append("⚡")
-        }
+        val baseContent =
+            buildBaseContent(
+                leftLevel = normalizedLeftLevel,
+                rightLevel = normalizedRightLevel,
+                caseLevel = normalizedCaseLevel,
+                leftCharging = leftCharging,
+                rightCharging = rightCharging,
+            )
+        val aodTitle =
+            buildString {
+                append("L$leftText%")
+                if (leftCharging) append("⚡")
+                append(" R$rightText%")
+                if (rightCharging) append("⚡")
+            }
         return FocusNotification.buildV3 {
             enableFloat = false
             islandFirstFloat = true
             ticker = TICKER_TEXT
             updatable = true
             isShowNotification = true
-            //aodPic = "miui.focus.pic_aod"
+            // aodPic = "miui.focus.pic_aod"
             this.aodTitle = aodTitle
             island {
                 islandProperty = 1
@@ -65,9 +67,7 @@ object FocusIslandBridge {
                     title = "ROSESELSA EARFREE i5"
                     content = baseContent
                 }
-
             }
-            
         }
     }
 
@@ -86,12 +86,13 @@ object FocusIslandBridge {
             segments += "R ${formatEarBattery(rightLevel, rightCharging)}"
         }
         if (caseLevel != null) {
-            segments += "C ${caseLevel}%"
+            segments += "C $caseLevel%"
         }
         return if (segments.isEmpty()) "电量未知" else segments.joinToString(" | ")
     }
 
-    private fun formatEarBattery(level: Int, charging: Boolean): String {
-        return if (charging) "$level% ⚡" else "$level%"
-    }
+    private fun formatEarBattery(
+        level: Int,
+        charging: Boolean,
+    ): String = if (charging) "$level% ⚡" else "$level%"
 }

@@ -11,7 +11,7 @@ fun EqSelector(
     eqMode: EqPreset?,
     onSelect: (EqPreset) -> Unit,
     enabled: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val options = EqPreset.entries.map { it.label }
     val selectedIndex = EqPreset.entries.indexOf(eqMode).coerceAtLeast(0)
@@ -26,7 +26,7 @@ fun EqSelector(
                     EqPreset.entries.getOrNull(index)?.let(onSelect)
                 }
             },
-            enabled = enabled
+            enabled = enabled,
         )
     }
 }

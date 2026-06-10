@@ -18,34 +18,27 @@ import top.yukonga.miuix.kmp.basic.Text
 @Composable
 fun BatteryCard(
     battery: TwsBatteryState?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    SectionCard(
-        title = "电量",
-        subtitle = batterySubtitle(battery),
-        modifier = modifier
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+    SectionCard(title = "电量", subtitle = batterySubtitle(battery), modifier = modifier) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             BatteryCell(
                 label = "左耳",
                 value = battery?.left?.level,
                 charging = battery?.left?.isCharging == true,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             BatteryCell(
                 label = "右耳",
                 value = battery?.right?.level,
                 charging = battery?.right?.isCharging == true,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             BatteryCell(
                 label = "充电盒",
                 value = battery?.caseBattery,
                 charging = false,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -56,24 +49,20 @@ private fun BatteryCell(
     label: String,
     value: Int?,
     charging: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.padding(vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(text = label, color = Color(0xFF5F6D7D))
         Text(
             text = formatBatteryLevel(value),
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier.padding(top = 4.dp),
         )
         if (charging) {
-            Text(
-                text = "充电中",
-                color = Color(0xFF2A6AA0),
-                modifier = Modifier.padding(top = 2.dp)
-            )
+            Text(text = "充电中", color = Color(0xFF2A6AA0), modifier = Modifier.padding(top = 2.dp))
         }
     }
 }
@@ -86,6 +75,4 @@ private fun batterySubtitle(battery: TwsBatteryState?): String {
     return "L $left  ·  R $right  ·  C $caseLevel"
 }
 
-private fun formatBatteryLevel(level: Int?): String {
-    return level?.asBatteryLevelOrNull()?.let { "$it%" } ?: "-"
-}
+private fun formatBatteryLevel(level: Int?): String = level?.asBatteryLevelOrNull()?.let { "$it%" } ?: "-"
