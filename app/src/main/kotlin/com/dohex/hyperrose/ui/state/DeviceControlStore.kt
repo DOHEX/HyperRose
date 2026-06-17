@@ -114,7 +114,7 @@ class DeviceControlStore(
                         if (needsHookBridge) {
                             _transport.value = ConnectionTransport.HOOK_BRIDGE
                             _connectionState.value = DeviceConnectionState.CONNECTED
-                            _deviceName.value = device?.name ?: _deviceName.value ?: "ROSE EARFREE"
+                            _deviceName.value = device?.name ?: _deviceName.value ?: com.dohex.hyperrose.domain.DeviceConstants.DEFAULT_DEVICE_NAME
                         }
                     }
 
@@ -197,9 +197,13 @@ class DeviceControlStore(
             adapter.bondedDevices
                 .mapNotNull { device ->
                     val name = device.name ?: return@mapNotNull null
-                    if (!name.contains("ROSE EARFREE", ignoreCase = true)) return@mapNotNull null
                     RoseDeviceItem(name = name, address = device.address)
-                }.sortedWith(compareBy<RoseDeviceItem> { it.name.lowercase() }.thenBy { it.address })
+                }.sortedWith(
+                    compareByDescending<RoseDeviceItem> {
+                        com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(it.name)
+                    }.thenBy { it.name.lowercase() }
+                    .thenBy { it.address },
+                )
     }
 
     @SuppressLint("MissingPermission")
@@ -207,6 +211,8 @@ class DeviceControlStore(
         if (!_hasBluetoothPermission.value) return
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
         val bonded = adapter.bondedDevices.firstOrNull { it.address == address } ?: return
+
+        com.dohex.hyperrose.data.AuthorizedDeviceStore.add(appContext, address)
 
         _transport.value = ConnectionTransport.DIRECT_BLE
         _connectionState.value = DeviceConnectionState.CONNECTING

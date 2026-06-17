@@ -64,7 +64,7 @@ object FocusIslandBridge {
                 }
                 baseInfo {
                     type = 2
-                    title = "ROSESELSA EARFREE i5"
+                    title = "ROSESELSA EARFEEL i5"
                     content = baseContent
                 }
             }

@@ -26,6 +26,9 @@ object HyperRoseIpc {
     const val EQ_CHANGED = "$PREFIX.eq_changed"
     const val GAME_MODE_CHANGED = "$PREFIX.game_mode_changed"
 
+    // App → Bluetooth 进程（白名单变更通知）
+    const val WHITELIST_CHANGED = "$PREFIX.whitelist_changed"
+
     // App → Bluetooth 进程（控制命令）
     const val SET_ANC = "$PREFIX.set_anc"
     const val SET_ANC_DEPTH = "$PREFIX.set_anc_depth"

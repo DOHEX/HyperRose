@@ -31,7 +31,7 @@ import com.dohex.hyperrose.bluetooth.protocol.RoseResponseParser as RoseParser
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
 /**
- * Hook 进程中的 BLE GATT 通信管理器。 在 com.android.bluetooth 进程内运行，负责与 ROSE EARFREE i5 的 GATT 通信。
+ * Hook 进程中的 BLE GATT 通信管理器。 在 com.android.bluetooth 进程内运行，负责与目标耳机的 GATT 通信。
  * 通过广播将状态变化发送给其他进程（MiBluetooth、App）。
  */
 @SuppressLint("MissingPermission")

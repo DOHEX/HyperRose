@@ -80,7 +80,7 @@ fun HomePage(
       topBar = {
         BlurredBar(backdrop = backdrop, blurEnabled = blurActive) {
           TopAppBar(
-              title = deviceName ?: "ROSE EARFREE",
+              title = deviceName ?: com.dohex.hyperrose.domain.DeviceConstants.DEFAULT_DEVICE_NAME,
               navigationIcon = {
                 IconButton(onClick = onBack) {
                   Icon(MiuixIcons.ChevronBackward, contentDescription = "返回")
@@ -109,7 +109,7 @@ fun HomePage(
       ) {
         item {
           SectionCard(
-              title = deviceName ?: "ROSE EARFREE",
+              title = deviceName ?: com.dohex.hyperrose.domain.DeviceConstants.DEFAULT_DEVICE_NAME,
               subtitle = connectionSummary(connectionState, transport),
           ) {
             Row(

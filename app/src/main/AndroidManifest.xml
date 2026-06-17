@@ -24,6 +24,11 @@
             </intent-filter>
         </activity>
 
+        <provider
+            android:name="com.dohex.hyperrose.ipc.AuthorizedDeviceProvider"
+            android:authorities="com.dohex.hyperrose.authorized_devices"
+            android:exported="true" />
+
         <activity
             android:name="com.dohex.hyperrose.entry.QuickControlActivity"
             android:exported="true"

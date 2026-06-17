@@ -16,7 +16,7 @@ import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
 /**
  * com.milink.service 进程的 Hook。
- * 让 ROSE EARFREE 在小米 MxBluetooth SDK 中伪装为原生小米 TWS 耳机，解锁音频流转功能。
+ * 让目标耳机在小米 MxBluetooth SDK 中伪装为原生小米 TWS 耳机，解锁音频流转功能。
  *
  * 核心策略：
  * - hook MxBluetoothManager / MxBluetoothService 的设备查询方法，返回伪装值
@@ -65,6 +65,13 @@ object MiLinkProcessHook {
     ) {
         this.module = module
         val cl = param.defaultClassLoader
+
+        // 加载白名单（从 App 进程 ContentProvider 查询）
+        runCatching {
+            val clazz = Class.forName("android.app.ActivityThread")
+            val appCtx = clazz.getMethod("currentApplication").invoke(null) as? android.content.Context
+            if (appCtx != null) com.dohex.hyperrose.ipc.AuthorizedDeviceClient.ensureLoaded(appCtx)
+        }
 
         // 先 hook 初始化方法捕获 Context（必须在注册广播接收器之前）
         hookContextEntry(module, cl)
@@ -409,7 +416,7 @@ object MiLinkProcessHook {
         val address = runCatching { device.address }.getOrNull()
         if (address != null && isRoseAddress(address)) return true
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        return name.contains("ROSE EARFREE", ignoreCase = true)
+        return com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(name)
     }
 
     private fun isRoseAddress(address: String): Boolean {
@@ -420,8 +427,13 @@ object MiLinkProcessHook {
             val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
             val device = bt?.getRemoteDevice(address)
             val name = device?.name ?: device?.alias
-            name?.contains("ROSE EARFREE", ignoreCase = true) == true
+            name?.let { com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(it) } == true
         }.getOrElse { false }) {
+            currentAddress = address
+            return true
+        }
+        // 3. 检查用户白名单
+        if (com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)) {
             currentAddress = address
             return true
         }

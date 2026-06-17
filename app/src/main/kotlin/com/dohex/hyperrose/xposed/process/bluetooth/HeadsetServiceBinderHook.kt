@@ -32,7 +32,7 @@ import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
  * 3. 通过 callback.refreshStatus(address, payload) 推送真实耳机电量/ANC 数据
  * 4. 拦截系统 UI 发来的 ANC 命令，转换为 HyperRose 协议
  *
- * 使系统原生耳机控制界面能正确显示 ROSE EARFREE 的状态。
+ * 使系统原生耳机控制界面能正确显示目标耳机的状态。
  */
 @SuppressLint("MissingPermission")
 object HeadsetServiceBinderHook {
@@ -999,7 +999,7 @@ object HeadsetServiceBinderHook {
         if (device == null) return false
         val address = runCatching { device.address }.getOrNull()
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        val nameMatch = name.contains("ROSE EARFREE", ignoreCase = true)
+        val nameMatch = com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(name)
         val addrMatch = address != null && isRoseAddress(address)
         val result = nameMatch || addrMatch
         moduleLog("isRoseEarphone: name='$name' addr=$address nameMatch=$nameMatch addrMatch=$addrMatch known=$knownAddresses → $result")
@@ -1017,13 +1017,18 @@ object HeadsetServiceBinderHook {
         if (normalized in knownAddresses) return true
         // 2. 检查当前缓存的设备地址（可能在收到 DEVICE_CONNECTED 广播前就被 Binder 调用）
         if (normalized == currentAddress?.uppercase()) return true
-        // 3. 兜底：尝试从蓝牙适配器获取远程设备名称，匹配 ROSE EARFREE 关键字
+        // 3. 兜底：尝试从蓝牙适配器获取远程设备名称，匹配关键字
         if (runCatching {
             val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
             val device = bt?.getRemoteDevice(address)
             val name = device?.name ?: device?.alias
-            name?.contains("ROSE EARFREE", ignoreCase = true) == true
+            name?.let { com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(it) } == true
         }.getOrElse { false }) {
+            knownAddresses.add(normalized)
+            return true
+        }
+        // 4. 检查用户白名单
+        if (com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)) {
             knownAddresses.add(normalized)
             return true
         }

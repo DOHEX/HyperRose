@@ -46,7 +46,7 @@ fun PopupControlPanel(
 
   WindowDialog(
       show = show,
-      title = deviceName ?: "ROSE EARFREE",
+      title = deviceName ?: com.dohex.hyperrose.domain.DeviceConstants.DEFAULT_DEVICE_NAME,
       summary = if (connected) null else "未连接",
       onDismissRequest = onDismissRequest,
       onDismissFinished = onDismissFinished,

@@ -19,10 +19,8 @@ import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet as RosePackets
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
-/** com.android.bluetooth 进程的 Hook。 监听 A2DP 连接状态变化，识别 ROSE EARFREE 耳机并启动 GATT 通信。 */
+/** com.android.bluetooth 进程的 Hook。 监听 A2DP 连接状态变化，识别目标耳机并启动 GATT 通信。 */
 object BluetoothProcessHook {
-    /** 蓝牙名称关键字，用于识别目标耳机 */
-    private const val DEVICE_NAME_KEYWORD = "ROSE EARFREE"
 
     @SuppressLint("StaticFieldLeak")
     private var gattClient: BluetoothProcessGattClient? = null
@@ -38,6 +36,13 @@ object BluetoothProcessHook {
         param: PackageLoadedParam,
     ) {
         val cl = param.defaultClassLoader
+
+        // 加载白名单（从 App 进程 ContentProvider 查询）
+        runCatching {
+            val clazz = Class.forName("android.app.ActivityThread")
+            val appCtx = clazz.getMethod("currentApplication").invoke(null) as? android.content.Context
+            if (appCtx != null) com.dohex.hyperrose.ipc.AuthorizedDeviceClient.ensureLoaded(appCtx)
+        }
 
         // Hook A2dpService.handleConnectionStateChanged(BluetoothDevice, int, int)
         try {
@@ -65,7 +70,7 @@ object BluetoothProcessHook {
                                 module.log(
                                     Log.INFO,
                                     TAG,
-                                    "ROSE EARFREE connected: ${device.address}",
+                                    "Device connected: ${device.address}",
                                 )
                                 onDeviceConnected(module, serviceObj, device)
                             }
@@ -74,7 +79,7 @@ object BluetoothProcessHook {
                                 module.log(
                                     Log.INFO,
                                     TAG,
-                                    "ROSE EARFREE disconnected: ${device.address}",
+                                    "Device disconnected: ${device.address}",
                                 )
                                 onDeviceDisconnected(module, serviceObj, device)
                             }
@@ -102,7 +107,12 @@ object BluetoothProcessHook {
     }
 
     @SuppressLint("MissingPermission")
-    private fun isRoseEarphone(device: BluetoothDevice): Boolean = device.name?.contains(DEVICE_NAME_KEYWORD, ignoreCase = true) == true
+    private fun isRoseEarphone(device: BluetoothDevice): Boolean {
+        val name = device.name
+        if (name != null && com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(name)) return true
+        val address = device.address ?: return false
+        return com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)
+    }
 
     private fun onDeviceConnected(
         module: XposedModule,

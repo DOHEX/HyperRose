@@ -9,7 +9,7 @@ import com.dohex.hyperrose.domain.battery.TwsBatteryState
 import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
 import com.dohex.hyperrose.domain.battery.isBatteryLevelOrUnknown
 
-/** ROSE EARFREE i5 回包解析器。 所有回包以 09 FF 开头，通过帧结构匹配分发到具体解析方法。 */
+/** ROSESELSA EARFEEL i5 回包解析器。 所有回包以 09 FF 开头，通过帧结构匹配分发到具体解析方法。 */
 object RoseResponseParser {
     /** 统一解析入口 */
     fun parse(data: ByteArray): RoseResponse {
