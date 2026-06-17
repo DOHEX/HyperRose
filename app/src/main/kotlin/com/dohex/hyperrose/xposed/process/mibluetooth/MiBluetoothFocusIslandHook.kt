@@ -29,6 +29,11 @@ object MiBluetoothFocusIslandHook {
     private const val QUICK_CONTROL_REQUEST_CODE = 10086
     private var receiverRegistered = false
     private var lastKnownCaseLevel: Int? = null
+    private var lastIslandLeft = -1
+    private var lastIslandRight = -1
+    private var lastIslandCase = -1
+    private var lastIslandLeftCharging = false
+    private var lastIslandRightCharging = false
 
     @SuppressLint("PrivateApi")
     fun init(
@@ -114,6 +119,19 @@ object MiBluetoothFocusIslandHook {
                                 intent.getBooleanExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, false)
                             if (left < 0 && right < 0 && caseLevel < 0) return
 
+                            // 电量无变化时跳过通知，避免锁屏下重复触发动效
+                            if (left == lastIslandLeft && right == lastIslandRight &&
+                                caseLevel == lastIslandCase &&
+                                leftCharging == lastIslandLeftCharging &&
+                                rightCharging == lastIslandRightCharging
+                            ) return
+
+                            lastIslandLeft = left
+                            lastIslandRight = right
+                            lastIslandCase = caseLevel
+                            lastIslandLeftCharging = leftCharging
+                            lastIslandRightCharging = rightCharging
+
                             val device =
                                 intent.getParcelableExtra(
                                     HyperRoseAction.EXTRA_DEVICE,
@@ -142,10 +160,20 @@ object MiBluetoothFocusIslandHook {
 
                         HyperRoseAction.DEVICE_CONNECTED -> {
                             lastKnownCaseLevel = null
+                            lastIslandLeft = -1
+                            lastIslandRight = -1
+                            lastIslandCase = -1
+                            lastIslandLeftCharging = false
+                            lastIslandRightCharging = false
                         }
 
                         HyperRoseAction.DEVICE_DISCONNECTED -> {
                             lastKnownCaseLevel = null
+                            lastIslandLeft = -1
+                            lastIslandRight = -1
+                            lastIslandCase = -1
+                            lastIslandLeftCharging = false
+                            lastIslandRightCharging = false
                             cancelIsland(ctx)
                         }
                     }

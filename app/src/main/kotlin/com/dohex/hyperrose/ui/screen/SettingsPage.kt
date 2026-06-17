@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -139,6 +140,9 @@ fun SettingsPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
+                SmallTitle(
+                    text = "主题"
+                )
                 Card {
                     OverlayDropdownPreference(
                         title = "颜色模式",
@@ -159,6 +163,9 @@ fun SettingsPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 }
             }
             item {
+                SmallTitle(
+                    text = "关于"
+                )
                 Card {
                     ArrowPreference(
                         title = HyperRoseGithubLink.title,
@@ -171,8 +178,6 @@ fun SettingsPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 SmallTitle(
                     text = "鸣谢"
                 )
-            }
-            item {
                 Card {
                     ThanksGithubLinks.forEach { link ->
                         ArrowPreference(
