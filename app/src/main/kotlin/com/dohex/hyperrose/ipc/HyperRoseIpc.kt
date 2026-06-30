@@ -7,7 +7,7 @@ object HyperRoseIpc {
     const val PACKAGE_MI_BLUETOOTH = "com.xiaomi.bluetooth"
     const val PACKAGE_MILINK = "com.milink.service"
 
-    const val QUICK_CONTROL_ACTIVITY = "$PACKAGE_APP.entry.QuickControlActivity"
+    const val QUICK_CONTROL_ACTIVITY = "$PACKAGE_APP.ui.QuickControlActivity"
 
     private const val PREFIX = "com.dohex.hyperrose.action"
 
