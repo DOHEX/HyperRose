@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.spotless)
 }
 
 val releaseKeystoreFile: String? = System.getenv("ANDROID_KEYSTORE_FILE")
@@ -59,34 +58,6 @@ android {
     }
 }
 
-spotless {
-    ratchetFrom("origin/master")
-    kotlin {
-        target("src/*/java/**/*.kt", "src/*/kotlin/**/*.kt")
-        ktlint()
-            .editorConfigOverride(
-                mapOf(
-                    "ktlint_standard_function-naming" to "disabled",
-                ),
-            ).customRuleSets(
-                listOf(
-                    "io.nlopez.compose.rules:ktlint:0.5.9",
-                ),
-            )
-        trimTrailingWhitespace()
-        endWithNewline()
-    }
-    kotlinGradle {
-        ktlint()
-        trimTrailingWhitespace()
-        endWithNewline()
-    }
-    format("misc") {
-        target("*.xml", "*.md", ".gitattributes", ".gitignore")
-        trimTrailingWhitespace()
-        endWithNewline()
-    }
-}
 
 dependencies {
     implementation(platform(libs.compose.bom))
