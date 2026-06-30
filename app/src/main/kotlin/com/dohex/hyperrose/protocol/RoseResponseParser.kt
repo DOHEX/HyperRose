@@ -196,10 +196,10 @@ object RoseResponseParser {
         rightChargingRaw: Int,
         caseLevel: Int,
     ): Boolean = leftLevel.isBatteryLevelOrUnknown() &&
-        rightLevel.isBatteryLevelOrUnknown() &&
-        caseLevel.isBatteryLevelOrUnknown() &&
-        isValidChargingByte(leftChargingRaw) &&
-        isValidChargingByte(rightChargingRaw)
+            rightLevel.isBatteryLevelOrUnknown() &&
+            caseLevel.isBatteryLevelOrUnknown() &&
+            isValidChargingByte(leftChargingRaw) &&
+            isValidChargingByte(rightChargingRaw)
 
     private fun isValidChargingByte(value: Int): Boolean = value == 0x00 || value == 0x01
 

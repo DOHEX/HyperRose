@@ -27,7 +27,12 @@ object BluetoothCommandDispatcher {
         context: Context,
         level: TransparencyLevel,
     ) {
-        send(context, HyperRoseIpc.SET_TRANS_LEVEL) { putExtra(HyperRoseIpc.EXTRA_LEVEL, level.name) }
+        send(context, HyperRoseIpc.SET_TRANS_LEVEL) {
+            putExtra(
+                HyperRoseIpc.EXTRA_LEVEL,
+                level.name
+            )
+        }
     }
 
     fun setEq(

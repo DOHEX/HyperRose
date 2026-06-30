@@ -69,7 +69,8 @@ object MiLinkProcessHook {
         // 加载白名单（从 App 进程 ContentProvider 查询）
         runCatching {
             val clazz = Class.forName("android.app.ActivityThread")
-            val appCtx = clazz.getMethod("currentApplication").invoke(null) as? android.content.Context
+            val appCtx =
+                clazz.getMethod("currentApplication").invoke(null) as? Context
             if (appCtx != null) com.dohex.hyperrose.ipc.AuthorizedDeviceClient.ensureLoaded(appCtx)
         }
 
@@ -93,15 +94,20 @@ object MiLinkProcessHook {
         MX_MANAGER_CLASSES.forEach { className ->
             runCatching {
                 val clazz = cl.loadClass(className)
-                val method = findMethodByParamTypes(clazz, "getInstanceForIsMiTWS", Context::class.java)
-                    ?: return@runCatching
+                val method =
+                    findMethodByParamTypes(clazz, "getInstanceForIsMiTWS", Context::class.java)
+                        ?: return@runCatching
 
                 module.hook(method)?.intercept { chain ->
                     val ctx = chain.getArg(0) as? Context
                     if (ctx != null && context == null) {
                         context = ctx.applicationContext ?: ctx
                         registerStateReceiver(module)
-                        module.log(Log.INFO, LOG_TAG, "Context captured from $className.getInstanceForIsMiTWS")
+                        module.log(
+                            Log.INFO,
+                            LOG_TAG,
+                            "Context captured from $className.getInstanceForIsMiTWS"
+                        )
                     }
                     chain.proceed()
                 }
@@ -179,7 +185,11 @@ object MiLinkProcessHook {
         MX_MANAGER_CLASSES.forEach { className ->
             runCatching {
                 val clazz = cl.loadClass(className)
-                val method = findMethodByParamTypes(clazz, "switchToHeadsetActivity", BluetoothDevice::class.java)
+                val method = findMethodByParamTypes(
+                    clazz,
+                    "switchToHeadsetActivity",
+                    BluetoothDevice::class.java
+                )
                     ?: return@runCatching
 
                 module.hook(method)?.intercept { chain ->
@@ -189,14 +199,22 @@ object MiLinkProcessHook {
                     }
 
                     val ctx = resolveContext(chain.thisObject) ?: return@intercept chain.proceed()
-                    val intent = QuickControlIntentFactory.createLaunchIntent(deviceName = device.name)
+                    val intent =
+                        QuickControlIntentFactory.createLaunchIntent(deviceName = device.name)
                     runCatching { ctx.startActivity(intent) }
 
                     module.log(Log.INFO, LOG_TAG, "switchToHeadsetActivity redirected to HyperRose")
                     null // 阻止原始调用
                 }
                 module.log(Log.INFO, LOG_TAG, "Hooked $className.switchToHeadsetActivity")
-            }.onFailure { module.log(Log.WARN, LOG_TAG, "switchToHeadsetActivity hook skipped for $className", it) }
+            }.onFailure {
+                module.log(
+                    Log.WARN,
+                    LOG_TAG,
+                    "switchToHeadsetActivity hook skipped for $className",
+                    it
+                )
+            }
         }
     }
 
@@ -242,7 +260,10 @@ object MiLinkProcessHook {
                 notifyHeadsetPropertyChanged(chain.thisObject, device, 8)
                 notifyHeadsetPropertyChanged(chain.thisObject, device, 4)
 
-                mlog(Log.WARN, ">>> setAncStateBlock: miLinkMode=$miLinkMode → roseAnc=$roseAnc ancState=${miLinkAncState()} ctx=${instanceContext != null}")
+                mlog(
+                    Log.WARN,
+                    ">>> setAncStateBlock: miLinkMode=$miLinkMode → roseAnc=$roseAnc ancState=${miLinkAncState()} ctx=${instanceContext != null}"
+                )
                 return@intercept miLinkAncState()
             }
             mlog(Log.WARN, "Hooked AncBatteryController.setAncStateBlock")
@@ -268,8 +289,10 @@ object MiLinkProcessHook {
                 override fun onReceive(ctx: Context, intent: Intent) {
                     when (intent.action) {
                         HyperRoseAction.DEVICE_CONNECTED -> {
-                            currentAddress = intent.getParcelableExtra<BluetoothDevice>(HyperRoseAction.EXTRA_DEVICE)?.address
-                            currentName = intent.getParcelableExtra<BluetoothDevice>(HyperRoseAction.EXTRA_DEVICE)?.name
+                            currentAddress =
+                                intent.getParcelableExtra<BluetoothDevice>(HyperRoseAction.EXTRA_DEVICE)?.address
+                            currentName =
+                                intent.getParcelableExtra<BluetoothDevice>(HyperRoseAction.EXTRA_DEVICE)?.name
                         }
 
                         HyperRoseAction.DEVICE_DISCONNECTED -> {
@@ -284,24 +307,30 @@ object MiLinkProcessHook {
                         }
 
                         HyperRoseAction.BATTERY_CHANGED -> {
-                            currentLeftBattery = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
-                            currentRightBattery = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
-                            currentCaseBattery = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
-                            currentLeftCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false)
-                            currentRightCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, false)
+                            currentLeftBattery =
+                                intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
+                            currentRightBattery =
+                                intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
+                            currentCaseBattery =
+                                intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
+                            currentLeftCharging =
+                                intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false)
+                            currentRightCharging =
+                                intent.getBooleanExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, false)
                         }
 
                         HyperRoseAction.ANC_CHANGED -> {
-                            currentAncMode = intent.getStringExtra(HyperRoseAction.EXTRA_MODE)?.let { name ->
-                                runCatching { AncMode.valueOf(name) }.getOrNull()
-                            }
+                            currentAncMode =
+                                intent.getStringExtra(HyperRoseAction.EXTRA_MODE)?.let { name ->
+                                    runCatching { AncMode.valueOf(name) }.getOrNull()
+                                }
                         }
                     }
                     module.log(
                         Log.DEBUG,
                         LOG_TAG,
                         "State updated: addr=$currentAddress L=$currentLeftBattery R=$currentRightBattery " +
-                            "C=$currentCaseBattery anc=$currentAncMode",
+                                "C=$currentCaseBattery anc=$currentAncMode",
                     )
                 }
             },
@@ -332,7 +361,8 @@ object MiLinkProcessHook {
         result: () -> Any?,
     ) {
         runCatching {
-            val method = findMethodByParamTypes(clazz, methodName, BluetoothDevice::class.java) ?: return
+            val method =
+                findMethodByParamTypes(clazz, methodName, BluetoothDevice::class.java) ?: return
             module.hook(method)?.intercept { chain ->
                 val device = chain.getArg(0) as? BluetoothDevice
                 if (device != null && isRoseEarphone(device)) {
@@ -341,7 +371,14 @@ object MiLinkProcessHook {
                 }
                 chain.proceed()
             }
-        }.onFailure { module.log(Log.WARN, LOG_TAG, "Hook ${clazz.simpleName}.$methodName skipped", it) }
+        }.onFailure {
+            module.log(
+                Log.WARN,
+                LOG_TAG,
+                "Hook ${clazz.simpleName}.$methodName skipped",
+                it
+            )
+        }
     }
 
     /** hook String address 参数的方法，替换返回值 */
@@ -356,12 +393,23 @@ object MiLinkProcessHook {
             module.hook(method)?.intercept { chain ->
                 val address = chain.getArg(0) as? String
                 if (address != null && isRoseAddress(address)) {
-                    module.log(Log.DEBUG, LOG_TAG, "${clazz.simpleName}.$methodName(addr) → ${result()}")
+                    module.log(
+                        Log.DEBUG,
+                        LOG_TAG,
+                        "${clazz.simpleName}.$methodName(addr) → ${result()}"
+                    )
                     return@intercept result()
                 }
                 chain.proceed()
             }
-        }.onFailure { module.log(Log.WARN, LOG_TAG, "Hook ${clazz.simpleName}.$methodName(String) skipped", it) }
+        }.onFailure {
+            module.log(
+                Log.WARN,
+                LOG_TAG,
+                "Hook ${clazz.simpleName}.$methodName(String) skipped",
+                it
+            )
+        }
     }
 
     /** hook 无参方法，替换返回值 */
@@ -377,12 +425,23 @@ object MiLinkProcessHook {
                 // 通过 this 对象判断是否目标设备
                 val instance = chain.thisObject
                 if (isTargetHeadsetInfo(instance)) {
-                    module.log(Log.DEBUG, LOG_TAG, "${clazz.simpleName}.$methodName() → ${result()}")
+                    module.log(
+                        Log.DEBUG,
+                        LOG_TAG,
+                        "${clazz.simpleName}.$methodName() → ${result()}"
+                    )
                     return@intercept result()
                 }
                 chain.proceed()
             }
-        }.onFailure { module.log(Log.WARN, LOG_TAG, "Hook ${clazz.simpleName}.$methodName() skipped", it) }
+        }.onFailure {
+            module.log(
+                Log.WARN,
+                LOG_TAG,
+                "Hook ${clazz.simpleName}.$methodName() skipped",
+                it
+            )
+        }
     }
 
     /** hook ANC 命令方法，拦截并转发 */
@@ -395,7 +454,10 @@ object MiLinkProcessHook {
         runCatching {
             val method = findMethodByParamTypes(clazz, methodName, BluetoothDevice::class.java)
             if (method == null) {
-                mlog(Log.WARN, "!!! hookAncCommand: ${clazz.simpleName}.$methodName(BluetoothDevice) NOT FOUND — hook NOT installed")
+                mlog(
+                    Log.WARN,
+                    "!!! hookAncCommand: ${clazz.simpleName}.$methodName(BluetoothDevice) NOT FOUND — hook NOT installed"
+                )
                 return
             }
             moduleRef.hook(method)?.intercept { chain ->
@@ -412,13 +474,21 @@ object MiLinkProcessHook {
                     // 立即广播 ANC_CHANGED，让控制中心瞬间更新（不等耳机回报）
                     sendAncChanged(roseAnc, instanceContext)
                     sendAncToBluetooth(roseAnc, instanceContext)
-                    mlog(Log.WARN, ">>> hookAncCommand: $methodName intercepted → roseAnc=$roseAnc ancState=${miLinkAncState()} ctx=${instanceContext != null}")
+                    mlog(
+                        Log.WARN,
+                        ">>> hookAncCommand: $methodName intercepted → roseAnc=$roseAnc ancState=${miLinkAncState()} ctx=${instanceContext != null}"
+                    )
                     return@intercept miLinkAncState()
                 }
                 chain.proceed()
             }
             mlog(Log.WARN, "hookAncCommand: ${clazz.simpleName}.$methodName hook INSTALLED")
-        }.onFailure { mlog(Log.ERROR, "!!! hookAncCommand: ${clazz.simpleName}.$methodName FAILED: ${it.message}") }
+        }.onFailure {
+            mlog(
+                Log.ERROR,
+                "!!! hookAncCommand: ${clazz.simpleName}.$methodName FAILED: ${it.message}"
+            )
+        }
     }
 
     // ==================== 设备识别 ====================
@@ -455,7 +525,8 @@ object MiLinkProcessHook {
     private fun isTargetHeadsetInfo(info: Any?): Boolean {
         if (info == null) return false
         listOf("getAddress", "component1").forEach { methodName ->
-            val address = runCatching { ReflectionHelper.callMethod(info, methodName) as? String }.getOrNull()
+            val address =
+                runCatching { ReflectionHelper.callMethod(info, methodName) as? String }.getOrNull()
             if (address != null && isRoseAddress(address)) return true
         }
         return false
@@ -550,7 +621,10 @@ object MiLinkProcessHook {
     ) {
         val ctx = fallbackContext ?: context
         if (ctx == null) {
-            mlog(Log.ERROR, "!!! sendAncToBluetooth: context is NULL — ANC command DROPPED !!! roseAnc=$roseAnc")
+            mlog(
+                Log.ERROR,
+                "!!! sendAncToBluetooth: context is NULL — ANC command DROPPED !!! roseAnc=$roseAnc"
+            )
             return
         }
         val targetPkg = HyperRoseAction.PACKAGE_BLUETOOTH
@@ -571,8 +645,17 @@ object MiLinkProcessHook {
     }
 
     /** 通知 HeadsetPropertyChangeListener 刷新 */
-    private fun notifyHeadsetPropertyChanged(controller: Any?, device: BluetoothDevice, updateType: Int) {
-        val listener = runCatching { ReflectionHelper.getField(controller!!, "headsetPropertyChangeListener") }.getOrNull()
+    private fun notifyHeadsetPropertyChanged(
+        controller: Any?,
+        device: BluetoothDevice,
+        updateType: Int
+    ) {
+        val listener = runCatching {
+            ReflectionHelper.getField(
+                controller!!,
+                "headsetPropertyChangeListener"
+            )
+        }.getOrNull()
             ?: return
         runCatching { ReflectionHelper.callMethod(listener, "invoke", device, updateType) }
     }
@@ -586,7 +669,11 @@ object MiLinkProcessHook {
 
     // ==================== 反射方法查找 ====================
 
-    private fun findMethodByParamTypes(clazz: Class<*>, name: String, vararg paramTypes: Class<*>): java.lang.reflect.Method? {
+    private fun findMethodByParamTypes(
+        clazz: Class<*>,
+        name: String,
+        vararg paramTypes: Class<*>
+    ): java.lang.reflect.Method? {
         var current: Class<*>? = clazz
         while (current != null) {
             runCatching {
@@ -599,10 +686,15 @@ object MiLinkProcessHook {
         return null
     }
 
-    private fun findMethodByParamCount(clazz: Class<*>, name: String, paramCount: Int): java.lang.reflect.Method? {
+    private fun findMethodByParamCount(
+        clazz: Class<*>,
+        name: String,
+        paramCount: Int
+    ): java.lang.reflect.Method? {
         var current: Class<*>? = clazz
         while (current != null) {
-            val method = current.declaredMethods.firstOrNull { it.name == name && it.parameterCount == paramCount }
+            val method =
+                current.declaredMethods.firstOrNull { it.name == name && it.parameterCount == paramCount }
             if (method != null) {
                 method.isAccessible = true
                 return method

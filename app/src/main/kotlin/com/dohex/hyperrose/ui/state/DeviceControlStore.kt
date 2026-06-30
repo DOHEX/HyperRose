@@ -110,11 +110,12 @@ class DeviceControlStore(
                             )
                         val needsHookBridge =
                             _transport.value != ConnectionTransport.DIRECT_BLE ||
-                                _connectionState.value != DeviceConnectionState.CONNECTED
+                                    _connectionState.value != DeviceConnectionState.CONNECTED
                         if (needsHookBridge) {
                             _transport.value = ConnectionTransport.HOOK_BRIDGE
                             _connectionState.value = DeviceConnectionState.CONNECTED
-                            _deviceName.value = device?.name ?: _deviceName.value ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME
+                            _deviceName.value = device?.name ?: _deviceName.value
+                                    ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME
                         }
                     }
 
@@ -133,11 +134,13 @@ class DeviceControlStore(
                     }
 
                     HyperRoseAction.ANC_CHANGED -> {
-                        intent.enumExtra<AncMode>(HyperRoseAction.EXTRA_MODE)?.let { _ancMode.value = it }
+                        intent.enumExtra<AncMode>(HyperRoseAction.EXTRA_MODE)
+                            ?.let { _ancMode.value = it }
                     }
 
                     HyperRoseAction.ANC_DEPTH_CHANGED -> {
-                        intent.enumExtra<AncDepth>(HyperRoseAction.EXTRA_DEPTH)?.let { _ancDepth.value = it }
+                        intent.enumExtra<AncDepth>(HyperRoseAction.EXTRA_DEPTH)
+                            ?.let { _ancDepth.value = it }
                     }
 
                     HyperRoseAction.TRANS_LEVEL_CHANGED -> {
@@ -147,12 +150,14 @@ class DeviceControlStore(
                     }
 
                     HyperRoseAction.EQ_CHANGED -> {
-                        intent.enumExtra<EqPreset>(HyperRoseAction.EXTRA_MODE)?.let { _eqMode.value = it }
+                        intent.enumExtra<EqPreset>(HyperRoseAction.EXTRA_MODE)
+                            ?.let { _eqMode.value = it }
                     }
 
                     HyperRoseAction.GAME_MODE_CHANGED -> {
                         if (intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) {
-                            _gameMode.value = intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
+                            _gameMode.value =
+                                intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
                         }
                     }
                 }
@@ -365,7 +370,8 @@ class DeviceControlStore(
 
         directGattClient.ancDepth.onEach { if (it != null) _ancDepth.value = it }.launchIn(scope)
 
-        directGattClient.transLevel.onEach { if (it != null) _transLevel.value = it }.launchIn(scope)
+        directGattClient.transLevel.onEach { if (it != null) _transLevel.value = it }
+            .launchIn(scope)
 
         directGattClient.eqMode.onEach { if (it != null) _eqMode.value = it }.launchIn(scope)
 
@@ -374,12 +380,14 @@ class DeviceControlStore(
 
     private fun registerBridgeReceiver() {
         if (receiverRegistered) return
-        val filter = IntentFilter().apply { HyperRoseAction.BRIDGE_STATE_ACTIONS.forEach(::addAction) }
+        val filter =
+            IntentFilter().apply { HyperRoseAction.BRIDGE_STATE_ACTIONS.forEach(::addAction) }
         appContext.registerReceiver(bridgeReceiver, filter, Context.RECEIVER_EXPORTED)
         receiverRegistered = true
     }
 
-    private fun isDirectConnected(): Boolean = directGattClient.connectionState.value == StandaloneGattClient.ConnectionState.CONNECTED
+    private fun isDirectConnected(): Boolean =
+        directGattClient.connectionState.value == StandaloneGattClient.ConnectionState.CONNECTED
 
     private inline fun routeControl(
         direct: () -> Unit,
@@ -392,13 +400,16 @@ class DeviceControlStore(
         }
     }
 
-    private inline fun <reified T : Enum<T>> Intent.enumExtra(key: String): T? = getStringExtra(key)?.let { runCatching { enumValueOf<T>(it) }.getOrNull() }
+    private inline fun <reified T : Enum<T>> Intent.enumExtra(key: String): T? =
+        getStringExtra(key)?.let { runCatching { enumValueOf<T>(it) }.getOrNull() }
 
     private fun parseBattery(intent: Intent): TwsBatteryState? {
-        val leftLevel = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1).asBatteryLevelOrNull()
+        val leftLevel =
+            intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1).asBatteryLevelOrNull()
         val rightLevel =
             intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1).asBatteryLevelOrNull()
-        val caseLevel = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1).asBatteryLevelOrNull()
+        val caseLevel =
+            intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1).asBatteryLevelOrNull()
 
         if (leftLevel == null && rightLevel == null && caseLevel == null) {
             return null
@@ -416,7 +427,10 @@ class DeviceControlStore(
             rightLevel?.let {
                 EarBatteryState(
                     level = it,
-                    isCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, false),
+                    isCharging = intent.getBooleanExtra(
+                        HyperRoseAction.EXTRA_RIGHT_CHARGING,
+                        false
+                    ),
                 )
             }
 

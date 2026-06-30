@@ -15,9 +15,9 @@ import java.io.IOException
 private const val THEME_SETTINGS_DATASTORE_NAME = "theme_settings"
 
 private val Context.themeSettingsDataStore: DataStore<Preferences> by
-    preferencesDataStore(
-        name = THEME_SETTINGS_DATASTORE_NAME,
-    )
+preferencesDataStore(
+    name = THEME_SETTINGS_DATASTORE_NAME,
+)
 
 class ThemeSettingsStore(
     context: Context,

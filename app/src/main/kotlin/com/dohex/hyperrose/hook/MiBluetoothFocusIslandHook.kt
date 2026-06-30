@@ -59,12 +59,15 @@ object MiBluetoothFocusIslandHook {
                     val context =
                         (chain.getArg(0) as? Context)
                             ?: (
-                                try {
-                                    ReflectionHelper.getField(chain.thisObject, "mContext") as? Context
-                                } catch (_: Throwable) {
-                                    null
-                                }
-                                )
+                                    try {
+                                        ReflectionHelper.getField(
+                                            chain.thisObject,
+                                            "mContext"
+                                        ) as? Context
+                                    } catch (_: Throwable) {
+                                        null
+                                    }
+                                    )
                     if (context != null) registerReceiver(module, context)
                 } catch (t: Throwable) {
                     module.log(
@@ -102,13 +105,16 @@ object MiBluetoothFocusIslandHook {
                     when (intent.action) {
                         HyperRoseAction.SHOW_ISLAND -> {
                             val left =
-                                intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1).asBatteryLevelOrNull()
+                                intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
+                                    .asBatteryLevelOrNull()
                                     ?: -1
                             val right =
-                                intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1).asBatteryLevelOrNull()
+                                intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
+                                    .asBatteryLevelOrNull()
                                     ?: -1
                             val currentCaseLevel =
-                                intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1).asBatteryLevelOrNull()
+                                intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
+                                    .asBatteryLevelOrNull()
                             val caseLevel = currentCaseLevel ?: lastKnownCaseLevel ?: -1
                             if (currentCaseLevel != null) {
                                 lastKnownCaseLevel = currentCaseLevel

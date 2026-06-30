@@ -30,7 +30,8 @@ class QuickControlActivity : ComponentActivity() {
     companion object {
         const val EXTRA_DEVICE_NAME = HyperRoseAction.EXTRA_DEVICE_NAME
         const val EXTRA_FORCE_CONNECTED = HyperRoseAction.EXTRA_FORCE_CONNECTED
-        private const val DEFAULT_DEVICE_NAME = com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME
+        private const val DEFAULT_DEVICE_NAME =
+            com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

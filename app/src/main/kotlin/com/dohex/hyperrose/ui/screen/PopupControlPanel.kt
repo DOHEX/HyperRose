@@ -54,9 +54,10 @@ fun PopupControlPanel(
     ) {
         Column(
             modifier =
-            Modifier.fillMaxWidth()
-                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
-                .padding(top = 4.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
+                    .padding(top = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (connected) {
@@ -89,9 +90,14 @@ fun PopupControlPanel(
                     )
                 }
             } else {
-                SectionCard(title = "耳机未连接", subtitle = "请先在 App 主页或系统蓝牙中连接耳机") {
+                SectionCard(
+                    title = "耳机未连接",
+                    subtitle = "请先在 App 主页或系统蓝牙中连接耳机"
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         ActionButton(
@@ -99,7 +105,11 @@ fun PopupControlPanel(
                             onClick = deviceControlStore::refreshStatus,
                             modifier = Modifier.weight(1f),
                         )
-                        ActionButton(text = "关闭", onClick = onDismissRequest, modifier = Modifier.weight(1f))
+                        ActionButton(
+                            text = "关闭",
+                            onClick = onDismissRequest,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }

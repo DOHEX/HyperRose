@@ -39,11 +39,11 @@ class AppEntryActivity : ComponentActivity() {
                 when (themeMode.colorMode) {
                     2,
                     5,
-                    -> true
+                        -> true
 
                     0,
                     3,
-                    -> isSystemInDarkTheme()
+                        -> isSystemInDarkTheme()
 
                     else -> false
                 }
@@ -51,9 +51,9 @@ class AppEntryActivity : ComponentActivity() {
             LaunchedEffect(isDarkMode) {
                 enableEdgeToEdge(
                     statusBarStyle =
-                    SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { isDarkMode },
+                        SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { isDarkMode },
                     navigationBarStyle =
-                    SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { isDarkMode },
+                        SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { isDarkMode },
                 )
             }
 

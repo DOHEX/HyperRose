@@ -37,7 +37,8 @@ import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 @SuppressLint("MissingPermission")
 object HeadsetServiceBinderHook {
     private const val LOG_TAG = "HyperRose-Binder"
-    private const val SERVICE_CLASS = "com.android.bluetooth.ble.app.headset.BluetoothHeadsetService"
+    private const val SERVICE_CLASS =
+        "com.android.bluetooth.ble.app.headset.BluetoothHeadsetService"
     private const val DESCRIPTOR = "com.android.bluetooth.ble.app.IMiuiHeadsetService"
 
     private val knownAddresses = linkedSetOf<String>()
@@ -172,11 +173,20 @@ object HeadsetServiceBinderHook {
                 handleTransaction(moduleRef, code, data, reply)?.let { return@intercept it }
                 chain.proceed()
             }
-            moduleRef.log(Log.INFO, LOG_TAG, "IMiuiHeadsetService.Stub.onTransact hooked (fallback)")
+            moduleRef.log(
+                Log.INFO,
+                LOG_TAG,
+                "IMiuiHeadsetService.Stub.onTransact hooked (fallback)"
+            )
         }.onFailure { module?.log(Log.WARN, LOG_TAG, "onTransact fallback hook failed", it) }
     }
 
-    private fun handleTransaction(module: XposedModule, code: Int, data: Parcel, reply: Parcel): Boolean? {
+    private fun handleTransaction(
+        module: XposedModule,
+        code: Int,
+        data: Parcel,
+        reply: Parcel
+    ): Boolean? {
         val originalPosition = data.dataPosition()
         return runCatching {
             data.enforceInterface(DESCRIPTOR)
@@ -266,7 +276,12 @@ object HeadsetServiceBinderHook {
         return true
     }
 
-    private fun txnAddressString(method: String, data: Parcel, reply: Parcel, forced: String): Boolean? {
+    private fun txnAddressString(
+        method: String,
+        data: Parcel,
+        reply: Parcel,
+        forced: String
+    ): Boolean? {
         val address = data.readString() ?: return null
         if (!isRoseAddress(address)) return null
         reply.writeNoException()
@@ -275,7 +290,12 @@ object HeadsetServiceBinderHook {
         return true
     }
 
-    private fun txnAddressBoolean(method: String, data: Parcel, reply: Parcel, forced: Boolean): Boolean? {
+    private fun txnAddressBoolean(
+        method: String,
+        data: Parcel,
+        reply: Parcel,
+        forced: Boolean
+    ): Boolean? {
         val address = data.readString() ?: return null
         if (!isRoseAddress(address)) return null
         reply.writeNoException()
@@ -312,7 +332,11 @@ object HeadsetServiceBinderHook {
         return true
     }
 
-    private fun txnRegisterCallbackDevice(module: XposedModule, data: Parcel, reply: Parcel): Boolean? {
+    private fun txnRegisterCallbackDevice(
+        module: XposedModule,
+        data: Parcel,
+        reply: Parcel
+    ): Boolean? {
         val callback = data.readCallbackBinder(module) ?: return null
         val device = data.readDevice() ?: return null
         if (!isRoseEarphone(device)) return null
@@ -327,7 +351,8 @@ object HeadsetServiceBinderHook {
 
     // ==================== Parcel 工具方法 ====================
 
-    private fun Parcel.readDevice(): BluetoothDevice? = if (readInt() != 0) BluetoothDevice.CREATOR.createFromParcel(this) else null
+    private fun Parcel.readDevice(): BluetoothDevice? =
+        if (readInt() != 0) BluetoothDevice.CREATOR.createFromParcel(this) else null
 
     private fun Parcel.readCallbackBinder(module: XposedModule): Any? {
         val binder = readStrongBinder() ?: return null
@@ -349,19 +374,52 @@ object HeadsetServiceBinderHook {
         val className = binderClass.name
         if (!hookedBinderClasses.add(className)) return
         this.binderClass = binderClass
-        module.log(Log.INFO, LOG_TAG, "Installing binder hooks on $className (${binderClass.declaredMethods.size} methods)")
+        module.log(
+            Log.INFO,
+            LOG_TAG,
+            "Installing binder hooks on $className (${binderClass.declaredMethods.size} methods)"
+        )
 
         // 设备身份伪装
         hookBeforeDeviceResult(module, binderClass, "checkSupport") { fakeSupport() }
-        hookBeforeAddressStringResult(module, binderClass, listOf("getDeviceInfo")) { fakeSupport() }
-        hookBeforeAddressStringResult(module, binderClass, listOf("isSupportAudioSwitch", "mo19775z1", "z1")) { "1" }
-        hookBeforeAddressBooleanResult(module, binderClass, listOf("isMiTWS", "mo19771O0", "O0"), true)
-        hookBeforeAddressBooleanResult(module, binderClass, listOf("checkIsMiTWS", "mo19766B", "B"), true)
-        hookBeforeAddressBooleanResult(module, binderClass, listOf("getRingFindState", "mo19772m0", "m0"), false)
+        hookBeforeAddressStringResult(
+            module,
+            binderClass,
+            listOf("getDeviceInfo")
+        ) { fakeSupport() }
+        hookBeforeAddressStringResult(
+            module,
+            binderClass,
+            listOf("isSupportAudioSwitch", "mo19775z1", "z1")
+        ) { "1" }
+        hookBeforeAddressBooleanResult(
+            module,
+            binderClass,
+            listOf("isMiTWS", "mo19771O0", "O0"),
+            true
+        )
+        hookBeforeAddressBooleanResult(
+            module,
+            binderClass,
+            listOf("checkIsMiTWS", "mo19766B", "B"),
+            true
+        )
+        hookBeforeAddressBooleanResult(
+            module,
+            binderClass,
+            listOf("getRingFindState", "mo19772m0", "m0"),
+            false
+        )
 
         // setCommonCommand 拦截
         runCatching {
-            val method = findMethodByParamTypes(binderClass, "setCommonCommand", Int::class.javaPrimitiveType!!, String::class.java, BluetoothDevice::class.java)
+            val method = findMethodByParamTypes(
+                binderClass,
+                "setCommonCommand",
+                Int::class.javaPrimitiveType!!,
+                String::class.java,
+                BluetoothDevice::class.java
+            )
                 ?: return@runCatching
             module.hook(method)?.intercept { chain ->
                 val device = chain.getArg(2) as? BluetoothDevice
@@ -401,7 +459,8 @@ object HeadsetServiceBinderHook {
 
         // register(callback)
         runCatching {
-            val method = findMethodByParamTypes(binderClass, "register", callbackClass) ?: return@runCatching
+            val method =
+                findMethodByParamTypes(binderClass, "register", callbackClass) ?: return@runCatching
             module.hook(method)?.intercept { chain ->
                 val callback = chain.getArg(0)
                 if (callback != null && currentDevice != null) {
@@ -418,7 +477,12 @@ object HeadsetServiceBinderHook {
 
         // registerCallbackDevice(callback, device)
         runCatching {
-            val method = findMethodByParamTypes(binderClass, "registerCallbackDevice", callbackClass, BluetoothDevice::class.java)
+            val method = findMethodByParamTypes(
+                binderClass,
+                "registerCallbackDevice",
+                callbackClass,
+                BluetoothDevice::class.java
+            )
                 ?: return@runCatching
             module.hook(method)?.intercept { chain ->
                 val callback = chain.getArg(0)
@@ -426,7 +490,11 @@ object HeadsetServiceBinderHook {
                 if (device != null && isRoseEarphone(device) && callback != null) {
                     currentDevice = device
                     rememberCallback(callback)
-                    module.log(Log.INFO, LOG_TAG, "registerCallbackDevice captured for ${device.address}")
+                    module.log(
+                        Log.INFO,
+                        LOG_TAG,
+                        "registerCallbackDevice captured for ${device.address}"
+                    )
                     sendRealStatus(device, "registerCallbackDevice")
                     sendRealStatusDelayed(device, "registerCallbackDevice-refresh", 350L)
                     return@intercept null
@@ -438,7 +506,12 @@ object HeadsetServiceBinderHook {
 
         // unregister(callback, device)
         runCatching {
-            val method = findMethodByParamTypes(binderClass, "unregister", callbackClass, BluetoothDevice::class.java)
+            val method = findMethodByParamTypes(
+                binderClass,
+                "unregister",
+                callbackClass,
+                BluetoothDevice::class.java
+            )
                 ?: return@runCatching
             module.hook(method)?.intercept { chain ->
                 val callback = chain.getArg(0)
@@ -458,23 +531,43 @@ object HeadsetServiceBinderHook {
     private fun hookAncMode(module: XposedModule, binderClass: Class<*>) {
         runCatching {
             module.log(Log.INFO, LOG_TAG, "hookAncMode: searching in ${binderClass.name}")
-            val method = findMethodByParamTypes(binderClass, "changeAncMode", Int::class.javaPrimitiveType!!, BluetoothDevice::class.java)
+            val method = findMethodByParamTypes(
+                binderClass,
+                "changeAncMode",
+                Int::class.javaPrimitiveType!!,
+                BluetoothDevice::class.java
+            )
             if (method == null) {
-                module.log(Log.WARN, LOG_TAG, "changeAncMode(Int, BluetoothDevice) NOT FOUND in ${binderClass.name}")
+                module.log(
+                    Log.WARN,
+                    LOG_TAG,
+                    "changeAncMode(Int, BluetoothDevice) NOT FOUND in ${binderClass.name}"
+                )
                 module.log(Log.WARN, LOG_TAG, "Listing all 2-param methods of ${binderClass.name}:")
                 binderClass.declaredMethods.forEach { m ->
                     if (m.parameterCount == 2) {
-                        module.log(Log.WARN, LOG_TAG, "  ${m.name}(${m.parameterTypes.joinToString { it.simpleName }})")
+                        module.log(
+                            Log.WARN,
+                            LOG_TAG,
+                            "  ${m.name}(${m.parameterTypes.joinToString { it.simpleName }})"
+                        )
                     }
                 }
                 return
             }
-            module.log(Log.INFO, LOG_TAG, "changeAncMode found: ${method.declaringClass.name}.${method.name}")
+            module.log(
+                Log.INFO,
+                LOG_TAG,
+                "changeAncMode found: ${method.declaringClass.name}.${method.name}"
+            )
             module.hook(method)?.intercept { chain ->
                 val mode = chain.getArg(0) as? Int
                 val device = chain.getArg(1) as? BluetoothDevice
                 val deviceName = runCatching { device?.name ?: device?.alias }.getOrNull().orEmpty()
-                mlog(Log.WARN, ">>> changeAncMode FIRED mode=$mode device=$deviceName addr=${device?.address}")
+                mlog(
+                    Log.WARN,
+                    ">>> changeAncMode FIRED mode=$mode device=$deviceName addr=${device?.address}"
+                )
                 if (device != null && isRoseEarphone(device)) {
                     val roseAnc = roseAncFromMiuiMode(mode ?: 0)
                     cachedAnc = roseAnc // 乐观更新缓存，确保 sendRealStatus 推送的是新状态
@@ -492,7 +585,12 @@ object HeadsetServiceBinderHook {
 
     private fun hookAncLevel(module: XposedModule, binderClass: Class<*>) {
         runCatching {
-            val method = findMethodByParamTypes(binderClass, "changeAncLevel", String::class.java, BluetoothDevice::class.java)
+            val method = findMethodByParamTypes(
+                binderClass,
+                "changeAncLevel",
+                String::class.java,
+                BluetoothDevice::class.java
+            )
             if (method == null) {
                 module.log(Log.WARN, LOG_TAG, "changeAncLevel not found in ${binderClass.name}")
                 return
@@ -523,7 +621,11 @@ object HeadsetServiceBinderHook {
         runCatching {
             val method = findMethodByParamTypes(clazz, methodName, BluetoothDevice::class.java)
             if (method == null) {
-                module.log(Log.WARN, LOG_TAG, "$methodName(BluetoothDevice) not found in ${clazz.name}")
+                module.log(
+                    Log.WARN,
+                    LOG_TAG,
+                    "$methodName(BluetoothDevice) not found in ${clazz.name}"
+                )
                 return
             }
             module.hook(method)?.intercept { chain ->
@@ -536,7 +638,14 @@ object HeadsetServiceBinderHook {
                 chain.proceed()
             }
             module.log(Log.INFO, LOG_TAG, "Hooked $methodName(BluetoothDevice)")
-        }.onFailure { module.log(Log.WARN, LOG_TAG, "Hook $methodName(BluetoothDevice) skipped", it) }
+        }.onFailure {
+            module.log(
+                Log.WARN,
+                LOG_TAG,
+                "Hook $methodName(BluetoothDevice) skipped",
+                it
+            )
+        }
     }
 
     private fun hookBeforeAddressStringResult(
@@ -545,7 +654,13 @@ object HeadsetServiceBinderHook {
         methodNames: List<String>,
         result: () -> String,
     ) {
-        val name = methodNames.firstOrNull { findMethodByParamTypes(clazz, it, String::class.java) != null } ?: return
+        val name = methodNames.firstOrNull {
+            findMethodByParamTypes(
+                clazz,
+                it,
+                String::class.java
+            ) != null
+        } ?: return
         runCatching {
             val method = findMethodByParamTypes(clazz, name, String::class.java) ?: return
             module.hook(method)?.intercept { chain ->
@@ -565,7 +680,13 @@ object HeadsetServiceBinderHook {
         methodNames: List<String>,
         forced: Boolean,
     ) {
-        val name = methodNames.firstOrNull { findMethodByParamTypes(clazz, it, String::class.java) != null } ?: return
+        val name = methodNames.firstOrNull {
+            findMethodByParamTypes(
+                clazz,
+                it,
+                String::class.java
+            ) != null
+        } ?: return
         runCatching {
             val method = findMethodByParamTypes(clazz, name, String::class.java) ?: return
             module.hook(method)?.intercept { chain ->
@@ -581,7 +702,8 @@ object HeadsetServiceBinderHook {
 
     private fun hookVoidDevice(module: XposedModule, clazz: Class<*>, methodName: String) {
         runCatching {
-            val method = findMethodByParamTypes(clazz, methodName, BluetoothDevice::class.java) ?: return
+            val method =
+                findMethodByParamTypes(clazz, methodName, BluetoothDevice::class.java) ?: return
             module.hook(method)?.intercept { chain ->
                 val device = chain.getArg(0) as? BluetoothDevice
                 if (device != null && isRoseEarphone(device)) {
@@ -597,7 +719,12 @@ object HeadsetServiceBinderHook {
 
     private fun hookVoidDeviceString(module: XposedModule, clazz: Class<*>, methodName: String) {
         runCatching {
-            val method = findMethodByParamTypes(clazz, methodName, BluetoothDevice::class.java, String::class.java) ?: return
+            val method = findMethodByParamTypes(
+                clazz,
+                methodName,
+                BluetoothDevice::class.java,
+                String::class.java
+            ) ?: return
             module.hook(method)?.intercept { chain ->
                 val device = chain.getArg(0) as? BluetoothDevice
                 if (device != null && isRoseEarphone(device)) {
@@ -817,7 +944,11 @@ object HeadsetServiceBinderHook {
     /**
      * HyperRose AncMode/AncDepth → MIUI 4位ANC等级码
      */
-    private fun miuiAncLevel(anc: AncMode?, depth: AncDepth?, transLevel: TransparencyLevel?): String = when (anc) {
+    private fun miuiAncLevel(
+        anc: AncMode?,
+        depth: AncDepth?,
+        transLevel: TransparencyLevel?
+    ): String = when (anc) {
         AncMode.NOISE_CANCEL -> when (depth) {
             AncDepth.DEEP -> "0102"
             AncDepth.MEDIUM -> "0100"
@@ -944,7 +1075,10 @@ object HeadsetServiceBinderHook {
             // 调度延迟重试
             if (pendingRetryCount < MAX_PENDING_RETRIES) {
                 pendingRetryCount++
-                handler.postDelayed({ replayPendingAncCommands() }, PENDING_RETRY_DELAY_MS * pendingRetryCount)
+                handler.postDelayed(
+                    { replayPendingAncCommands() },
+                    PENDING_RETRY_DELAY_MS * pendingRetryCount
+                )
             }
         }
         // 发完命令后触发状态刷新（关键！OppoPods 就是这么做的）
@@ -987,11 +1121,14 @@ object HeadsetServiceBinderHook {
         if (gatt == null) {
             moduleLog(
                 "replayPendingAncCommands: GATT still null, " +
-                    "pendingAnc=$pendingAncMode depth=$pendingAncDepth trans=$pendingTransLevel",
+                        "pendingAnc=$pendingAncMode depth=$pendingAncDepth trans=$pendingTransLevel",
             )
             if (pendingAncMode != null && pendingRetryCount < MAX_PENDING_RETRIES) {
                 pendingRetryCount++
-                handler.postDelayed({ replayPendingAncCommands() }, PENDING_RETRY_DELAY_MS * pendingRetryCount)
+                handler.postDelayed(
+                    { replayPendingAncCommands() },
+                    PENDING_RETRY_DELAY_MS * pendingRetryCount
+                )
             }
             return
         }
@@ -1074,13 +1211,23 @@ object HeadsetServiceBinderHook {
     // ==================== Callback 管理 ====================
 
     private fun rememberCallback(callback: Any) {
-        (runCatching { ReflectionHelper.callMethod(callback, "asBinder") }.getOrNull() as? IBinder)?.let {
+        (runCatching {
+            ReflectionHelper.callMethod(
+                callback,
+                "asBinder"
+            )
+        }.getOrNull() as? IBinder)?.let {
             callbacks[it] = callback
         }
     }
 
     private fun forgetCallback(callback: Any) {
-        (runCatching { ReflectionHelper.callMethod(callback, "asBinder") }.getOrNull() as? IBinder)?.let {
+        (runCatching {
+            ReflectionHelper.callMethod(
+                callback,
+                "asBinder"
+            )
+        }.getOrNull() as? IBinder)?.let {
             callbacks.remove(it)
         }
     }
@@ -1089,7 +1236,11 @@ object HeadsetServiceBinderHook {
 
     private fun fakeSupport(): String = "01010607,000000000000000010000000"
 
-    private fun findMethodByParamTypes(clazz: Class<*>, name: String, vararg paramTypes: Class<*>): Method? {
+    private fun findMethodByParamTypes(
+        clazz: Class<*>,
+        name: String,
+        vararg paramTypes: Class<*>
+    ): Method? {
         var current: Class<*>? = clazz
         while (current != null) {
             runCatching {

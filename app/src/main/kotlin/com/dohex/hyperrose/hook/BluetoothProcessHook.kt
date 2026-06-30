@@ -40,7 +40,8 @@ object BluetoothProcessHook {
         // 加载白名单（从 App 进程 ContentProvider 查询）
         runCatching {
             val clazz = Class.forName("android.app.ActivityThread")
-            val appCtx = clazz.getMethod("currentApplication").invoke(null) as? android.content.Context
+            val appCtx =
+                clazz.getMethod("currentApplication").invoke(null) as? Context
             if (appCtx != null) com.dohex.hyperrose.ipc.AuthorizedDeviceClient.ensureLoaded(appCtx)
         }
 
@@ -100,10 +101,19 @@ object BluetoothProcessHook {
         try {
             HeadsetServiceBinderHook.init(module, cl)
         } catch (e: Throwable) {
-            module.log(Log.ERROR, TAG, "BluetoothProcessHook: failed to init HeadsetServiceBinderHook", e)
+            module.log(
+                Log.ERROR,
+                TAG,
+                "BluetoothProcessHook: failed to init HeadsetServiceBinderHook",
+                e
+            )
         }
 
-        module.log(Log.INFO, TAG, "BluetoothProcessHook: init complete, command receiver will register on device connect")
+        module.log(
+            Log.INFO,
+            TAG,
+            "BluetoothProcessHook: init complete, command receiver will register on device connect"
+        )
     }
 
     @SuppressLint("MissingPermission")
@@ -188,7 +198,8 @@ object BluetoothProcessHook {
     ) {
         if (commandReceiverRegistered) return
 
-        val filter = IntentFilter().apply { HyperRoseAction.APP_CONTROL_ACTIONS.forEach(::addAction) }
+        val filter =
+            IntentFilter().apply { HyperRoseAction.APP_CONTROL_ACTIONS.forEach(::addAction) }
 
         val receiver =
             object : BroadcastReceiver() {
@@ -196,23 +207,33 @@ object BluetoothProcessHook {
                     ctx: Context,
                     intent: Intent,
                 ) {
-                    Log.w(TAG, ">>> CommandReceiver: action=${intent.action} gattClient=${gattClient != null} extras=${intent.extras?.keySet()?.joinToString()}")
+                    Log.w(
+                        TAG,
+                        ">>> CommandReceiver: action=${intent.action} gattClient=${gattClient != null} extras=${
+                            intent.extras?.keySet()?.joinToString()
+                        }"
+                    )
                     val manager = gattClient ?: run {
-                        Log.w(TAG, "!!! CommandReceiver: gattClient is NULL, dropping ${intent.action}")
+                        Log.w(
+                            TAG,
+                            "!!! CommandReceiver: gattClient is NULL, dropping ${intent.action}"
+                        )
                         return
                     }
                     try {
                         when (intent.action) {
                             HyperRoseAction.SET_ANC -> {
                                 val mode =
-                                    intent.getStringExtra(HyperRoseAction.EXTRA_MODE)?.let(AncMode::valueOf)
+                                    intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
+                                        ?.let(AncMode::valueOf)
                                         ?: return
                                 manager.sendCommand(RosePackets.ancCommand(mode))
                             }
 
                             HyperRoseAction.SET_ANC_DEPTH -> {
                                 val depth =
-                                    intent.getStringExtra(HyperRoseAction.EXTRA_DEPTH)?.let(AncDepth::valueOf)
+                                    intent.getStringExtra(HyperRoseAction.EXTRA_DEPTH)
+                                        ?.let(AncDepth::valueOf)
                                         ?: return
                                 manager.sendCommand(RosePackets.ancDepthCommand(depth))
                             }
@@ -227,19 +248,22 @@ object BluetoothProcessHook {
 
                             HyperRoseAction.SET_EQ -> {
                                 val mode =
-                                    intent.getStringExtra(HyperRoseAction.EXTRA_MODE)?.let(EqPreset::valueOf)
+                                    intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
+                                        ?.let(EqPreset::valueOf)
                                         ?: return
                                 manager.sendCommand(RosePackets.eqCommand(mode))
                             }
 
                             HyperRoseAction.SET_GAME_MODE -> {
                                 if (!intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) return
-                                val enabled = intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
+                                val enabled =
+                                    intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
                                 manager.sendCommand(RosePackets.gameModeCommand(enabled))
                             }
 
                             HyperRoseAction.FIND_EARPHONE -> {
-                                when (intent.getStringExtra(HyperRoseAction.EXTRA_SIDE)?.uppercase()) {
+                                when (intent.getStringExtra(HyperRoseAction.EXTRA_SIDE)
+                                    ?.uppercase()) {
                                     HyperRoseAction.SIDE_LEFT -> {
                                         manager.sendCommand(
                                             RosePackets.FIND_LEFT_ON,
@@ -260,14 +284,24 @@ object BluetoothProcessHook {
 
                             HyperRoseAction.ANC_SELECT -> {
                                 val modeName = intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
-                                val mode = modeName?.let { runCatching { AncMode.valueOf(it) }.getOrNull() }
-                                Log.w(TAG, ">>> CommandReceiver: ANC_SELECT modeName=$modeName mode=$mode")
+                                val mode =
+                                    modeName?.let { runCatching { AncMode.valueOf(it) }.getOrNull() }
+                                Log.w(
+                                    TAG,
+                                    ">>> CommandReceiver: ANC_SELECT modeName=$modeName mode=$mode"
+                                )
                                 if (mode == null) {
-                                    Log.w(TAG, "!!! CommandReceiver: ANC_SELECT mode parse FAILED — modeName=$modeName")
+                                    Log.w(
+                                        TAG,
+                                        "!!! CommandReceiver: ANC_SELECT mode parse FAILED — modeName=$modeName"
+                                    )
                                     return
                                 }
                                 manager.sendCommand(RosePackets.ancCommand(mode))
-                                Log.w(TAG, "<<< CommandReceiver: ANC_SELECT command sent to earbuds: $mode")
+                                Log.w(
+                                    TAG,
+                                    "<<< CommandReceiver: ANC_SELECT command sent to earbuds: $mode"
+                                )
                             }
 
                             HyperRoseAction.REFRESH_STATUS -> {
@@ -280,7 +314,12 @@ object BluetoothProcessHook {
                             }
                         }
                     } catch (e: Throwable) {
-                        module.log(Log.ERROR, TAG, "BluetoothProcessHook: command handling failed", e)
+                        module.log(
+                            Log.ERROR,
+                            TAG,
+                            "BluetoothProcessHook: command handling failed",
+                            e
+                        )
                     }
                 }
             }

@@ -6,10 +6,10 @@ import com.dohex.hyperrose.model.asBatteryLevelOrNull
 object QuickControlIntentFactory {
     private const val LAUNCH_FLAGS =
         Intent.FLAG_ACTIVITY_NEW_TASK or
-            Intent.FLAG_ACTIVITY_NO_ANIMATION or
-            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
-            Intent.FLAG_ACTIVITY_CLEAR_TOP or
-            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                Intent.FLAG_ACTIVITY_NO_ANIMATION or
+                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
 
     fun createLaunchIntent(
         deviceName: String?,

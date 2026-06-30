@@ -85,7 +85,11 @@ class BluetoothProcessGattClient(
             object : BroadcastReceiver() {
                 override fun onReceive(ctx: Context, intent: Intent) {
                     if (intent.action == HyperRoseAction.REFRESH_STATUS) {
-                        module.log(Log.INFO, TAG, "ACTION_REFRESH_STATUS received, querying all status")
+                        module.log(
+                            Log.INFO,
+                            TAG,
+                            "ACTION_REFRESH_STATUS received, querying all status"
+                        )
                         queryAllStatus()
                     }
                 }
@@ -207,7 +211,10 @@ class BluetoothProcessGattClient(
                 sendCommand(RosePackets.QUERY_BATTERY)
 
                 // 延迟查询全部状态
-                handler.postDelayed({ queryAllStatus() }, RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS)
+                handler.postDelayed(
+                    { queryAllStatus() },
+                    RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS
+                )
             }
 
             override fun onCharacteristicChanged(
@@ -231,7 +238,10 @@ class BluetoothProcessGattClient(
                     putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, battery.left?.level ?: -1)
                     putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, battery.right?.level ?: -1)
                     putExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, battery.left?.isCharging ?: false)
-                    putExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, battery.right?.isCharging ?: false)
+                    putExtra(
+                        HyperRoseAction.EXTRA_RIGHT_CHARGING,
+                        battery.right?.isCharging ?: false
+                    )
                     putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, battery.caseBattery ?: -1)
                     putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
                 }
@@ -243,8 +253,14 @@ class BluetoothProcessGattClient(
                         addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
                         putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, battery.left?.level ?: -1)
                         putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, battery.right?.level ?: -1)
-                        putExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, battery.left?.isCharging ?: false)
-                        putExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, battery.right?.isCharging ?: false)
+                        putExtra(
+                            HyperRoseAction.EXTRA_LEFT_CHARGING,
+                            battery.left?.isCharging ?: false
+                        )
+                        putExtra(
+                            HyperRoseAction.EXTRA_RIGHT_CHARGING,
+                            battery.right?.isCharging ?: false
+                        )
                         putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, battery.caseBattery ?: -1)
                         putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
                     },
@@ -313,7 +329,11 @@ class BluetoothProcessGattClient(
         extras: Intent.() -> Unit,
     ) {
         // 广播给 App、MiLink 和蓝牙进程（binder hook 接收器在蓝牙进程）
-        listOf(HyperRoseAction.PACKAGE_APP, HyperRoseAction.PACKAGE_MILINK, HyperRoseAction.PACKAGE_BLUETOOTH).forEach { pkg ->
+        listOf(
+            HyperRoseAction.PACKAGE_APP,
+            HyperRoseAction.PACKAGE_MILINK,
+            HyperRoseAction.PACKAGE_BLUETOOTH
+        ).forEach { pkg ->
             context.sendBroadcast(
                 Intent(action).apply {
                     setPackage(pkg)

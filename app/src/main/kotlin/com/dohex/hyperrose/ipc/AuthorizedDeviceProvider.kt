@@ -8,6 +8,8 @@ import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
 import com.dohex.hyperrose.data.AuthorizedDeviceStore
+import com.dohex.hyperrose.ipc.AuthorizedDeviceProvider.Companion.AUTHORITY
+import com.dohex.hyperrose.ipc.AuthorizedDeviceProvider.Companion.COLUMN_ADDRESS
 
 /**
  * 跨进程白名单查询接口。
@@ -58,5 +60,10 @@ class AuthorizedDeviceProvider : ContentProvider() {
     override fun getType(uri: Uri): String = "vnd.android.cursor.dir/vnd.$AUTHORITY.address"
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
-    override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int = 0
+    override fun update(
+        uri: Uri,
+        values: ContentValues?,
+        selection: String?,
+        selectionArgs: Array<out String>?
+    ): Int = 0
 }

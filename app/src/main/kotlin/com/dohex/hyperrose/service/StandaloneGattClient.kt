@@ -190,7 +190,10 @@ class StandaloneGattClient(
                 Log.i(TAG, "GATT ready")
 
                 // 查询全部状态
-                handler.postDelayed({ queryAllStatus() }, RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS)
+                handler.postDelayed(
+                    { queryAllStatus() },
+                    RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS
+                )
             }
 
             override fun onCharacteristicChanged(

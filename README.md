@@ -1,4 +1,3 @@
-
 <div align="center">
 
 # HyperRose
@@ -14,7 +13,8 @@
 
 </div>
 
-HyperRose 是一个 Xposed 模块，为小米 HyperOS 设备提供 **ROSESELSA EARFREE i5** 耳机的系统级控制能力。通过 Hook 系统蓝牙服务，让弱水时砂耳机获得与小米原生 TWS 耳机一致的 HyperOS 深度集成体验。
+HyperRose 是一个 Xposed 模块，为小米 HyperOS 设备提供 **ROSESELSA EARFREE i5** 耳机的系统级控制能力。通过
+Hook 系统蓝牙服务，让弱水时砂耳机获得与小米原生 TWS 耳机一致的 HyperOS 深度集成体验。
 
 ---
 
@@ -22,15 +22,15 @@ HyperRose 是一个 Xposed 模块，为小米 HyperOS 设备提供 **ROSESELSA E
 
 ### 耳机控制
 
-| 功能 | 说明 |
-|------|------|
-| **降噪控制** | 关闭 / 降噪 / 风噪 / 通透 四种模式一键切换 |
-| **降噪深度** | 轻度 / 中度 / 深度 三档可调 |
-| **通透模式** | 舒适通透 / 人声通透 / 标准通透 |
-| **EQ 调音** | 弱水经典 / 日系柔情 / 乐器大师 / 清新空灵 |
-| **电量显示** | 实时显示左耳、右耳、充电盒电量 |
-| **游戏模式** | 低延迟模式切换 |
-| **查找耳机** | 左耳 / 右耳 / 停止查找 |
+| 功能        | 说明                         |
+|-----------|----------------------------|
+| **降噪控制**  | 关闭 / 降噪 / 风噪 / 通透 四种模式一键切换 |
+| **降噪深度**  | 轻度 / 中度 / 深度 三档可调          |
+| **通透模式**  | 舒适通透 / 人声通透 / 标准通透         |
+| **EQ 调音** | 弱水经典 / 日系柔情 / 乐器大师 / 清新空灵  |
+| **电量显示**  | 实时显示左耳、右耳、充电盒电量            |
+| **游戏模式**  | 低延迟模式切换                    |
+| **查找耳机**  | 左耳 / 右耳 / 停止查找             |
 
 ### HyperOS 深度集成
 
@@ -61,11 +61,11 @@ com.milink.service      ─→  设备身份伪装、音频切换、拦截系统
 
 ## 系统要求
 
-| 项目 | 要求 |
-|------|------|
-| 设备 | 小米设备（运行 HyperOS） |
-| 系统 | Android 15+ |
-| 框架 | LSPosed（API ≥ 101） |
+| 项目 | 要求                   |
+|----|----------------------|
+| 设备 | 小米设备（运行 HyperOS）     |
+| 系统 | Android 15+          |
+| 框架 | LSPosed（API ≥ 101）   |
 | 耳机 | ROSESELSA EARFREE i5 |
 
 ---
@@ -83,15 +83,19 @@ com.milink.service      ─→  设备身份伪装、音频切换、拦截系统
 
 ## 未来展望
 
-HyperRose 目前专为 **ROSESELSA EARFREE i5** 实现，BLE 协议层（GATT UUID、指令帧、响应解析）与该型号紧密耦合。未来计划通过抽象协议接口，逐步支持更多弱水时砂耳机型号及其他品牌 TWS 耳机。
+HyperRose 目前专为 **ROSESELSA EARFREE i5** 实现，BLE 协议层（GATT
+UUID、指令帧、响应解析）与该型号紧密耦合。未来计划通过抽象协议接口，逐步支持更多弱水时砂耳机型号及其他品牌
+TWS 耳机。
 
-如果你希望 HyperRose 支持你的耳机型号，欢迎提交 [Issue](https://github.com/DOHEX/HyperRose/issues) 并提供以下信息：
+如果你希望 HyperRose 支持你的耳机型号，欢迎提交 [Issue](https://github.com/DOHEX/HyperRose/issues)
+并提供以下信息：
 
 - 耳机品牌与型号
 - 蓝牙抓包数据（GATT 服务 UUID、特征值、通信帧格式）
 - 期望支持的功能（降噪、EQ、电量等）
 
-> **开发者说明：** 当前协议实现集中在 `bluetooth/protocol/` 包中（`RoseGattSpec`、`RoseCommandSet`、`RoseResponseParser`），后续重构将引入 `EarphoneProtocol` 抽象层，使 GATT 客户端与具体耳机协议解耦。
+> **开发者说明：** 当前协议实现集中在 `bluetooth/protocol/` 包中（`RoseGattSpec`、`RoseCommandSet`、
+`RoseResponseParser`），后续重构将引入 `EarphoneProtocol` 抽象层，使 GATT 客户端与具体耳机协议解耦。
 
 ---
 

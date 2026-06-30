@@ -81,7 +81,8 @@ fun HomePage(
         topBar = {
             BlurredBar(backdrop = backdrop, blurEnabled = blurActive) {
                 TopAppBar(
-                    title = deviceName ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME,
+                    title = deviceName
+                        ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME,
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(MiuixIcons.ChevronBackward, contentDescription = "返回")
@@ -95,22 +96,28 @@ fun HomePage(
     ) { paddingValues ->
         Box(
             modifier =
-            Modifier.fillMaxSize()
-                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
+                Modifier
+                    .fillMaxSize()
+                    .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
         ) {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier =
-                Modifier
-                    .fillMaxSize()
-                    .overScrollVertical()
-                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                    Modifier
+                        .fillMaxSize()
+                        .overScrollVertical()
+                        .nestedScroll(scrollBehavior.nestedScrollConnection),
                 contentPadding =
-                PaddingValues(top = paddingValues.calculateTopPadding(), start = 10.dp, end = 10.dp),
+                    PaddingValues(
+                        top = paddingValues.calculateTopPadding(),
+                        start = 10.dp,
+                        end = 10.dp
+                    ),
             ) {
                 item {
                     SectionCard(
-                        title = deviceName ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME,
+                        title = deviceName
+                            ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME,
                         subtitle = connectionSummary(connectionState, transport),
                     ) {
                         Row(
@@ -163,10 +170,20 @@ fun HomePage(
                 }
                 item {
                     Card {
-                        SwitchPreference(title = "游戏模式", checked = gameMode, onCheckedChange = onGameModeChange)
+                        SwitchPreference(
+                            title = "游戏模式",
+                            checked = gameMode,
+                            onCheckedChange = onGameModeChange
+                        )
                     }
                 }
-                item { Card { ArrowPreference(title = "查找耳机", onClick = { showFindDialog = true }) } }
+                item {
+                    Card {
+                        ArrowPreference(
+                            title = "查找耳机",
+                            onClick = { showFindDialog = true })
+                    }
+                }
             }
         }
 
@@ -176,7 +193,10 @@ fun HomePage(
             show = showFindDialog,
             onDismissRequest = { showFindDialog = false },
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 ActionButton(
                     text = "左耳",
                     onClick = {

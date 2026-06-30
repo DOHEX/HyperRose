@@ -94,5 +94,6 @@ object RoseCommandSet {
     // ==================== 工具方法 ====================
 
     /** 将空格分隔的十六进制字符串转为 ByteArray。 例如 "08 EE 00" → byteArrayOf(0x08, 0xEE.toByte(), 0x00) */
-    private fun hexToBytes(hex: String): ByteArray = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
+    private fun hexToBytes(hex: String): ByteArray =
+        hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
 }

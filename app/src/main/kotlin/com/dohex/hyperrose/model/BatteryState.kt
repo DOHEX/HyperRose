@@ -20,7 +20,8 @@ data class TwsBatteryState(
 
 fun Int.asBatteryLevelOrNull(): Int? = takeIf { it in MIN_BATTERY_LEVEL..MAX_BATTERY_LEVEL }
 
-fun Int.isBatteryLevelOrUnknown(): Boolean = asBatteryLevelOrNull() != null || this == UNKNOWN_BATTERY_LEVEL
+fun Int.isBatteryLevelOrUnknown(): Boolean =
+    asBatteryLevelOrNull() != null || this == UNKNOWN_BATTERY_LEVEL
 
 fun TwsBatteryState.withLastKnownCaseBattery(previous: TwsBatteryState?): TwsBatteryState {
     val fallbackCaseBattery = previous?.caseBattery ?: return this

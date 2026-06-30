@@ -25,7 +25,7 @@ val LocalThemeMode = compositionLocalOf<ThemeMode> { error("No ThemeMode provide
 
 val LocalUpdateThemeMode =
     staticCompositionLocalOf<((ThemeMode) -> ThemeMode) -> Unit> {
-      error("No ThemeMode updater provided")
+        error("No ThemeMode updater provided")
     }
 
 val LocalCanUpdateThemeMode = compositionLocalOf { true }

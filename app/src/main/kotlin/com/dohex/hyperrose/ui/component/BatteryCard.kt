@@ -21,7 +21,10 @@ fun BatteryCard(
     modifier: Modifier = Modifier,
 ) {
     SectionCard(title = "电量", subtitle = batterySubtitle(battery), modifier = modifier) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             BatteryCell(
                 label = "左耳",
                 value = battery?.left?.level,
@@ -62,7 +65,11 @@ private fun BatteryCell(
             modifier = Modifier.padding(top = 4.dp),
         )
         if (charging) {
-            Text(text = "充电中", color = Color(0xFF2A6AA0), modifier = Modifier.padding(top = 2.dp))
+            Text(
+                text = "充电中",
+                color = Color(0xFF2A6AA0),
+                modifier = Modifier.padding(top = 2.dp)
+            )
         }
     }
 }
@@ -75,4 +82,5 @@ private fun batterySubtitle(battery: TwsBatteryState?): String {
     return "L $left  ·  R $right  ·  C $caseLevel"
 }
 
-private fun formatBatteryLevel(level: Int?): String = level?.asBatteryLevelOrNull()?.let { "$it%" } ?: "-"
+private fun formatBatteryLevel(level: Int?): String =
+    level?.asBatteryLevelOrNull()?.let { "$it%" } ?: "-"
