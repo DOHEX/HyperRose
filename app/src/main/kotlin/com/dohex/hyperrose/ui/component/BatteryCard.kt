@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.dohex.hyperrose.domain.battery.TwsBatteryState
-import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
+import com.dohex.hyperrose.model.TwsBatteryState
+import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import top.yukonga.miuix.kmp.basic.Text
 
 @Composable

@@ -1,7 +1,7 @@
 package com.dohex.hyperrose.ipc
 
 import android.content.Intent
-import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
+import com.dohex.hyperrose.model.asBatteryLevelOrNull
 
 object QuickControlIntentFactory {
     private const val LAUNCH_FLAGS =

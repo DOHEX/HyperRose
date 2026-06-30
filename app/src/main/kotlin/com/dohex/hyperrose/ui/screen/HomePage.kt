@@ -16,11 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
-import com.dohex.hyperrose.domain.audio.AncDepth
-import com.dohex.hyperrose.domain.audio.AncMode
-import com.dohex.hyperrose.domain.audio.EqPreset
-import com.dohex.hyperrose.domain.audio.TransparencyLevel
-import com.dohex.hyperrose.domain.battery.TwsBatteryState
+import com.dohex.hyperrose.model.AncDepth
+import com.dohex.hyperrose.model.AncMode
+import com.dohex.hyperrose.model.EqPreset
+import com.dohex.hyperrose.model.TransparencyLevel
+import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.AncSelector
 import com.dohex.hyperrose.ui.component.BatteryCard
@@ -70,153 +70,154 @@ fun HomePage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  val connected = connectionState == DeviceConnectionState.CONNECTED
-  val themeMode = LocalThemeMode.current
-  val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
-  val blurActive = themeMode.enableBlur && backdrop != null
-  val scrollBehavior = MiuixScrollBehavior()
-  var showFindDialog by remember { mutableStateOf(false) }
-  Scaffold(
-      topBar = {
-        BlurredBar(backdrop = backdrop, blurEnabled = blurActive) {
-          TopAppBar(
-              title = deviceName ?: com.dohex.hyperrose.domain.DeviceConstants.DEFAULT_DEVICE_NAME,
-              navigationIcon = {
-                IconButton(onClick = onBack) {
-                  Icon(MiuixIcons.ChevronBackward, contentDescription = "返回")
-                }
-              },
-              scrollBehavior = scrollBehavior,
-              color = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface,
-          )
-        }
-      }
-  ) { paddingValues ->
-    Box(
-        modifier =
-            Modifier.fillMaxSize()
-                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
-    ) {
-      LazyColumn(
-          verticalArrangement = Arrangement.spacedBy(8.dp),
-          modifier =
-              modifier
-                  .fillMaxSize()
-                  .overScrollVertical()
-                  .nestedScroll(scrollBehavior.nestedScrollConnection),
-          contentPadding =
-              PaddingValues(top = paddingValues.calculateTopPadding(), start = 10.dp, end = 10.dp),
-      ) {
-        item {
-          SectionCard(
-              title = deviceName ?: com.dohex.hyperrose.domain.DeviceConstants.DEFAULT_DEVICE_NAME,
-              subtitle = connectionSummary(connectionState, transport),
-          ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-              ActionButton(
-                  text = if (connected) "刷新状态" else "返回列表",
-                  onClick = if (connected) onRefreshStatus else onBack,
-                  modifier = Modifier.weight(1f),
-              )
-              ActionButton(
-                  text = if (connected) "断开" else "返回",
-                  onClick = if (connected) onDisconnect else onBack,
-                  modifier = Modifier.weight(1f),
-              )
+    val connected = connectionState == DeviceConnectionState.CONNECTED
+    val themeMode = LocalThemeMode.current
+    val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
+    val blurActive = themeMode.enableBlur && backdrop != null
+    val scrollBehavior = MiuixScrollBehavior()
+    var showFindDialog by remember { mutableStateOf(false) }
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            BlurredBar(backdrop = backdrop, blurEnabled = blurActive) {
+                TopAppBar(
+                    title = deviceName ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME,
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(MiuixIcons.ChevronBackward, contentDescription = "返回")
+                        }
+                    },
+                    scrollBehavior = scrollBehavior,
+                    color = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface,
+                )
             }
-          }
+        },
+    ) { paddingValues ->
+        Box(
+            modifier =
+            Modifier.fillMaxSize()
+                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
+        ) {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier =
+                Modifier
+                    .fillMaxSize()
+                    .overScrollVertical()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                contentPadding =
+                PaddingValues(top = paddingValues.calculateTopPadding(), start = 10.dp, end = 10.dp),
+            ) {
+                item {
+                    SectionCard(
+                        title = deviceName ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME,
+                        subtitle = connectionSummary(connectionState, transport),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ActionButton(
+                                text = if (connected) "刷新状态" else "返回列表",
+                                onClick = if (connected) onRefreshStatus else onBack,
+                                modifier = Modifier.weight(1f),
+                            )
+                            ActionButton(
+                                text = if (connected) "断开" else "返回",
+                                onClick = if (connected) onDisconnect else onBack,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+
+                if (!connected) {
+                    item {
+                        SectionCard(
+                            title = "未连接耳机",
+                            subtitle = "可直接在 App 内连接，或等待 LSPosed 桥接状态同步",
+                        ) {}
+                    }
+                    return@LazyColumn
+                }
+
+                item { BatteryCard(battery = battery) }
+
+                item {
+                    AncSelector(
+                        ancMode = ancMode,
+                        ancDepth = ancDepth,
+                        transLevel = transLevel,
+                        onAncModeChange = onAncModeChange,
+                        onAncDepthChange = onAncDepthChange,
+                        onTransLevelChange = onTransLevelChange,
+                        enabled = true,
+                    )
+                }
+                item {
+                    EqSelector(
+                        eqMode = eqMode,
+                        onSelect = onEqModeChange,
+                        enabled = true,
+                    )
+                }
+                item {
+                    Card {
+                        SwitchPreference(title = "游戏模式", checked = gameMode, onCheckedChange = onGameModeChange)
+                    }
+                }
+                item { Card { ArrowPreference(title = "查找耳机", onClick = { showFindDialog = true }) } }
+            }
         }
 
-        if (!connected) {
-          item {
-            SectionCard(
-                title = "未连接耳机",
-                subtitle = "可直接在 App 内连接，或等待 LSPosed 桥接状态同步",
-            ) {}
-          }
-          return@LazyColumn
+        OverlayDialog(
+            title = "查找耳机",
+            summary = "请不要佩戴耳机",
+            show = showFindDialog,
+            onDismissRequest = { showFindDialog = false },
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionButton(
+                    text = "左耳",
+                    onClick = {
+                        onFindLeft()
+                        showFindDialog = false
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                ActionButton(
+                    text = "停止",
+                    onClick = {
+                        onStopFind()
+                        showFindDialog = false
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                ActionButton(
+                    text = "右耳",
+                    onClick = {
+                        onFindRight()
+                        showFindDialog = false
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
-
-        item { BatteryCard(battery = battery) }
-
-        item {
-          AncSelector(
-              ancMode = ancMode,
-              ancDepth = ancDepth,
-              transLevel = transLevel,
-              onAncModeChange = onAncModeChange,
-              onAncDepthChange = onAncDepthChange,
-              onTransLevelChange = onTransLevelChange,
-              enabled = true,
-          )
-        }
-        item {
-          EqSelector(
-              eqMode = eqMode,
-              onSelect = onEqModeChange,
-              enabled = true,
-          )
-        }
-        item {
-          Card {
-            SwitchPreference(title = "游戏模式", checked = gameMode, onCheckedChange = onGameModeChange)
-          }
-        }
-        item { Card { ArrowPreference(title = "查找耳机", onClick = { showFindDialog = true }) } }
-      }
     }
-
-    OverlayDialog(
-        title = "查找耳机",
-        summary = "请不要佩戴耳机",
-        show = showFindDialog,
-        onDismissRequest = { showFindDialog = false },
-    ) {
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ActionButton(
-            text = "左耳",
-            onClick = {
-              onFindLeft()
-              showFindDialog = false
-            },
-            modifier = Modifier.weight(1f),
-        )
-        ActionButton(
-            text = "停止",
-            onClick = {
-              onStopFind()
-              showFindDialog = false
-            },
-            modifier = Modifier.weight(1f),
-        )
-        ActionButton(
-            text = "右耳",
-            onClick = {
-              onFindRight()
-              showFindDialog = false
-            },
-            modifier = Modifier.weight(1f),
-        )
-      }
-    }
-  }
 }
 
 private fun connectionSummary(
     connectionState: DeviceConnectionState,
     transport: ConnectionTransport,
-): String {
-  return when (connectionState) {
+): String = when (connectionState) {
     DeviceConnectionState.CONNECTING -> "连接中"
+
     DeviceConnectionState.DISCONNECTED -> "未连接"
+
     DeviceConnectionState.CONNECTED ->
         when (transport) {
-          ConnectionTransport.DIRECT_BLE -> "已连接 · 独立 BLE"
-          ConnectionTransport.HOOK_BRIDGE -> "已连接 · LSPosed 桥接"
-          ConnectionTransport.NONE -> "已连接"
+            ConnectionTransport.DIRECT_BLE -> "已连接 · 独立 BLE"
+            ConnectionTransport.HOOK_BRIDGE -> "已连接 · LSPosed 桥接"
+            ConnectionTransport.NONE -> "已连接"
         }
-  }
 }

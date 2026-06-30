@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.xposed.process.milink
+package com.dohex.hyperrose.hook
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
@@ -7,9 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
-import com.dohex.hyperrose.core.reflection.ReflectionHelper
-import com.dohex.hyperrose.domain.audio.AncMode
 import com.dohex.hyperrose.ipc.QuickControlIntentFactory
+import com.dohex.hyperrose.model.AncMode
+import com.dohex.hyperrose.util.ReflectionHelper
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
@@ -205,7 +205,10 @@ object MiLinkProcessHook {
     private fun hookAncStateBlock(module: XposedModule, clazz: Class<*>) {
         runCatching {
             val method = findMethodByParamTypes(
-                clazz, "setAncStateBlock", BluetoothDevice::class.java, Int::class.javaPrimitiveType!!,
+                clazz,
+                "setAncStateBlock",
+                BluetoothDevice::class.java,
+                Int::class.javaPrimitiveType!!,
             ) ?: return
 
             module.hook(method)?.intercept { chain ->
@@ -260,43 +263,51 @@ object MiLinkProcessHook {
             addAction(HyperRoseAction.TRANS_LEVEL_CHANGED)
         }
 
-        context?.registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                when (intent.action) {
-                    HyperRoseAction.DEVICE_CONNECTED -> {
-                        currentAddress = intent.getParcelableExtra<BluetoothDevice>(HyperRoseAction.EXTRA_DEVICE)?.address
-                        currentName = intent.getParcelableExtra<BluetoothDevice>(HyperRoseAction.EXTRA_DEVICE)?.name
-                    }
-                    HyperRoseAction.DEVICE_DISCONNECTED -> {
-                        currentAddress = null
-                        currentName = null
-                        currentLeftBattery = -1
-                        currentRightBattery = -1
-                        currentCaseBattery = -1
-                        currentLeftCharging = false
-                        currentRightCharging = false
-                        currentAncMode = null
-                    }
-                    HyperRoseAction.BATTERY_CHANGED -> {
-                        currentLeftBattery = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
-                        currentRightBattery = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
-                        currentCaseBattery = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
-                        currentLeftCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false)
-                        currentRightCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, false)
-                    }
-                    HyperRoseAction.ANC_CHANGED -> {
-                        currentAncMode = intent.getStringExtra(HyperRoseAction.EXTRA_MODE)?.let { name ->
-                            runCatching { AncMode.valueOf(name) }.getOrNull()
+        context?.registerReceiver(
+            object : BroadcastReceiver() {
+                override fun onReceive(ctx: Context, intent: Intent) {
+                    when (intent.action) {
+                        HyperRoseAction.DEVICE_CONNECTED -> {
+                            currentAddress = intent.getParcelableExtra<BluetoothDevice>(HyperRoseAction.EXTRA_DEVICE)?.address
+                            currentName = intent.getParcelableExtra<BluetoothDevice>(HyperRoseAction.EXTRA_DEVICE)?.name
+                        }
+
+                        HyperRoseAction.DEVICE_DISCONNECTED -> {
+                            currentAddress = null
+                            currentName = null
+                            currentLeftBattery = -1
+                            currentRightBattery = -1
+                            currentCaseBattery = -1
+                            currentLeftCharging = false
+                            currentRightCharging = false
+                            currentAncMode = null
+                        }
+
+                        HyperRoseAction.BATTERY_CHANGED -> {
+                            currentLeftBattery = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
+                            currentRightBattery = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
+                            currentCaseBattery = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
+                            currentLeftCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false)
+                            currentRightCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_RIGHT_CHARGING, false)
+                        }
+
+                        HyperRoseAction.ANC_CHANGED -> {
+                            currentAncMode = intent.getStringExtra(HyperRoseAction.EXTRA_MODE)?.let { name ->
+                                runCatching { AncMode.valueOf(name) }.getOrNull()
+                            }
                         }
                     }
+                    module.log(
+                        Log.DEBUG,
+                        LOG_TAG,
+                        "State updated: addr=$currentAddress L=$currentLeftBattery R=$currentRightBattery " +
+                            "C=$currentCaseBattery anc=$currentAncMode",
+                    )
                 }
-                module.log(
-                    Log.DEBUG, LOG_TAG,
-                    "State updated: addr=$currentAddress L=$currentLeftBattery R=$currentRightBattery " +
-                        "C=$currentCaseBattery anc=$currentAncMode",
-                )
-            }
-        }, filter, Context.RECEIVER_EXPORTED)
+            },
+            filter,
+            Context.RECEIVER_EXPORTED,
+        )
 
         receiverRegistered = true
 
@@ -416,7 +427,7 @@ object MiLinkProcessHook {
         val address = runCatching { device.address }.getOrNull()
         if (address != null && isRoseAddress(address)) return true
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        return com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(name)
+        return com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(name)
     }
 
     private fun isRoseAddress(address: String): Boolean {
@@ -424,11 +435,12 @@ object MiLinkProcessHook {
         if (currentAddress != null && address.equals(currentAddress, ignoreCase = true)) return true
         // 2. 兜底：尝试从蓝牙适配器获取远程设备名称
         if (runCatching {
-            val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
-            val device = bt?.getRemoteDevice(address)
-            val name = device?.name ?: device?.alias
-            name?.let { com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(it) } == true
-        }.getOrElse { false }) {
+                val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                val device = bt?.getRemoteDevice(address)
+                val name = device?.name ?: device?.alias
+                name?.let { com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(it) } == true
+            }.getOrElse { false }
+        ) {
             currentAddress = address
             return true
         }

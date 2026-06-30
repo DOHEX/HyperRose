@@ -2,10 +2,10 @@ package com.dohex.hyperrose.ipc
 
 import android.content.Context
 import android.content.Intent
-import com.dohex.hyperrose.domain.audio.AncDepth
-import com.dohex.hyperrose.domain.audio.AncMode
-import com.dohex.hyperrose.domain.audio.EqPreset
-import com.dohex.hyperrose.domain.audio.TransparencyLevel
+import com.dohex.hyperrose.model.AncDepth
+import com.dohex.hyperrose.model.AncMode
+import com.dohex.hyperrose.model.EqPreset
+import com.dohex.hyperrose.model.TransparencyLevel
 
 /** App/Popup 侧发送控制广播到 com.android.bluetooth 进程。 */
 object BluetoothCommandDispatcher {

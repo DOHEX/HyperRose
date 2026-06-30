@@ -1,7 +1,7 @@
 package com.dohex.hyperrose.util
 
 import android.os.Bundle
-import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
+import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.xzakota.hyper.notification.focus.FocusNotification
 
 object FocusIslandBridge {

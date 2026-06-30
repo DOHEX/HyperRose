@@ -2,7 +2,7 @@ package com.dohex.hyperrose.ui.component
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.dohex.hyperrose.domain.audio.EqPreset
+import com.dohex.hyperrose.model.EqPreset
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 

@@ -16,7 +16,7 @@
         android:theme="@style/Theme.HyperRose">
 
         <activity
-            android:name="com.dohex.hyperrose.entry.AppEntryActivity"
+            android:name="com.dohex.hyperrose.ui.AppEntryActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -30,7 +30,7 @@
             android:exported="true" />
 
         <activity
-            android:name="com.dohex.hyperrose.entry.QuickControlActivity"
+            android:name="com.dohex.hyperrose.ui.QuickControlActivity"
             android:exported="true"
             android:excludeFromRecents="true"
             android:noHistory="true"

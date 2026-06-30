@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.domain
+package com.dohex.hyperrose.model
 
 /**
  * 设备识别与显示常量。
@@ -15,6 +15,5 @@ object DeviceConstants {
     const val DEFAULT_DEVICE_NAME = "ROSE EARFEEL"
 
     /** 检查设备名是否匹配任意关键字 */
-    fun matchesDeviceName(name: String): Boolean =
-        DEVICE_NAME_KEYWORDS.any { name.contains(it, ignoreCase = true) }
+    fun matchesDeviceName(name: String): Boolean = DEVICE_NAME_KEYWORDS.any { name.contains(it, ignoreCase = true) }
 }

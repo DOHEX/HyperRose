@@ -9,16 +9,16 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
-import com.dohex.hyperrose.bluetooth.app.StandaloneGattClient
-import com.dohex.hyperrose.domain.audio.AncDepth
-import com.dohex.hyperrose.domain.audio.AncMode
-import com.dohex.hyperrose.domain.audio.EqPreset
-import com.dohex.hyperrose.domain.audio.TransparencyLevel
-import com.dohex.hyperrose.domain.battery.EarBatteryState
-import com.dohex.hyperrose.domain.battery.TwsBatteryState
-import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
-import com.dohex.hyperrose.domain.battery.withLastKnownCaseBattery
 import com.dohex.hyperrose.ipc.BluetoothCommandDispatcher
+import com.dohex.hyperrose.model.AncDepth
+import com.dohex.hyperrose.model.AncMode
+import com.dohex.hyperrose.model.EarBatteryState
+import com.dohex.hyperrose.model.EqPreset
+import com.dohex.hyperrose.model.TransparencyLevel
+import com.dohex.hyperrose.model.TwsBatteryState
+import com.dohex.hyperrose.model.asBatteryLevelOrNull
+import com.dohex.hyperrose.model.withLastKnownCaseBattery
+import com.dohex.hyperrose.service.StandaloneGattClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -114,7 +114,7 @@ class DeviceControlStore(
                         if (needsHookBridge) {
                             _transport.value = ConnectionTransport.HOOK_BRIDGE
                             _connectionState.value = DeviceConnectionState.CONNECTED
-                            _deviceName.value = device?.name ?: _deviceName.value ?: com.dohex.hyperrose.domain.DeviceConstants.DEFAULT_DEVICE_NAME
+                            _deviceName.value = device?.name ?: _deviceName.value ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME
                         }
                     }
 
@@ -200,9 +200,9 @@ class DeviceControlStore(
                     RoseDeviceItem(name = name, address = device.address)
                 }.sortedWith(
                     compareByDescending<RoseDeviceItem> {
-                        com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(it.name)
+                        com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(it.name)
                     }.thenBy { it.name.lowercase() }
-                    .thenBy { it.address },
+                        .thenBy { it.address },
                 )
     }
 

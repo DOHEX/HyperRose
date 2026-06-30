@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.xposed.process.bluetooth
+package com.dohex.hyperrose.hook
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
@@ -11,13 +11,13 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.Parcel
 import android.util.Log
-import com.dohex.hyperrose.core.reflection.ReflectionHelper
-import com.dohex.hyperrose.domain.audio.AncDepth
-import com.dohex.hyperrose.domain.audio.AncMode
-import com.dohex.hyperrose.domain.audio.TransparencyLevel
-import com.dohex.hyperrose.domain.battery.EarBatteryState
-import com.dohex.hyperrose.domain.battery.TwsBatteryState
-import com.dohex.hyperrose.domain.battery.asBatteryLevelOrNull
+import com.dohex.hyperrose.model.AncDepth
+import com.dohex.hyperrose.model.AncMode
+import com.dohex.hyperrose.model.EarBatteryState
+import com.dohex.hyperrose.model.TransparencyLevel
+import com.dohex.hyperrose.model.TwsBatteryState
+import com.dohex.hyperrose.model.asBatteryLevelOrNull
+import com.dohex.hyperrose.util.ReflectionHelper
 import io.github.libxposed.api.XposedModule
 import java.lang.reflect.Method
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
@@ -158,7 +158,8 @@ object HeadsetServiceBinderHook {
         stubClassLoader = stubClass.classLoader
         runCatching {
             val onTransact = findMethodByParamTypes(
-                stubClass, "onTransact",
+                stubClass,
+                "onTransact",
                 Int::class.javaPrimitiveType!!,
                 Parcel::class.java,
                 Parcel::class.java,
@@ -294,7 +295,7 @@ object HeadsetServiceBinderHook {
                 102 -> "1"
                 123 -> "4"
                 else -> "1"
-            }
+            },
         )
         sendRealStatus(device, "txn-setCommonCommand:$command")
         moduleLog("txn setCommonCommand cmd=$command val=$value")
@@ -326,9 +327,7 @@ object HeadsetServiceBinderHook {
 
     // ==================== Parcel 工具方法 ====================
 
-    private fun Parcel.readDevice(): BluetoothDevice? {
-        return if (readInt() != 0) BluetoothDevice.CREATOR.createFromParcel(this) else null
-    }
+    private fun Parcel.readDevice(): BluetoothDevice? = if (readInt() != 0) BluetoothDevice.CREATOR.createFromParcel(this) else null
 
     private fun Parcel.readCallbackBinder(module: XposedModule): Any? {
         val binder = readStrongBinder() ?: return null
@@ -627,60 +626,71 @@ object HeadsetServiceBinderHook {
             addAction(HyperRoseAction.TRANS_LEVEL_CHANGED)
         }
 
-        context?.registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                when (intent.action) {
-                    HyperRoseAction.DEVICE_CONNECTED -> {
-                        currentDevice = intent.getParcelableExtra(HyperRoseAction.EXTRA_DEVICE)
-                        currentAddress = currentDevice?.address
-                        currentName = currentDevice?.name
-                        currentAddress?.let { knownAddresses.add(it.uppercase()) }
-                        // GATT 客户端在 DEVICE_CONNECTED 广播后被创建，
-                        // 延迟重放设备重连前缓存的 ANC 命令
-                        if (pendingAncMode != null || pendingAncDepth != null || pendingTransLevel != null) {
-                            handler.postDelayed({ replayPendingAncCommands() }, 800L)
+        context?.registerReceiver(
+            object : BroadcastReceiver() {
+                override fun onReceive(ctx: Context, intent: Intent) {
+                    when (intent.action) {
+                        HyperRoseAction.DEVICE_CONNECTED -> {
+                            currentDevice = intent.getParcelableExtra(HyperRoseAction.EXTRA_DEVICE)
+                            currentAddress = currentDevice?.address
+                            currentName = currentDevice?.name
+                            currentAddress?.let { knownAddresses.add(it.uppercase()) }
+                            // GATT 客户端在 DEVICE_CONNECTED 广播后被创建，
+                            // 延迟重放设备重连前缓存的 ANC 命令
+                            if (pendingAncMode != null || pendingAncDepth != null || pendingTransLevel != null) {
+                                handler.postDelayed({ replayPendingAncCommands() }, 800L)
+                            }
+                        }
+
+                        HyperRoseAction.DEVICE_DISCONNECTED -> {
+                            currentAddress = null
+                            currentName = null
+                        }
+
+                        HyperRoseAction.BATTERY_CHANGED -> {
+                            // 从 Intent 解析电池状态并缓存（跨进程兼容：com.xiaomi.bluetooth 中无 GATT client）
+                            cachedBattery = intent.parseBatteryFromExtras() ?: cachedBattery
+                        }
+
+                        HyperRoseAction.ANC_CHANGED -> {
+                            // 从 Intent 解析 ANC 模式并缓存
+                            intent.getStringExtra(HyperRoseAction.EXTRA_MODE)?.let { name ->
+                                runCatching { cachedAnc = AncMode.valueOf(name) }
+                            }
+                        }
+
+                        HyperRoseAction.ANC_DEPTH_CHANGED -> {
+                            // 从 Intent 解析降噪深度并缓存
+                            intent.getStringExtra(HyperRoseAction.EXTRA_DEPTH)?.let { name ->
+                                runCatching { cachedAncDepth = AncDepth.valueOf(name) }
+                            }
+                        }
+
+                        HyperRoseAction.TRANS_LEVEL_CHANGED -> {
+                            // 从 Intent 解析通透强度并缓存
+                            intent.getStringExtra(HyperRoseAction.EXTRA_LEVEL)?.let { name ->
+                                runCatching { cachedTransLevel = TransparencyLevel.valueOf(name) }
+                            }
                         }
                     }
-                    HyperRoseAction.DEVICE_DISCONNECTED -> {
-                        currentAddress = null
-                        currentName = null
-                    }
-                    HyperRoseAction.BATTERY_CHANGED -> {
-                        // 从 Intent 解析电池状态并缓存（跨进程兼容：com.xiaomi.bluetooth 中无 GATT client）
-                        cachedBattery = intent.parseBatteryFromExtras() ?: cachedBattery
-                    }
-                    HyperRoseAction.ANC_CHANGED -> {
-                        // 从 Intent 解析 ANC 模式并缓存
-                        intent.getStringExtra(HyperRoseAction.EXTRA_MODE)?.let { name ->
-                            runCatching { cachedAnc = AncMode.valueOf(name) }
-                        }
-                    }
-                    HyperRoseAction.ANC_DEPTH_CHANGED -> {
-                        // 从 Intent 解析降噪深度并缓存
-                        intent.getStringExtra(HyperRoseAction.EXTRA_DEPTH)?.let { name ->
-                            runCatching { cachedAncDepth = AncDepth.valueOf(name) }
-                        }
-                    }
-                    HyperRoseAction.TRANS_LEVEL_CHANGED -> {
-                        // 从 Intent 解析通透强度并缓存
-                        intent.getStringExtra(HyperRoseAction.EXTRA_LEVEL)?.let { name ->
-                            runCatching { cachedTransLevel = TransparencyLevel.valueOf(name) }
-                        }
-                    }
+                    moduleLog("state action=${intent.action} addr=$currentAddress anc=$cachedAnc")
+                    notifyCallbacks("broadcast:${intent.action}")
                 }
-                moduleLog("state action=${intent.action} addr=$currentAddress anc=$cachedAnc")
-                notifyCallbacks("broadcast:${intent.action}")
-            }
-        }, filter, Context.RECEIVER_EXPORTED)
+            },
+            filter,
+            Context.RECEIVER_EXPORTED,
+        )
 
         receiverRegistered = true
         moduleLog("State receiver registered")
 
         // 请求 GATT 客户端立即广播当前状态（和 OppoPods 的 ACTION_REFRESH_STATUS 一样）
-        context?.sendBroadcast(Intent(HyperRoseAction.REFRESH_STATUS).apply {
-            `package` = HyperRoseAction.PACKAGE_BLUETOOTH
-            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-        })
+        context?.sendBroadcast(
+            Intent(HyperRoseAction.REFRESH_STATUS).apply {
+                `package` = HyperRoseAction.PACKAGE_BLUETOOTH
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            },
+        )
         moduleLog("Sent REFRESH_STATUS")
     }
 
@@ -807,29 +817,34 @@ object HeadsetServiceBinderHook {
     /**
      * HyperRose AncMode/AncDepth → MIUI 4位ANC等级码
      */
-    private fun miuiAncLevel(anc: AncMode?, depth: AncDepth?, transLevel: TransparencyLevel?): String {
-        return when (anc) {
-            AncMode.NOISE_CANCEL -> when (depth) {
-                AncDepth.DEEP -> "0102"
-                AncDepth.MEDIUM -> "0100"
-                AncDepth.LIGHT -> "0101"
-                null -> "0100"
-            }
-            AncMode.WIND_NOISE -> "0101"
-            AncMode.TRANSPARENT -> when (transLevel) {
-                TransparencyLevel.VOCAL -> "0201"
-                else -> "0200"
-            }
-            AncMode.NORMAL, null -> "0000"
+    private fun miuiAncLevel(anc: AncMode?, depth: AncDepth?, transLevel: TransparencyLevel?): String = when (anc) {
+        AncMode.NOISE_CANCEL -> when (depth) {
+            AncDepth.DEEP -> "0102"
+            AncDepth.MEDIUM -> "0100"
+            AncDepth.LIGHT -> "0101"
+            null -> "0100"
         }
+
+        AncMode.WIND_NOISE -> "0101"
+
+        AncMode.TRANSPARENT -> when (transLevel) {
+            TransparencyLevel.VOCAL -> "0201"
+            else -> "0200"
+        }
+
+        AncMode.NORMAL, null -> "0000"
     }
 
     // ==================== MIUI 命令 → HyperRose 转换 ====================
 
     private fun roseAncFromMiuiMode(mode: Int): AncMode? = when (mode) {
-        1 -> AncMode.NOISE_CANCEL   // MIUI NC
-        2 -> AncMode.TRANSPARENT    // MIUI Transparency
-        else -> AncMode.NORMAL      // MIUI OFF
+        1 -> AncMode.NOISE_CANCEL
+
+        // MIUI NC
+        2 -> AncMode.TRANSPARENT
+
+        // MIUI Transparency
+        else -> AncMode.NORMAL // MIUI OFF
     }
 
     /**
@@ -841,43 +856,57 @@ object HeadsetServiceBinderHook {
         if (level == null) return
         when {
             level.startsWith("0201") -> {
-                cachedAnc = AncMode.TRANSPARENT; cachedTransLevel = TransparencyLevel.VOCAL
+                cachedAnc = AncMode.TRANSPARENT
+                cachedTransLevel = TransparencyLevel.VOCAL
                 sendAncToGatt(AncMode.TRANSPARENT)
                 sendTransLevelToGatt(TransparencyLevel.VOCAL)
             }
+
             level.startsWith("0200") -> {
-                cachedAnc = AncMode.TRANSPARENT; cachedTransLevel = TransparencyLevel.STANDARD
+                cachedAnc = AncMode.TRANSPARENT
+                cachedTransLevel = TransparencyLevel.STANDARD
                 sendAncToGatt(AncMode.TRANSPARENT)
                 sendTransLevelToGatt(TransparencyLevel.STANDARD)
             }
+
             level.startsWith("0102") -> {
-                cachedAnc = AncMode.NOISE_CANCEL; cachedAncDepth = AncDepth.DEEP
+                cachedAnc = AncMode.NOISE_CANCEL
+                cachedAncDepth = AncDepth.DEEP
                 sendAncToGatt(AncMode.NOISE_CANCEL)
                 sendAncDepthToGatt(AncDepth.DEEP)
             }
+
             level.startsWith("0103") -> {
-                cachedAnc = AncMode.NOISE_CANCEL; cachedAncDepth = null
+                cachedAnc = AncMode.NOISE_CANCEL
+                cachedAncDepth = null
                 sendAncToGatt(AncMode.NOISE_CANCEL)
                 // Smart 自适应降噪 — ROSE 无直接对应子模式，发送降噪命令即可
             }
+
             level.startsWith("0101") -> {
-                cachedAnc = AncMode.NOISE_CANCEL; cachedAncDepth = AncDepth.LIGHT
+                cachedAnc = AncMode.NOISE_CANCEL
+                cachedAncDepth = AncDepth.LIGHT
                 sendAncToGatt(AncMode.NOISE_CANCEL)
                 sendAncDepthToGatt(AncDepth.LIGHT)
             }
+
             level.startsWith("0100") -> {
-                cachedAnc = AncMode.NOISE_CANCEL; cachedAncDepth = AncDepth.MEDIUM
+                cachedAnc = AncMode.NOISE_CANCEL
+                cachedAncDepth = AncDepth.MEDIUM
                 sendAncToGatt(AncMode.NOISE_CANCEL)
                 sendAncDepthToGatt(AncDepth.MEDIUM)
             }
+
             level.startsWith("01") -> {
                 cachedAnc = AncMode.NOISE_CANCEL
                 sendAncToGatt(AncMode.NOISE_CANCEL)
             }
+
             level.startsWith("02") -> {
                 cachedAnc = AncMode.TRANSPARENT
                 sendAncToGatt(AncMode.TRANSPARENT)
             }
+
             else -> {
                 cachedAnc = AncMode.NORMAL
                 sendAncToGatt(AncMode.NORMAL)
@@ -895,7 +924,7 @@ object HeadsetServiceBinderHook {
         if (mode == null) return
         val gatt = BluetoothProcessHook.currentGattClient()
         if (gatt != null) {
-            gatt.sendCommand(com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet.ancCommand(mode))
+            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.ancCommand(mode))
             moduleLog("ANC command sent directly: $mode")
             // 命令发送成功后清除待重放缓存
             pendingAncMode = null
@@ -905,11 +934,13 @@ object HeadsetServiceBinderHook {
             pendingAncMode = mode
             moduleLog("GATT client null, caching ANC=$mode for retry (pendingRetryCount=$pendingRetryCount)")
             val ctx = context ?: return
-            ctx.sendBroadcast(Intent(HyperRoseAction.ANC_SELECT).apply {
-                putExtra(HyperRoseAction.EXTRA_MODE, mode.name)
-                `package` = HyperRoseAction.PACKAGE_BLUETOOTH
-                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            })
+            ctx.sendBroadcast(
+                Intent(HyperRoseAction.ANC_SELECT).apply {
+                    putExtra(HyperRoseAction.EXTRA_MODE, mode.name)
+                    `package` = HyperRoseAction.PACKAGE_BLUETOOTH
+                    addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                },
+            )
             // 调度延迟重试
             if (pendingRetryCount < MAX_PENDING_RETRIES) {
                 pendingRetryCount++
@@ -923,7 +954,7 @@ object HeadsetServiceBinderHook {
     private fun sendAncDepthToGatt(depth: AncDepth) {
         val gatt = BluetoothProcessHook.currentGattClient()
         if (gatt != null) {
-            gatt.sendCommand(com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet.ancDepthCommand(depth))
+            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.ancDepthCommand(depth))
             moduleLog("ANC depth sent directly: $depth")
             pendingAncDepth = null
         } else {
@@ -936,7 +967,7 @@ object HeadsetServiceBinderHook {
     private fun sendTransLevelToGatt(level: TransparencyLevel) {
         val gatt = BluetoothProcessHook.currentGattClient()
         if (gatt != null) {
-            gatt.sendCommand(com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet.transLevelCommand(level))
+            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.transLevelCommand(level))
             moduleLog("Trans level sent directly: $level")
             pendingTransLevel = null
         } else {
@@ -954,8 +985,10 @@ object HeadsetServiceBinderHook {
     private fun replayPendingAncCommands() {
         val gatt = BluetoothProcessHook.currentGattClient()
         if (gatt == null) {
-            moduleLog("replayPendingAncCommands: GATT still null, " +
-                "pendingAnc=$pendingAncMode depth=$pendingAncDepth trans=$pendingTransLevel")
+            moduleLog(
+                "replayPendingAncCommands: GATT still null, " +
+                    "pendingAnc=$pendingAncMode depth=$pendingAncDepth trans=$pendingTransLevel",
+            )
             if (pendingAncMode != null && pendingRetryCount < MAX_PENDING_RETRIES) {
                 pendingRetryCount++
                 handler.postDelayed({ replayPendingAncCommands() }, PENDING_RETRY_DELAY_MS * pendingRetryCount)
@@ -964,17 +997,17 @@ object HeadsetServiceBinderHook {
         }
         pendingRetryCount = 0
         pendingAncMode?.let { mode ->
-            gatt.sendCommand(com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet.ancCommand(mode))
+            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.ancCommand(mode))
             moduleLog("replay: ANC command sent: $mode")
             pendingAncMode = null
         }
         pendingAncDepth?.let { depth ->
-            gatt.sendCommand(com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet.ancDepthCommand(depth))
+            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.ancDepthCommand(depth))
             moduleLog("replay: ANC depth sent: $depth")
             pendingAncDepth = null
         }
         pendingTransLevel?.let { level ->
-            gatt.sendCommand(com.dohex.hyperrose.bluetooth.protocol.RoseCommandSet.transLevelCommand(level))
+            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.transLevelCommand(level))
             moduleLog("replay: trans level sent: $level")
             pendingTransLevel = null
         }
@@ -986,10 +1019,12 @@ object HeadsetServiceBinderHook {
     /** 触发 GATT 客户端查询耳机状态（和 OppoPods 的 ACTION_REFRESH_STATUS 一样） */
     private fun requestStatusRefresh(reason: String) {
         val ctx = context ?: return
-        ctx.sendBroadcast(Intent(HyperRoseAction.REFRESH_STATUS).apply {
-            `package` = HyperRoseAction.PACKAGE_BLUETOOTH
-            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-        })
+        ctx.sendBroadcast(
+            Intent(HyperRoseAction.REFRESH_STATUS).apply {
+                `package` = HyperRoseAction.PACKAGE_BLUETOOTH
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            },
+        )
         moduleLog("REFRESH_STATUS sent reason=$reason")
     }
 
@@ -999,7 +1034,7 @@ object HeadsetServiceBinderHook {
         if (device == null) return false
         val address = runCatching { device.address }.getOrNull()
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        val nameMatch = com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(name)
+        val nameMatch = com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(name)
         val addrMatch = address != null && isRoseAddress(address)
         val result = nameMatch || addrMatch
         moduleLog("isRoseEarphone: name='$name' addr=$address nameMatch=$nameMatch addrMatch=$addrMatch known=$knownAddresses → $result")
@@ -1019,11 +1054,12 @@ object HeadsetServiceBinderHook {
         if (normalized == currentAddress?.uppercase()) return true
         // 3. 兜底：尝试从蓝牙适配器获取远程设备名称，匹配关键字
         if (runCatching {
-            val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
-            val device = bt?.getRemoteDevice(address)
-            val name = device?.name ?: device?.alias
-            name?.let { com.dohex.hyperrose.domain.DeviceConstants.matchesDeviceName(it) } == true
-        }.getOrElse { false }) {
+                val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                val device = bt?.getRemoteDevice(address)
+                val name = device?.name ?: device?.alias
+                name?.let { com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(it) } == true
+            }.getOrElse { false }
+        ) {
             knownAddresses.add(normalized)
             return true
         }

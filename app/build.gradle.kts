@@ -8,12 +8,13 @@ val releaseKeystoreFile: String? = System.getenv("ANDROID_KEYSTORE_FILE")
 val releaseKeystorePassword: String? = System.getenv("ANDROID_KEYSTORE_PASSWORD")
 val releaseKeyAlias: String? = System.getenv("ANDROID_KEY_ALIAS")
 val releaseKeyPassword: String? = System.getenv("ANDROID_KEY_PASSWORD")
-val hasReleaseSigningConfig = listOf(
-    releaseKeystoreFile,
-    releaseKeystorePassword,
-    releaseKeyAlias,
-    releaseKeyPassword
-).all { !it.isNullOrBlank() }
+val hasReleaseSigningConfig =
+    listOf(
+        releaseKeystoreFile,
+        releaseKeystorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword,
+    ).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.dohex.hyperrose"
@@ -43,7 +44,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
             )
         }
     }
@@ -65,12 +67,11 @@ spotless {
             .editorConfigOverride(
                 mapOf(
                     "ktlint_standard_function-naming" to "disabled",
-                )
-            )
-            .customRuleSets(
+                ),
+            ).customRuleSets(
                 listOf(
-                    "io.nlopez.compose.rules:ktlint:0.5.9"
-                )
+                    "io.nlopez.compose.rules:ktlint:0.5.9",
+                ),
             )
         trimTrailingWhitespace()
         endWithNewline()
@@ -81,40 +82,39 @@ spotless {
         endWithNewline()
     }
     format("misc") {
-        target("*.xml","*.md","*.gradle", ".gitattributes", ".gitignore")
+        target("*.xml", "*.md", ".gitattributes", ".gitignore")
         trimTrailingWhitespace()
-        leadingSpacesToTabs()
         endWithNewline()
     }
 }
 
 dependencies {
-    testImplementation(libs.junit)
-    implementation(libs.kotlinx.coroutines.android)
-
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.datastore.preferences)
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.navigation3.runtime)
-
     implementation(platform(libs.compose.bom))
-    implementation(libs.compose.ui)
-    debugImplementation(libs.compose.ui.tooling)
-    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.navigation3.runtime)
     implementation(libs.compose.foundation)
-
-    implementation(libs.miuix.ui)
+    implementation(libs.compose.ui)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.hyper.notification.focus.api)
+    implementation(libs.kavaref.core)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.libsu.core)
+    implementation(libs.libsu.service)
+    implementation(libs.miuix.blur)
     implementation(libs.miuix.icons)
     implementation(libs.miuix.navigation3.ui)
     implementation(libs.miuix.preference)
-    implementation(libs.miuix.blur)
+    implementation(libs.miuix.ui)
 
     compileOnly(libs.libxposed.api)
-    implementation(libs.kavaref.core)
-    implementation(libs.libsu.core)
-    implementation(libs.libsu.service)
-    implementation(libs.hyper.notification.focus.api)
+
+    testImplementation(libs.junit)
+
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.junit)
+
+    debugImplementation(libs.compose.ui.tooling)
 }

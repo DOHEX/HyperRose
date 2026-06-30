@@ -25,8 +25,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import com.dohex.hyperrose.domain.scope.ScopePackagesToRestart
-import com.dohex.hyperrose.domain.scope.restartScopePackages
+import com.dohex.hyperrose.model.ScopePackagesToRestart
+import com.dohex.hyperrose.model.restartScopePackages
 import com.dohex.hyperrose.ui.theme.BlurredBar
 import com.dohex.hyperrose.ui.theme.ColorModeOptions
 import com.dohex.hyperrose.ui.theme.LocalCanUpdateThemeMode
@@ -109,6 +109,7 @@ fun SettingsPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val blurActive = themeMode.enableBlur && backdrop != null
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             BlurredBar(backdrop = backdrop, blurEnabled = blurActive) {
                 TopAppBar(
@@ -127,21 +128,24 @@ fun SettingsPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     color = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface,
                 )
             }
-        }) { paddingValues ->
+        },
+    ) { paddingValues ->
         LazyColumn(
-            modifier = modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                top = paddingValues.calculateTopPadding(), start = 8.dp, end = 8.dp
+                top = paddingValues.calculateTopPadding(),
+                start = 8.dp,
+                end = 8.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
                 SmallTitle(
-                    text = "主题"
+                    text = "主题",
                 )
                 Card {
                     OverlayDropdownPreference(
@@ -159,12 +163,11 @@ fun SettingsPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
                             onCheckedChange = { updateThemeMode { state -> state.copy(enableBlur = it) } },
                         )
                     }
-
                 }
             }
             item {
                 SmallTitle(
-                    text = "关于"
+                    text = "关于",
                 )
                 Card {
                     ArrowPreference(
@@ -176,7 +179,7 @@ fun SettingsPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
             }
             item {
                 SmallTitle(
-                    text = "鸣谢"
+                    text = "鸣谢",
                 )
                 Card {
                     ThanksGithubLinks.forEach { link ->

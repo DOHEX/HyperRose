@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dohex.hyperrose.domain.audio.AncDepth
-import com.dohex.hyperrose.domain.audio.AncMode
-import com.dohex.hyperrose.domain.audio.TransparencyLevel
+import com.dohex.hyperrose.model.AncDepth
+import com.dohex.hyperrose.model.AncMode
+import com.dohex.hyperrose.model.TransparencyLevel
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 
 @Composable
