@@ -14,7 +14,6 @@ import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import io.github.libxposed.api.XposedModule
 import com.dohex.hyperrose.hook.HyperRoseModuleEntry.Companion.TAG
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
@@ -24,6 +23,7 @@ import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.withLastKnownCaseBattery
 import com.dohex.hyperrose.profile.DeviceProfile
 import com.dohex.hyperrose.profile.DeviceResponse
+import io.github.libxposed.api.XposedModule
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
 /**

@@ -13,10 +13,9 @@ import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
+import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import com.dohex.hyperrose.util.ReflectionHelper
 import io.github.libxposed.api.XposedModule
-import com.dohex.hyperrose.profile.DeviceProfile
-import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
@@ -141,7 +140,8 @@ object BluetoothProcessHook {
 
         // 启动 GATT 通信
         gattClient?.disconnect()
-        gattClient = BluetoothProcessGattClient(context, module, profile).also { it.connect(device) }
+        gattClient =
+            BluetoothProcessGattClient(context, module, profile).also { it.connect(device) }
 
         // 广播连接事件（给 App、MiBluetooth、MiLink、蓝牙进程 binder hook）
         listOf(
@@ -213,14 +213,16 @@ object BluetoothProcessHook {
                     ctx: Context,
                     intent: Intent,
                 ) {
-                    Log.w(
+                    module.log(
+                        Log.WARN,
                         TAG,
                         ">>> CommandReceiver: action=${intent.action} gattClient=${gattClient != null} extras=${
                             intent.extras?.keySet()?.joinToString()
                         }"
                     )
                     val manager = gattClient ?: run {
-                        Log.w(
+                        module.log(
+                            Log.WARN,
                             TAG,
                             "!!! CommandReceiver: gattClient is NULL, dropping ${intent.action}"
                         )
@@ -292,19 +294,22 @@ object BluetoothProcessHook {
                                 val modeName = intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
                                 val mode =
                                     modeName?.let { runCatching { AncMode.valueOf(it) }.getOrNull() }
-                                Log.w(
+                                module.log(
+                                    Log.WARN,
                                     TAG,
                                     ">>> CommandReceiver: ANC_SELECT modeName=$modeName mode=$mode"
                                 )
                                 if (mode == null) {
-                                    Log.w(
+                                    module.log(
+                                        Log.WARN,
                                         TAG,
                                         "!!! CommandReceiver: ANC_SELECT mode parse FAILED — modeName=$modeName"
                                     )
                                     return
                                 }
                                 manager.sendCommand(manager.profile.protocol.ancCommand(mode))
-                                Log.w(
+                                module.log(
+                                    Log.WARN,
                                     TAG,
                                     "<<< CommandReceiver: ANC_SELECT command sent to earbuds: $mode"
                                 )

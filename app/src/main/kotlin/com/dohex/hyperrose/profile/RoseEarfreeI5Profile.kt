@@ -44,7 +44,9 @@ object RoseEarfreeI5Profile : DeviceProfile {
 private object RoseI5Protocol : DeviceProtocol {
     override fun ancCommand(mode: AncMode) = RoseCommandSet.ancCommand(mode)
     override fun ancDepthCommand(depth: AncDepth) = RoseCommandSet.ancDepthCommand(depth)
-    override fun transLevelCommand(level: TransparencyLevel) = RoseCommandSet.transLevelCommand(level)
+    override fun transLevelCommand(level: TransparencyLevel) =
+        RoseCommandSet.transLevelCommand(level)
+
     override fun eqCommand(mode: EqPreset) = RoseCommandSet.eqCommand(mode)
     override fun gameModeCommand(enabled: Boolean) = RoseCommandSet.gameModeCommand(enabled)
     override val findLeftOn get() = RoseCommandSet.FIND_LEFT_ON

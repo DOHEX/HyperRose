@@ -113,7 +113,8 @@ class StandaloneGattClient(
 
     fun setAncDepth(depth: AncDepth) = sendCommand(profile.protocol.ancDepthCommand(depth))
 
-    fun setTransLevel(level: TransparencyLevel) = sendCommand(profile.protocol.transLevelCommand(level))
+    fun setTransLevel(level: TransparencyLevel) =
+        sendCommand(profile.protocol.transLevelCommand(level))
 
     fun setEq(mode: EqPreset) = sendCommand(profile.protocol.eqCommand(mode))
 

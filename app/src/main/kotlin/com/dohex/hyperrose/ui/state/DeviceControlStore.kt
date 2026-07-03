@@ -56,7 +56,10 @@ class DeviceControlStore(
     context: Context,
 ) {
     private val appContext = context.applicationContext
-    private val directGattClient = StandaloneGattClient(appContext, com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile)
+    private val directGattClient = StandaloneGattClient(
+        appContext,
+        com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile
+    )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val _hasBluetoothPermission = MutableStateFlow(false)
