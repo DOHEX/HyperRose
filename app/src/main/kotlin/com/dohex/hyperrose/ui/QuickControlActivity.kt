@@ -37,7 +37,7 @@ class QuickControlActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (!QuickControlLaunchValidator.isTrustedCaller(callingActivity)) {
+        if (!QuickControlLaunchValidator.isTrustedCaller(callingActivity, referrer)) {
             finish()
             return
         }
@@ -92,9 +92,17 @@ class QuickControlActivity : ComponentActivity() {
         }
     }
 
+
+    private var hasResumed = false
+
+    override fun onResume() {
+        super.onResume()
+        hasResumed = true
+    }
+
     override fun onPause() {
         super.onPause()
-        if (!isFinishing) {
+        if (hasResumed && !isFinishing) {
             finish()
             overridePendingTransition(0, 0)
         }

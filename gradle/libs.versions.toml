@@ -2,7 +2,7 @@
 activity-compose = "1.13.0"
 agp = "9.2.1"
 appcompat = "1.7.1"
-compose-bom = "2026.06.00"
+compose-bom = "2026.06.01"
 core-ktx = "1.19.0"
 coroutines = "1.11.0"
 datastore = "1.2.1"
@@ -15,7 +15,7 @@ kotlin = "2.4.0"
 libsu = "6.0.0"
 libxposed-api = "102.0.0"
 miuix = "0.9.2"
-navigation3-runtime = "1.2.0-alpha04"
+navigation3-runtime = "1.2.0-alpha05"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }

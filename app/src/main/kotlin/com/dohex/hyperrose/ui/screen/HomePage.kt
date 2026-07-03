@@ -1,23 +1,32 @@
 package com.dohex.hyperrose.ui.screen
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dohex.hyperrose.R
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
+import com.dohex.hyperrose.model.EarBatteryState
 import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.model.TwsBatteryState
@@ -29,7 +38,9 @@ import com.dohex.hyperrose.ui.component.SectionCard
 import com.dohex.hyperrose.ui.state.ConnectionTransport
 import com.dohex.hyperrose.ui.state.DeviceConnectionState
 import com.dohex.hyperrose.ui.theme.BlurredBar
+import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import com.dohex.hyperrose.ui.theme.LocalThemeMode
+import com.dohex.hyperrose.ui.theme.ThemeMode
 import com.dohex.hyperrose.ui.theme.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -75,6 +86,7 @@ fun HomePage(
     val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
     val blurActive = themeMode.enableBlur && backdrop != null
     val scrollBehavior = MiuixScrollBehavior()
+    val listState = rememberLazyListState()
     var showFindDialog by remember { mutableStateOf(false) }
     Scaffold(
         modifier = modifier,
@@ -95,25 +107,40 @@ fun HomePage(
         },
     ) { paddingValues ->
         Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
         ) {
             LazyColumn(
+                state = listState,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .overScrollVertical()
-                        .nestedScroll(scrollBehavior.nestedScrollConnection),
-                contentPadding =
-                    PaddingValues(
-                        top = paddingValues.calculateTopPadding(),
-                        start = 10.dp,
-                        end = 10.dp
-                    ),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .overScrollVertical()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                contentPadding = PaddingValues(
+                    top = paddingValues.calculateTopPadding(),
+                    start = 10.dp,
+                    end = 10.dp,
+                ),
             ) {
+                item {
+                    Image(
+                        painter = painterResource(R.drawable.earphone_blue_case),
+                        contentDescription = "ROSESELSA EARFREE i5",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .graphicsLayer {
+                                if (listState.firstVisibleItemIndex == 0) {
+                                    val scrollOffset =
+                                        listState.firstVisibleItemScrollOffset.toFloat()
+                                    translationY = scrollOffset * 0.5f
+                                    alpha = 1f - (scrollOffset / 600f).coerceIn(0f, 1f)
+                                }
+                            })
+                }
+
                 item {
                     SectionCard(
                         title = deviceName
@@ -180,8 +207,7 @@ fun HomePage(
                 item {
                     Card {
                         ArrowPreference(
-                            title = "查找耳机",
-                            onClick = { showFindDialog = true })
+                            title = "查找耳机", onClick = { showFindDialog = true })
                     }
                 }
             }
@@ -234,10 +260,110 @@ private fun connectionSummary(
 
     DeviceConnectionState.DISCONNECTED -> "未连接"
 
-    DeviceConnectionState.CONNECTED ->
-        when (transport) {
-            ConnectionTransport.DIRECT_BLE -> "已连接 · 独立 BLE"
-            ConnectionTransport.HOOK_BRIDGE -> "已连接 · LSPosed 桥接"
-            ConnectionTransport.NONE -> "已连接"
+    DeviceConnectionState.CONNECTED -> when (transport) {
+        ConnectionTransport.DIRECT_BLE -> "已连接 · 独立 BLE"
+        ConnectionTransport.HOOK_BRIDGE -> "已连接 · LSPosed 桥接"
+        ConnectionTransport.NONE -> "已连接"
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HomePagePreview_Connected() {
+    HyperRoseTheme {
+        CompositionLocalProvider(LocalThemeMode provides ThemeMode()) {
+            HomePage(
+                connectionState = DeviceConnectionState.CONNECTED,
+                transport = ConnectionTransport.DIRECT_BLE,
+                deviceName = "ROSESELSA EARFREE i5",
+                battery = TwsBatteryState(
+                    left = EarBatteryState(level = 85, isCharging = false),
+                    right = EarBatteryState(level = 72, isCharging = true),
+                    caseBattery = 90,
+                ),
+                ancMode = AncMode.NOISE_CANCEL,
+                ancDepth = AncDepth.MEDIUM,
+                transLevel = TransparencyLevel.STANDARD,
+                eqMode = EqPreset.CLASSIC,
+                gameMode = false,
+                onAncModeChange = {},
+                onAncDepthChange = {},
+                onTransLevelChange = {},
+                onEqModeChange = {},
+                onGameModeChange = {},
+                onFindLeft = {},
+                onFindRight = {},
+                onStopFind = {},
+                onRefreshStatus = {},
+                onDisconnect = {},
+                onBack = {},
+            )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HomePagePreview_ConnectedGameMode() {
+    HyperRoseTheme {
+        CompositionLocalProvider(LocalThemeMode provides ThemeMode()) {
+            HomePage(
+                connectionState = DeviceConnectionState.CONNECTED,
+                transport = ConnectionTransport.HOOK_BRIDGE,
+                deviceName = "ROSESELSA EARFREE i5",
+                battery = TwsBatteryState(
+                    left = EarBatteryState(level = 100, isCharging = false),
+                    right = EarBatteryState(level = 100, isCharging = false),
+                    caseBattery = 50,
+                ),
+                ancMode = AncMode.TRANSPARENT,
+                ancDepth = null,
+                transLevel = TransparencyLevel.VOCAL,
+                eqMode = EqPreset.JAPANESE,
+                gameMode = true,
+                onAncModeChange = {},
+                onAncDepthChange = {},
+                onTransLevelChange = {},
+                onEqModeChange = {},
+                onGameModeChange = {},
+                onFindLeft = {},
+                onFindRight = {},
+                onStopFind = {},
+                onRefreshStatus = {},
+                onDisconnect = {},
+                onBack = {},
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HomePagePreview_Disconnected() {
+    HyperRoseTheme {
+        CompositionLocalProvider(LocalThemeMode provides ThemeMode()) {
+            HomePage(
+                connectionState = DeviceConnectionState.DISCONNECTED,
+                transport = ConnectionTransport.NONE,
+                deviceName = "ROSESELSA EARFREE i5",
+                battery = null,
+                ancMode = null,
+                ancDepth = null,
+                transLevel = null,
+                eqMode = null,
+                gameMode = false,
+                onAncModeChange = {},
+                onAncDepthChange = {},
+                onTransLevelChange = {},
+                onEqModeChange = {},
+                onGameModeChange = {},
+                onFindLeft = {},
+                onFindRight = {},
+                onStopFind = {},
+                onRefreshStatus = {},
+                onDisconnect = {},
+                onBack = {},
+            )
+        }
+    }
 }

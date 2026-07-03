@@ -4,10 +4,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.TransparencyLevel
+import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 
 @Composable
@@ -75,5 +77,56 @@ fun AncSelector(
                     .padding(top = 10.dp),
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AncSelectorPreview_NoiseCancel() {
+    HyperRoseTheme {
+        AncSelector(
+            ancMode = AncMode.NOISE_CANCEL,
+            ancDepth = AncDepth.DEEP,
+            transLevel = null,
+            onAncModeChange = {},
+            onAncDepthChange = {},
+            onTransLevelChange = {},
+            enabled = true,
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AncSelectorPreview_Transparent() {
+    HyperRoseTheme {
+        AncSelector(
+            ancMode = AncMode.TRANSPARENT,
+            ancDepth = null,
+            transLevel = TransparencyLevel.COMFORTABLE,
+            onAncModeChange = {},
+            onAncDepthChange = {},
+            onTransLevelChange = {},
+            enabled = true,
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AncSelectorPreview_Disabled() {
+    HyperRoseTheme {
+        AncSelector(
+            ancMode = AncMode.NOISE_CANCEL,
+            ancDepth = AncDepth.LIGHT,
+            transLevel = null,
+            onAncModeChange = {},
+            onAncDepthChange = {},
+            onTransLevelChange = {},
+            enabled = false,
+            modifier = Modifier.padding(16.dp),
+        )
     }
 }

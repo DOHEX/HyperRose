@@ -15,13 +15,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.SectionCard
 import com.dohex.hyperrose.ui.state.DeviceConnectionState
 import com.dohex.hyperrose.ui.state.RoseDeviceItem
 import com.dohex.hyperrose.ui.theme.BlurredBar
+import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import com.dohex.hyperrose.ui.theme.LocalThemeMode
+import com.dohex.hyperrose.ui.theme.ThemeMode
 import com.dohex.hyperrose.ui.theme.rememberBlurBackdrop
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.basic.Icon
@@ -35,6 +38,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun DevicePickerPage(
@@ -56,7 +60,7 @@ fun DevicePickerPage(
     LaunchedEffect(isRefreshing) {
         if (!isRefreshing) return@LaunchedEffect
         onRefresh()
-        delay(500)
+        delay(500.milliseconds)
         isRefreshing = false
     }
 
@@ -91,7 +95,7 @@ fun DevicePickerPage(
             contentPadding = paddingValues,
         ) {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding =
                     PaddingValues(
@@ -165,3 +169,96 @@ private fun stateText(state: DeviceConnectionState): String =
         DeviceConnectionState.CONNECTING -> "连接中"
         DeviceConnectionState.DISCONNECTED -> "未连接"
     }
+
+@Preview(showBackground = true)
+@Composable
+private fun DevicePickerPagePreview_NoPermission() {
+    HyperRoseTheme {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalThemeMode provides ThemeMode(),
+        ) {
+            DevicePickerPage(
+                hasPermission = false,
+                devices = emptyList(),
+                connectionState = DeviceConnectionState.DISCONNECTED,
+                onRequestPermission = {},
+                onRefresh = {},
+                onConnect = {},
+                onOpenSettings = {},
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun DevicePickerPagePreview_Empty() {
+    HyperRoseTheme {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalThemeMode provides ThemeMode(),
+        ) {
+            DevicePickerPage(
+                hasPermission = true,
+                devices = emptyList(),
+                connectionState = DeviceConnectionState.DISCONNECTED,
+                onRequestPermission = {},
+                onRefresh = {},
+                onConnect = {},
+                onOpenSettings = {},
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun DevicePickerPagePreview_Devices() {
+    HyperRoseTheme {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalThemeMode provides ThemeMode(),
+        ) {
+            DevicePickerPage(
+                hasPermission = true,
+                devices =
+                    listOf(
+                        RoseDeviceItem(
+                            name = "ROSESELSA EARFREE i5",
+                            address = "00:11:22:33:44:55"
+                        ),
+                        RoseDeviceItem(name = "Redmi Buds 5 Pro", address = "AA:BB:CC:DD:EE:FF"),
+                    ),
+                connectionState = DeviceConnectionState.DISCONNECTED,
+                onRequestPermission = {},
+                onRefresh = {},
+                onConnect = {},
+                onOpenSettings = {},
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun DevicePickerPagePreview_Connecting() {
+    HyperRoseTheme {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalThemeMode provides ThemeMode(),
+        ) {
+            DevicePickerPage(
+                hasPermission = true,
+                devices =
+                    listOf(
+                        RoseDeviceItem(
+                            name = "ROSESELSA EARFREE i5",
+                            address = "00:11:22:33:44:55"
+                        ),
+                    ),
+                connectionState = DeviceConnectionState.CONNECTING,
+                onRequestPermission = {},
+                onRefresh = {},
+                onConnect = {},
+                onOpenSettings = {},
+            )
+        }
+    }
+}
