@@ -214,7 +214,7 @@ object BluetoothProcessHook {
                     intent: Intent,
                 ) {
                     module.log(
-                        Log.WARN,
+                        Log.DEBUG,
                         TAG,
                         ">>> CommandReceiver: action=${intent.action} gattClient=${gattClient != null} extras=${
                             intent.extras?.keySet()?.joinToString()
@@ -295,7 +295,7 @@ object BluetoothProcessHook {
                                 val mode =
                                     modeName?.let { runCatching { AncMode.valueOf(it) }.getOrNull() }
                                 module.log(
-                                    Log.WARN,
+                                    Log.DEBUG,
                                     TAG,
                                     ">>> CommandReceiver: ANC_SELECT modeName=$modeName mode=$mode"
                                 )
@@ -309,7 +309,7 @@ object BluetoothProcessHook {
                                 }
                                 manager.sendCommand(manager.profile.protocol.ancCommand(mode))
                                 module.log(
-                                    Log.WARN,
+                                    Log.DEBUG,
                                     TAG,
                                     "<<< CommandReceiver: ANC_SELECT command sent to earbuds: $mode"
                                 )

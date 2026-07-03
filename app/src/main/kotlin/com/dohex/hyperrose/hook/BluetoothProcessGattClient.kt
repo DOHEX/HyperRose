@@ -120,6 +120,7 @@ class BluetoothProcessGattClient(
     fun sendCommand(packet: ByteArray) {
         val char = writeChar ?: return
         val g = gatt ?: return
+        module.log(Log.DEBUG, TAG, "→ ${packet.toHexString()}")
         char.value = packet
         g.writeCharacteristic(char)
     }
@@ -228,6 +229,7 @@ class BluetoothProcessGattClient(
     private fun handleResponse(data: ByteArray) {
         when (val result = profile.protocol.parseResponse(data)) {
             is DeviceResponse.Battery -> {
+                module.log(Log.DEBUG, TAG, "← ${data.toHexString()} → $result")
                 val battery = result.info.withLastKnownCaseBattery(currentBattery)
                 currentBattery = battery
 
@@ -265,6 +267,7 @@ class BluetoothProcessGattClient(
             }
 
             is DeviceResponse.Anc -> {
+                module.log(Log.DEBUG, TAG, "← ${data.toHexString()} → $result")
                 currentAnc = result.mode
                 broadcastState(HyperRoseAction.ANC_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_MODE, result.mode.name)
@@ -272,6 +275,7 @@ class BluetoothProcessGattClient(
             }
 
             is DeviceResponse.AncDepthChanged -> {
+                module.log(Log.DEBUG, TAG, "← ${data.toHexString()} → $result")
                 currentAncDepth = result.depth
                 broadcastState(HyperRoseAction.ANC_DEPTH_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_DEPTH, result.depth.name)
@@ -279,6 +283,7 @@ class BluetoothProcessGattClient(
             }
 
             is DeviceResponse.TransparencyChanged -> {
+                module.log(Log.DEBUG, TAG, "← ${data.toHexString()} → $result")
                 currentTransLevel = result.level
                 broadcastState(HyperRoseAction.TRANS_LEVEL_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_LEVEL, result.level.name)
@@ -286,6 +291,7 @@ class BluetoothProcessGattClient(
             }
 
             is DeviceResponse.Eq -> {
+                module.log(Log.DEBUG, TAG, "← ${data.toHexString()} → $result")
                 currentEq = result.mode
                 broadcastState(HyperRoseAction.EQ_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_MODE, result.mode.name)
@@ -293,6 +299,7 @@ class BluetoothProcessGattClient(
             }
 
             is DeviceResponse.GameMode -> {
+                module.log(Log.DEBUG, TAG, "← ${data.toHexString()} → $result")
                 currentGameMode = result.enabled
                 broadcastState(HyperRoseAction.GAME_MODE_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_ENABLED, result.enabled)

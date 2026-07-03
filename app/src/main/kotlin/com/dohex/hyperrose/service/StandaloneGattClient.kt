@@ -97,6 +97,7 @@ class StandaloneGattClient(
     fun sendCommand(packet: ByteArray) {
         val char = writeChar ?: return
         val g = gatt ?: return
+        Log.d(TAG, "→ ${packet.toHexString()}")
         @Suppress("DEPRECATION")
         char.value = packet
         @Suppress("DEPRECATION")
@@ -208,31 +209,37 @@ class StandaloneGattClient(
     private fun handleResponse(data: ByteArray) {
         when (val result = profile.protocol.parseResponse(data)) {
             is DeviceResponse.Battery -> {
+                Log.d(TAG, "← ${data.toHexString()} → $result")
                 _battery.value = result.info.withLastKnownCaseBattery(_battery.value)
             }
 
             is DeviceResponse.Anc -> {
+                Log.d(TAG, "← ${data.toHexString()} → $result")
                 _ancMode.value = result.mode
             }
 
             is DeviceResponse.AncDepthChanged -> {
+                Log.d(TAG, "← ${data.toHexString()} → $result")
                 _ancDepth.value = result.depth
             }
 
             is DeviceResponse.TransparencyChanged -> {
+                Log.d(TAG, "← ${data.toHexString()} → $result")
                 _transLevel.value = result.level
             }
 
             is DeviceResponse.Eq -> {
+                Log.d(TAG, "← ${data.toHexString()} → $result")
                 _eqMode.value = result.mode
             }
 
             is DeviceResponse.GameMode -> {
+                Log.d(TAG, "← ${data.toHexString()} → $result")
                 _gameMode.value = result.enabled
             }
 
             is DeviceResponse.Unknown -> {
-                Log.d(TAG, "Unknown: ${data.joinToString(" ") { "%02X".format(it) }}")
+                Log.d(TAG, "← ${data.toHexString()} → Unknown")
             }
         }
     }
@@ -249,6 +256,7 @@ class StandaloneGattClient(
             object : Runnable {
                 override fun run() {
                     sendCommand(profile.protocol.queryBattery)
+
                     handler.postDelayed(this, profile.timing.batteryPollIntervalMs)
                 }
             },
@@ -256,3 +264,5 @@ class StandaloneGattClient(
         )
     }
 }
+
+private fun ByteArray.toHexString(): String = joinToString(" ") { "%02X".format(it) }
