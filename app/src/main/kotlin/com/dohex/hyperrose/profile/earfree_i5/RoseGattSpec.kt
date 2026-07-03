@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.protocol
+package com.dohex.hyperrose.profile.earfree_i5
 
 import java.util.UUID
 

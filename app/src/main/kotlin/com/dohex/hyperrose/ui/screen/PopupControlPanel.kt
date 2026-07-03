@@ -47,7 +47,7 @@ fun PopupControlPanel(
 
     WindowDialog(
         show = show,
-        title = deviceName ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME,
+        title = deviceName ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName,
         summary = if (connected) null else "未连接",
         onDismissRequest = onDismissRequest,
         onDismissFinished = onDismissFinish,

@@ -19,19 +19,16 @@ import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.withLastKnownCaseBattery
-import com.dohex.hyperrose.protocol.RoseGattQueryScheduler
-import com.dohex.hyperrose.protocol.RoseGattSpec
-import com.dohex.hyperrose.protocol.RoseGattTiming
-import com.dohex.hyperrose.protocol.RoseResponse
+import com.dohex.hyperrose.profile.DeviceProfile
+import com.dohex.hyperrose.profile.DeviceResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.dohex.hyperrose.protocol.RoseCommandSet as RosePackets
-import com.dohex.hyperrose.protocol.RoseResponseParser as RoseParser
 
 /** 独立 App 用的 BLE GATT 通信管理器。 所有状态通过 StateFlow 暴露给 Compose UI。 */
 class StandaloneGattClient(
     private val context: Context,
+    val profile: DeviceProfile,
 ) {
     companion object {
         private const val TAG = "HyperRose.StandaloneGattClient"
@@ -112,21 +109,21 @@ class StandaloneGattClient(
     }
 
     // 便捷方法
-    fun setAnc(mode: AncMode) = sendCommand(RosePackets.ancCommand(mode))
+    fun setAnc(mode: AncMode) = sendCommand(profile.protocol.ancCommand(mode))
 
-    fun setAncDepth(depth: AncDepth) = sendCommand(RosePackets.ancDepthCommand(depth))
+    fun setAncDepth(depth: AncDepth) = sendCommand(profile.protocol.ancDepthCommand(depth))
 
-    fun setTransLevel(level: TransparencyLevel) = sendCommand(RosePackets.transLevelCommand(level))
+    fun setTransLevel(level: TransparencyLevel) = sendCommand(profile.protocol.transLevelCommand(level))
 
-    fun setEq(mode: EqPreset) = sendCommand(RosePackets.eqCommand(mode))
+    fun setEq(mode: EqPreset) = sendCommand(profile.protocol.eqCommand(mode))
 
-    fun setGameMode(enabled: Boolean) = sendCommand(RosePackets.gameModeCommand(enabled))
+    fun setGameMode(enabled: Boolean) = sendCommand(profile.protocol.gameModeCommand(enabled))
 
-    fun findLeft() = sendCommand(RosePackets.FIND_LEFT_ON)
+    fun findLeft() = sendCommand(profile.protocol.findLeftOn)
 
-    fun findRight() = sendCommand(RosePackets.FIND_RIGHT_ON)
+    fun findRight() = sendCommand(profile.protocol.findRightOn)
 
-    fun stopFind() = sendCommand(RosePackets.FIND_ALL_OFF)
+    fun stopFind() = sendCommand(profile.protocol.findAllOff)
 
     // ==================== GATT Callback ====================
 
@@ -162,15 +159,15 @@ class StandaloneGattClient(
                     return
                 }
 
-                val service = gatt.getService(RoseGattSpec.SERVICE_UUID)
+                val service = gatt.getService(profile.gattSpec.serviceUuid)
                 if (service == null) {
                     Log.e(TAG, "Service not found")
                     _connectionState.value = ConnectionState.DISCONNECTED
                     return
                 }
 
-                writeChar = service.getCharacteristic(RoseGattSpec.WRITE_UUID)
-                val notifyChar = service.getCharacteristic(RoseGattSpec.NOTIFY_UUID)
+                writeChar = service.getCharacteristic(profile.gattSpec.writeCharUuid)
+                val notifyChar = service.getCharacteristic(profile.gattSpec.notifyCharUuid)
 
                 if (writeChar == null || notifyChar == null) {
                     Log.e(TAG, "Characteristics not found")
@@ -180,7 +177,7 @@ class StandaloneGattClient(
 
                 // 启用通知
                 gatt.setCharacteristicNotification(notifyChar, true)
-                val descriptor = notifyChar.getDescriptor(RoseGattSpec.CCCD_UUID)
+                val descriptor = notifyChar.getDescriptor(profile.gattSpec.cccdUuid)
                 if (descriptor != null) {
                     descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     gatt.writeDescriptor(descriptor)
@@ -192,7 +189,7 @@ class StandaloneGattClient(
                 // 查询全部状态
                 handler.postDelayed(
                     { queryAllStatus() },
-                    RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS
+                    profile.timing.initialStatusQueryDelayMs
                 )
             }
 
@@ -208,40 +205,53 @@ class StandaloneGattClient(
     // ==================== 回包处理 ====================
 
     private fun handleResponse(data: ByteArray) {
-        when (val result = RoseParser.parse(data)) {
-            is RoseResponse.Battery -> {
+        when (val result = profile.protocol.parseResponse(data)) {
+            is DeviceResponse.Battery -> {
                 _battery.value = result.info.withLastKnownCaseBattery(_battery.value)
             }
 
-            is RoseResponse.Anc -> {
+            is DeviceResponse.Anc -> {
                 _ancMode.value = result.mode
             }
 
-            is RoseResponse.AncDepthChanged -> {
+            is DeviceResponse.AncDepthChanged -> {
                 _ancDepth.value = result.depth
             }
 
-            is RoseResponse.TransparencyChanged -> {
+            is DeviceResponse.TransparencyChanged -> {
                 _transLevel.value = result.level
             }
 
-            is RoseResponse.Eq -> {
+            is DeviceResponse.Eq -> {
                 _eqMode.value = result.mode
             }
 
-            is RoseResponse.GameMode -> {
+            is DeviceResponse.GameMode -> {
                 _gameMode.value = result.enabled
             }
 
-            is RoseResponse.Unknown -> {
+            is DeviceResponse.Unknown -> {
                 Log.d(TAG, "Unknown: ${data.joinToString(" ") { "%02X".format(it) }}")
             }
         }
     }
 
     private fun queryAllStatus() {
-        RoseGattQueryScheduler.scheduleStatusQueries(handler, ::sendCommand)
+        profile.protocol.statusQuerySequence.forEachIndexed { index, query ->
+            handler.postDelayed(
+                { sendCommand(query) },
+                profile.timing.statusQueryStepDelayMs * index,
+            )
+        }
         // 启动电量轮询
-        RoseGattQueryScheduler.scheduleBatteryPolling(handler, ::sendCommand)
+        handler.postDelayed(
+            object : Runnable {
+                override fun run() {
+                    sendCommand(profile.protocol.queryBattery)
+                    handler.postDelayed(this, profile.timing.batteryPollIntervalMs)
+                }
+            },
+            profile.timing.batteryPollIntervalMs,
+        )
     }
 }

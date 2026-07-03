@@ -1055,7 +1055,7 @@ object HeadsetServiceBinderHook {
         if (mode == null) return
         val gatt = BluetoothProcessHook.currentGattClient()
         if (gatt != null) {
-            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.ancCommand(mode))
+            gatt.sendCommand(gatt.profile.protocol.ancCommand(mode))
             moduleLog("ANC command sent directly: $mode")
             // 命令发送成功后清除待重放缓存
             pendingAncMode = null
@@ -1088,7 +1088,7 @@ object HeadsetServiceBinderHook {
     private fun sendAncDepthToGatt(depth: AncDepth) {
         val gatt = BluetoothProcessHook.currentGattClient()
         if (gatt != null) {
-            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.ancDepthCommand(depth))
+            gatt.sendCommand(gatt.profile.protocol.ancDepthCommand(depth))
             moduleLog("ANC depth sent directly: $depth")
             pendingAncDepth = null
         } else {
@@ -1101,7 +1101,7 @@ object HeadsetServiceBinderHook {
     private fun sendTransLevelToGatt(level: TransparencyLevel) {
         val gatt = BluetoothProcessHook.currentGattClient()
         if (gatt != null) {
-            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.transLevelCommand(level))
+            gatt.sendCommand(gatt.profile.protocol.transLevelCommand(level))
             moduleLog("Trans level sent directly: $level")
             pendingTransLevel = null
         } else {
@@ -1134,17 +1134,17 @@ object HeadsetServiceBinderHook {
         }
         pendingRetryCount = 0
         pendingAncMode?.let { mode ->
-            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.ancCommand(mode))
+            gatt.sendCommand(gatt.profile.protocol.ancCommand(mode))
             moduleLog("replay: ANC command sent: $mode")
             pendingAncMode = null
         }
         pendingAncDepth?.let { depth ->
-            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.ancDepthCommand(depth))
+            gatt.sendCommand(gatt.profile.protocol.ancDepthCommand(depth))
             moduleLog("replay: ANC depth sent: $depth")
             pendingAncDepth = null
         }
         pendingTransLevel?.let { level ->
-            gatt.sendCommand(com.dohex.hyperrose.protocol.RoseCommandSet.transLevelCommand(level))
+            gatt.sendCommand(gatt.profile.protocol.transLevelCommand(level))
             moduleLog("replay: trans level sent: $level")
             pendingTransLevel = null
         }
@@ -1171,7 +1171,7 @@ object HeadsetServiceBinderHook {
         if (device == null) return false
         val address = runCatching { device.address }.getOrNull()
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        val nameMatch = com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(name)
+        val nameMatch = com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name) != null
         val addrMatch = address != null && isRoseAddress(address)
         val result = nameMatch || addrMatch
         moduleLog("isRoseEarphone: name='$name' addr=$address nameMatch=$nameMatch addrMatch=$addrMatch known=$knownAddresses → $result")
@@ -1194,7 +1194,7 @@ object HeadsetServiceBinderHook {
                 val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
                 val device = bt?.getRemoteDevice(address)
                 val name = device?.name ?: device?.alias
-                name?.let { com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(it) } == true
+                name?.let { com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it) != null } == true
             }.getOrElse { false }
         ) {
             knownAddresses.add(normalized)

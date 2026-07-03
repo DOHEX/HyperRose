@@ -56,7 +56,7 @@ class DeviceControlStore(
     context: Context,
 ) {
     private val appContext = context.applicationContext
-    private val directGattClient = StandaloneGattClient(appContext)
+    private val directGattClient = StandaloneGattClient(appContext, com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val _hasBluetoothPermission = MutableStateFlow(false)
@@ -115,7 +115,7 @@ class DeviceControlStore(
                             _transport.value = ConnectionTransport.HOOK_BRIDGE
                             _connectionState.value = DeviceConnectionState.CONNECTED
                             _deviceName.value = device?.name ?: _deviceName.value
-                                    ?: com.dohex.hyperrose.model.DeviceConstants.DEFAULT_DEVICE_NAME
+                                    ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName
                         }
                     }
 
@@ -205,7 +205,7 @@ class DeviceControlStore(
                     RoseDeviceItem(name = name, address = device.address)
                 }.sortedWith(
                     compareByDescending<RoseDeviceItem> {
-                        com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(it.name)
+                        com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it.name) != null
                     }.thenBy { it.name.lowercase() }
                         .thenBy { it.address },
                 )

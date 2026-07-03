@@ -15,9 +15,10 @@ import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.util.ReflectionHelper
 import io.github.libxposed.api.XposedModule
+import com.dohex.hyperrose.profile.DeviceProfile
+import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
-import com.dohex.hyperrose.protocol.RoseCommandSet as RosePackets
 
 /** com.android.bluetooth 进程的 Hook。 监听 A2DP 连接状态变化，识别目标耳机并启动 GATT 通信。 */
 object BluetoothProcessHook {
@@ -63,7 +64,7 @@ object BluetoothProcessHook {
                 val fromState = chain.getArg(1) as Int
                 val currState = chain.getArg(2) as Int
 
-                if (device != null && currState != fromState && isRoseEarphone(device)) {
+                if (device != null && currState != fromState && isSupportedDevice(device)) {
                     val serviceObj = chain.thisObject
                     try {
                         when (currState) {
@@ -108,7 +109,6 @@ object BluetoothProcessHook {
                 e
             )
         }
-
         module.log(
             Log.INFO,
             TAG,
@@ -117,9 +117,9 @@ object BluetoothProcessHook {
     }
 
     @SuppressLint("MissingPermission")
-    private fun isRoseEarphone(device: BluetoothDevice): Boolean {
+    private fun isSupportedDevice(device: BluetoothDevice): Boolean {
         val name = device.name
-        if (name != null && com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(name)) return true
+        if (name != null && DeviceProfileRegistry.findByName(name) != null) return true
         val address = device.address ?: return false
         return com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)
     }
@@ -131,11 +131,17 @@ object BluetoothProcessHook {
     ) {
         val context = resolveContext(serviceObj) ?: return
 
+        val profile = device.name?.let { DeviceProfileRegistry.findByName(it) }
+            ?: run {
+                module.log(Log.WARN, TAG, "No profile for ${device.name}")
+                return
+            }
+
         registerCommandReceiverIfNeeded(module, context)
 
         // 启动 GATT 通信
         gattClient?.disconnect()
-        gattClient = BluetoothProcessGattClient(context, module).also { it.connect(device) }
+        gattClient = BluetoothProcessGattClient(context, module, profile).also { it.connect(device) }
 
         // 广播连接事件（给 App、MiBluetooth、MiLink、蓝牙进程 binder hook）
         listOf(
@@ -227,7 +233,7 @@ object BluetoothProcessHook {
                                     intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
                                         ?.let(AncMode::valueOf)
                                         ?: return
-                                manager.sendCommand(RosePackets.ancCommand(mode))
+                                manager.sendCommand(manager.profile.protocol.ancCommand(mode))
                             }
 
                             HyperRoseAction.SET_ANC_DEPTH -> {
@@ -235,7 +241,7 @@ object BluetoothProcessHook {
                                     intent.getStringExtra(HyperRoseAction.EXTRA_DEPTH)
                                         ?.let(AncDepth::valueOf)
                                         ?: return
-                                manager.sendCommand(RosePackets.ancDepthCommand(depth))
+                                manager.sendCommand(manager.profile.protocol.ancDepthCommand(depth))
                             }
 
                             HyperRoseAction.SET_TRANS_LEVEL -> {
@@ -243,7 +249,7 @@ object BluetoothProcessHook {
                                     intent
                                         .getStringExtra(HyperRoseAction.EXTRA_LEVEL)
                                         ?.let(TransparencyLevel::valueOf) ?: return
-                                manager.sendCommand(RosePackets.transLevelCommand(level))
+                                manager.sendCommand(manager.profile.protocol.transLevelCommand(level))
                             }
 
                             HyperRoseAction.SET_EQ -> {
@@ -251,14 +257,14 @@ object BluetoothProcessHook {
                                     intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
                                         ?.let(EqPreset::valueOf)
                                         ?: return
-                                manager.sendCommand(RosePackets.eqCommand(mode))
+                                manager.sendCommand(manager.profile.protocol.eqCommand(mode))
                             }
 
                             HyperRoseAction.SET_GAME_MODE -> {
                                 if (!intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) return
                                 val enabled =
                                     intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
-                                manager.sendCommand(RosePackets.gameModeCommand(enabled))
+                                manager.sendCommand(manager.profile.protocol.gameModeCommand(enabled))
                             }
 
                             HyperRoseAction.FIND_EARPHONE -> {
@@ -266,18 +272,18 @@ object BluetoothProcessHook {
                                     ?.uppercase()) {
                                     HyperRoseAction.SIDE_LEFT -> {
                                         manager.sendCommand(
-                                            RosePackets.FIND_LEFT_ON,
+                                            manager.profile.protocol.findLeftOn,
                                         )
                                     }
 
                                     HyperRoseAction.SIDE_RIGHT -> {
                                         manager.sendCommand(
-                                            RosePackets.FIND_RIGHT_ON,
+                                            manager.profile.protocol.findRightOn,
                                         )
                                     }
 
                                     else -> {
-                                        manager.sendCommand(RosePackets.FIND_ALL_OFF)
+                                        manager.sendCommand(manager.profile.protocol.findAllOff)
                                     }
                                 }
                             }
@@ -297,7 +303,7 @@ object BluetoothProcessHook {
                                     )
                                     return
                                 }
-                                manager.sendCommand(RosePackets.ancCommand(mode))
+                                manager.sendCommand(manager.profile.protocol.ancCommand(mode))
                                 Log.w(
                                     TAG,
                                     "<<< CommandReceiver: ANC_SELECT command sent to earbuds: $mode"

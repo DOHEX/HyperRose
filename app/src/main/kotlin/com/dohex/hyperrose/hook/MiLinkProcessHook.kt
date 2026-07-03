@@ -497,7 +497,7 @@ object MiLinkProcessHook {
         val address = runCatching { device.address }.getOrNull()
         if (address != null && isRoseAddress(address)) return true
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        return com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(name)
+        return com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name) != null
     }
 
     private fun isRoseAddress(address: String): Boolean {
@@ -508,7 +508,7 @@ object MiLinkProcessHook {
                 val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
                 val device = bt?.getRemoteDevice(address)
                 val name = device?.name ?: device?.alias
-                name?.let { com.dohex.hyperrose.model.DeviceConstants.matchesDeviceName(it) } == true
+                name?.let { com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it) != null } == true
             }.getOrElse { false }
         ) {
             currentAddress = address

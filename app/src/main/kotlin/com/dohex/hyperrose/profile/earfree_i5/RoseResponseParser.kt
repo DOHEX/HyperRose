@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.protocol
+package com.dohex.hyperrose.profile.earfree_i5
 
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
@@ -139,26 +139,24 @@ object RoseResponseParser {
     /** 解析降噪深度回包。 Header: 09 FF 00 00 01 06 07 0B 00 [value] [cs] value: 00=轻度, 01=中度, 02=深度 */
     private fun parseAncDepth(data: ByteArray): RoseResponse {
         val value = data[9].toInt() and 0xFF
-        val depth =
-            when (value) {
-                0x00 -> AncDepth.LIGHT
-                0x01 -> AncDepth.MEDIUM
-                0x02 -> AncDepth.DEEP
-                else -> return RoseResponse.Unknown
-            }
+        val depth = when (value) {
+            0x00 -> AncDepth.LIGHT
+            0x01 -> AncDepth.MEDIUM
+            0x02 -> AncDepth.DEEP
+            else -> return RoseResponse.Unknown
+        }
         return RoseResponse.AncDepthChanged(depth)
     }
 
     /** 解析通透强度回包。 Header: 09 FF 00 00 01 06 04 0B 00 [value] [cs] value: 00=舒适, 01=人声, 02=标准 */
     private fun parseTransLevel(data: ByteArray): RoseResponse {
         val value = data[9].toInt() and 0xFF
-        val level =
-            when (value) {
-                0x00 -> TransparencyLevel.COMFORTABLE
-                0x01 -> TransparencyLevel.VOCAL
-                0x02 -> TransparencyLevel.STANDARD
-                else -> return RoseResponse.Unknown
-            }
+        val level = when (value) {
+            0x00 -> TransparencyLevel.COMFORTABLE
+            0x01 -> TransparencyLevel.VOCAL
+            0x02 -> TransparencyLevel.STANDARD
+            else -> return RoseResponse.Unknown
+        }
         return RoseResponse.TransparencyChanged(level)
     }
 
@@ -168,25 +166,25 @@ object RoseResponseParser {
      */
     private fun parseEq(data: ByteArray): RoseResponse {
         val value = data[9].toInt() and 0xFF
-        val mode =
-            when (value) {
-                0x00 -> EqPreset.CLASSIC
-                0x01 -> EqPreset.JAPANESE
-                0x02 -> EqPreset.INSTRUMENT
-                0x03 -> EqPreset.FRESH
-                else -> return RoseResponse.Unknown
-            }
+        val mode = when (value) {
+            0x00 -> EqPreset.CLASSIC
+            0x01 -> EqPreset.JAPANESE
+            0x02 -> EqPreset.INSTRUMENT
+            0x03 -> EqPreset.FRESH
+            else -> return RoseResponse.Unknown
+        }
         return RoseResponse.Eq(mode)
     }
 
     /** 解析游戏模式回包。 Header: 09 FF 00 00 01 06 03 0B 00 [value] [cs] value: 00=开, 01=关 */
     private fun parseGameMode(data: ByteArray): RoseResponse {
         val value = data[9].toInt() and 0xFF
-        return when (value) {
-            0x00 -> RoseResponse.GameMode(true)
-            0x01 -> RoseResponse.GameMode(false)
-            else -> RoseResponse.Unknown
+        val enabled = when (value) {
+            0x00 -> true
+            0x01 -> false
+            else -> return RoseResponse.Unknown
         }
+        return RoseResponse.GameMode(enabled)
     }
 
     private fun isPlausibleBatteryFrame(
@@ -196,10 +194,10 @@ object RoseResponseParser {
         rightChargingRaw: Int,
         caseLevel: Int,
     ): Boolean = leftLevel.isBatteryLevelOrUnknown() &&
-            rightLevel.isBatteryLevelOrUnknown() &&
-            caseLevel.isBatteryLevelOrUnknown() &&
-            isValidChargingByte(leftChargingRaw) &&
-            isValidChargingByte(rightChargingRaw)
+        rightLevel.isBatteryLevelOrUnknown() &&
+        caseLevel.isBatteryLevelOrUnknown() &&
+        isValidChargingByte(leftChargingRaw) &&
+        isValidChargingByte(rightChargingRaw)
 
     private fun isValidChargingByte(value: Int): Boolean = value == 0x00 || value == 0x01
 

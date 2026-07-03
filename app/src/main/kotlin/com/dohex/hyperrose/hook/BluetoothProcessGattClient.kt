@@ -14,6 +14,7 @@ import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import io.github.libxposed.api.XposedModule
 import com.dohex.hyperrose.hook.HyperRoseModuleEntry.Companion.TAG
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
@@ -21,14 +22,9 @@ import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.withLastKnownCaseBattery
-import com.dohex.hyperrose.protocol.RoseGattQueryScheduler
-import com.dohex.hyperrose.protocol.RoseGattSpec
-import com.dohex.hyperrose.protocol.RoseGattTiming
-import com.dohex.hyperrose.protocol.RoseResponse
-import io.github.libxposed.api.XposedModule
+import com.dohex.hyperrose.profile.DeviceProfile
+import com.dohex.hyperrose.profile.DeviceResponse
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
-import com.dohex.hyperrose.protocol.RoseCommandSet as RosePackets
-import com.dohex.hyperrose.protocol.RoseResponseParser as RoseParser
 
 /**
  * Hook 进程中的 BLE GATT 通信管理器。 在 com.android.bluetooth 进程内运行，负责与目标耳机的 GATT 通信。
@@ -38,6 +34,7 @@ import com.dohex.hyperrose.protocol.RoseResponseParser as RoseParser
 class BluetoothProcessGattClient(
     private val context: Context,
     private val module: XposedModule,
+    val profile: DeviceProfile,
 ) {
     private var gatt: BluetoothGatt? = null
     private var writeChar: BluetoothGattCharacteristic? = null
@@ -162,40 +159,40 @@ class BluetoothProcessGattClient(
                     return
                 }
 
-                val service = gatt.getService(RoseGattSpec.SERVICE_UUID)
+                val service = gatt.getService(profile.gattSpec.serviceUuid)
                 if (service == null) {
                     module.log(
                         Log.ERROR,
                         TAG,
-                        "BluetoothProcessGattClient: service ${RoseGattSpec.SERVICE_UUID} not found",
+                        "BluetoothProcessGattClient: service ${profile.gattSpec.serviceUuid} not found",
                     )
                     return
                 }
 
                 // 获取 Write 特征
-                writeChar = service.getCharacteristic(RoseGattSpec.WRITE_UUID)
+                writeChar = service.getCharacteristic(profile.gattSpec.writeCharUuid)
                 if (writeChar == null) {
                     module.log(
                         Log.ERROR,
                         TAG,
-                        "BluetoothProcessGattClient: write characteristic ${RoseGattSpec.WRITE_UUID} not found",
+                        "BluetoothProcessGattClient: write characteristic ${profile.gattSpec.writeCharUuid} not found",
                     )
                     return
                 }
 
                 // 获取 Notify 特征并启用通知
-                val notifyChar = service.getCharacteristic(RoseGattSpec.NOTIFY_UUID)
+                val notifyChar = service.getCharacteristic(profile.gattSpec.notifyCharUuid)
                 if (notifyChar == null) {
                     module.log(
                         Log.ERROR,
                         TAG,
-                        "BluetoothProcessGattClient: notify characteristic ${RoseGattSpec.NOTIFY_UUID} not found",
+                        "BluetoothProcessGattClient: notify characteristic ${profile.gattSpec.notifyCharUuid} not found",
                     )
                     return
                 }
 
                 gatt.setCharacteristicNotification(notifyChar, true)
-                val descriptor = notifyChar.getDescriptor(RoseGattSpec.CCCD_UUID)
+                val descriptor = notifyChar.getDescriptor(profile.gattSpec.cccdUuid)
                 if (descriptor != null) {
                     descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     gatt.writeDescriptor(descriptor)
@@ -208,12 +205,12 @@ class BluetoothProcessGattClient(
                 )
 
                 // 优先发一次电量查询，尽快触发首次超级岛
-                sendCommand(RosePackets.QUERY_BATTERY)
+                sendCommand(profile.protocol.queryBattery)
 
                 // 延迟查询全部状态
                 handler.postDelayed(
                     { queryAllStatus() },
-                    RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS
+                    profile.timing.initialStatusQueryDelayMs
                 )
             }
 
@@ -229,8 +226,8 @@ class BluetoothProcessGattClient(
     // ==================== 回包处理 ====================
 
     private fun handleResponse(data: ByteArray) {
-        when (val result = RoseParser.parse(data)) {
-            is RoseResponse.Battery -> {
+        when (val result = profile.protocol.parseResponse(data)) {
+            is DeviceResponse.Battery -> {
                 val battery = result.info.withLastKnownCaseBattery(currentBattery)
                 currentBattery = battery
 
@@ -267,42 +264,42 @@ class BluetoothProcessGattClient(
                 )
             }
 
-            is RoseResponse.Anc -> {
+            is DeviceResponse.Anc -> {
                 currentAnc = result.mode
                 broadcastState(HyperRoseAction.ANC_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_MODE, result.mode.name)
                 }
             }
 
-            is RoseResponse.AncDepthChanged -> {
+            is DeviceResponse.AncDepthChanged -> {
                 currentAncDepth = result.depth
                 broadcastState(HyperRoseAction.ANC_DEPTH_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_DEPTH, result.depth.name)
                 }
             }
 
-            is RoseResponse.TransparencyChanged -> {
+            is DeviceResponse.TransparencyChanged -> {
                 currentTransLevel = result.level
                 broadcastState(HyperRoseAction.TRANS_LEVEL_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_LEVEL, result.level.name)
                 }
             }
 
-            is RoseResponse.Eq -> {
+            is DeviceResponse.Eq -> {
                 currentEq = result.mode
                 broadcastState(HyperRoseAction.EQ_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_MODE, result.mode.name)
                 }
             }
 
-            is RoseResponse.GameMode -> {
+            is DeviceResponse.GameMode -> {
                 currentGameMode = result.enabled
                 broadcastState(HyperRoseAction.GAME_MODE_CHANGED) {
                     putExtra(HyperRoseAction.EXTRA_ENABLED, result.enabled)
                 }
             }
 
-            is RoseResponse.Unknown -> {
+            is DeviceResponse.Unknown -> {
                 module.log(
                     Log.DEBUG,
                     TAG,
@@ -316,10 +313,23 @@ class BluetoothProcessGattClient(
 
     /** 串行查询全部状态 */
     private fun queryAllStatus() {
-        RoseGattQueryScheduler.scheduleStatusQueries(handler, ::sendCommand)
+        profile.protocol.statusQuerySequence.forEachIndexed { index, query ->
+            handler.postDelayed(
+                { sendCommand(query) },
+                profile.timing.statusQueryStepDelayMs * index,
+            )
+        }
 
         // 启动电量轮询
-        RoseGattQueryScheduler.scheduleBatteryPolling(handler, ::sendCommand)
+        handler.postDelayed(
+            object : Runnable {
+                override fun run() {
+                    sendCommand(profile.protocol.queryBattery)
+                    handler.postDelayed(this, profile.timing.batteryPollIntervalMs)
+                }
+            },
+            profile.timing.batteryPollIntervalMs,
+        )
     }
 
     // ==================== 广播工具 ====================

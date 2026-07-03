@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.protocol
+package com.dohex.hyperrose.profile.earfree_i5
 
 object RoseGattTiming {
     const val INITIAL_STATUS_QUERY_DELAY_MS = 120L
