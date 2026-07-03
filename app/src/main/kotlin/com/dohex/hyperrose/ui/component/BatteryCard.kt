@@ -1,49 +1,61 @@
 package com.dohex.hyperrose.ui.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dohex.hyperrose.R
 import com.dohex.hyperrose.model.EarBatteryState
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun BatteryCard(
     battery: TwsBatteryState?,
     modifier: Modifier = Modifier,
 ) {
+    val colorScheme = MiuixTheme.colorScheme
+
     SectionCard(title = "电量", modifier = modifier) {
         Row(
-            modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             BatteryCell(
+                iconRes = R.drawable.battery_left,
                 label = "左耳",
                 value = battery?.left?.level,
                 charging = battery?.left?.isCharging == true,
                 modifier = Modifier.weight(1f),
             )
             BatteryCell(
+                iconRes = R.drawable.battery_right,
                 label = "右耳",
                 value = battery?.right?.level,
                 charging = battery?.right?.isCharging == true,
                 modifier = Modifier.weight(1f),
             )
             BatteryCell(
+                iconRes = R.drawable.battery_charge,
                 label = "充电盒",
                 value = battery?.caseBattery,
                 charging = false,
-                modifier = Modifier.weight(1f),
+                 modifier = Modifier.weight(1f),
             )
         }
     }
@@ -51,24 +63,35 @@ fun BatteryCard(
 
 @Composable
 private fun BatteryCell(
+    iconRes: Int,
     label: String,
     value: Int?,
     charging: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val colorScheme = MiuixTheme.colorScheme
+
     Column(
-        modifier = modifier.padding(vertical = 6.dp),
+        modifier = modifier.padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text = label, color = Color(0xFF5F6D7D))
+        Image(
+            painter = painterResource(id = iconRes),
+            contentDescription = label,
+            modifier = Modifier.size(36.dp),
+        )
         Text(
             text = formatBatteryLevel(value),
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 4.dp),
+            fontSize = 15.sp,
+            modifier = Modifier.padding(top = 6.dp),
         )
         if (charging) {
             Text(
-                text = "充电中", color = Color(0xFF2A6AA0), modifier = Modifier.padding(top = 2.dp)
+                text = "充电中",
+                color = colorScheme.primary,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }

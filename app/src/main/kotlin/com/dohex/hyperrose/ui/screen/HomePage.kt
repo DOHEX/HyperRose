@@ -120,6 +120,7 @@ fun HomePage(
                     .nestedScroll(scrollBehavior.nestedScrollConnection),
                 contentPadding = PaddingValues(
                     top = paddingValues.calculateTopPadding(),
+                    bottom = paddingValues.calculateBottomPadding(),
                     start = 10.dp,
                     end = 10.dp,
                 ),
@@ -227,7 +228,6 @@ fun HomePage(
                     text = "左耳",
                     onClick = {
                         onFindLeft()
-                        showFindDialog = false
                     },
                     modifier = Modifier.weight(1f),
                 )
@@ -235,7 +235,6 @@ fun HomePage(
                     text = "停止",
                     onClick = {
                         onStopFind()
-                        showFindDialog = false
                     },
                     modifier = Modifier.weight(1f),
                 )
@@ -243,7 +242,6 @@ fun HomePage(
                     text = "右耳",
                     onClick = {
                         onFindRight()
-                        showFindDialog = false
                     },
                     modifier = Modifier.weight(1f),
                 )

@@ -1,16 +1,34 @@
 package com.dohex.hyperrose.ui.component
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dohex.hyperrose.R
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun AncSelector(
@@ -24,23 +42,24 @@ fun AncSelector(
     modifier: Modifier = Modifier,
 ) {
     SectionCard(
-        title = "降噪/通透",
-        subtitle = ancMode?.label ?: "未获取模式",
+        title = "噪声控制",
         modifier = modifier
     ) {
-        val modeOptions = AncMode.entries.map { it.label }
-        val modeSelectedIndex = AncMode.entries.indexOf(ancMode).coerceAtLeast(0)
-
-        TabRowWithContour(
-            tabs = modeOptions,
-            selectedTabIndex = modeSelectedIndex,
-            onTabSelected = { index ->
-                if (enabled) {
-                    AncMode.entries.getOrNull(index)?.let(onAncModeChange)
-                }
-            },
+        Row(
             modifier = Modifier.fillMaxWidth(),
-        )
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AncMode.entries.forEach { mode ->
+                val selected = ancMode == mode
+                AncModeIcon(
+                    mode = mode,
+                    selected = selected,
+                    enabled = enabled,
+                    onClick = { onAncModeChange(mode) },
+                )
+            }
+        }
 
         if (ancMode == AncMode.NOISE_CANCEL) {
             val depthOptions = AncDepth.entries.map { it.label }
@@ -56,7 +75,7 @@ fun AncSelector(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 10.dp),
+                    .padding(top = 12.dp),
             )
         }
 
@@ -74,9 +93,65 @@ fun AncSelector(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 10.dp),
+                    .padding(top = 12.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun AncModeIcon(
+    mode: AncMode,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val colorScheme = MiuixTheme.colorScheme
+
+    val iconRes = when (mode) {
+        AncMode.NOISE_CANCEL -> if (selected) R.drawable.anc_normal_activate else R.drawable.anc_normal
+        AncMode.WIND_NOISE -> if (selected) R.drawable.anc_wind_activate else R.drawable.anc_wind
+        AncMode.NORMAL -> if (selected) R.drawable.anc_close_activate else R.drawable.anc_close
+        AncMode.TRANSPARENT -> if (selected) R.drawable.anc_trans_activate else R.drawable.anc_trans
+    }
+
+    val bgColor = when {
+        !enabled -> Color.Transparent
+        selected -> colorScheme.primary
+        else -> Color.Transparent
+    }
+    val iconTint = when {
+        !enabled -> colorScheme.disabledOnSurface
+        !selected -> colorScheme.onSurfaceVariantSummary
+        else -> null
+    }
+    val labelColor = when {
+        !enabled -> colorScheme.disabledOnSurface
+        selected -> colorScheme.primary
+        else -> colorScheme.onSurfaceVariantSummary
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Image(
+            painter = painterResource(id = iconRes),
+            contentDescription = mode.label,
+            modifier = Modifier
+                .size(54.dp)
+                .clip(CircleShape)
+                .background(bgColor, CircleShape)
+                .clickable(enabled = enabled) { onClick() }
+                .padding(10.dp),
+            colorFilter = iconTint?.let { ColorFilter.tint(it) },
+        )
+        Text(
+            text = mode.label,
+            fontSize = 13.sp,
+            color = labelColor,
+            fontWeight = if (selected && enabled) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 
