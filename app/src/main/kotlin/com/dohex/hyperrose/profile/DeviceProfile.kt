@@ -22,13 +22,13 @@ data class GattTiming(
     val batteryPollIntervalMs: Long,
 )
 
-/** Declares which features and enum values the device supports. */
 data class DeviceCapabilities(
     val supportedAncModes: Set<AncMode>,
     val supportedAncDepths: Set<AncDepth>,
     val supportedTransLevels: Set<TransparencyLevel>,
     val supportedEqPresets: Set<EqPreset>,
     val hasGameMode: Boolean,
+    val hasLowLatency: Boolean,
     val hasFindEarphone: Boolean,
 )
 

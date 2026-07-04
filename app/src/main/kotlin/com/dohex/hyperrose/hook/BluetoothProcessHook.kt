@@ -23,10 +23,10 @@ import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 object BluetoothProcessHook {
 
     @SuppressLint("StaticFieldLeak")
-    private var gattClient: BluetoothProcessGattClient? = null
+    private var gattClient: GattDeviceSession? = null
 
     /** 同进程内直接访问当前 GATT 客户端（供 HeadsetServiceBinderHook 使用） */
-    internal fun currentGattClient(): BluetoothProcessGattClient? = gattClient
+    internal fun currentGattClient(): GattDeviceSession? = gattClient
 
     private var commandReceiverRegistered = false
 
@@ -141,7 +141,7 @@ object BluetoothProcessHook {
         // 启动 GATT 通信
         gattClient?.disconnect()
         gattClient =
-            BluetoothProcessGattClient(context, module, profile).also { it.connect(device) }
+            GattDeviceSession(context, module, profile).also { it.connect(device) }
 
         // 广播连接事件（给 App、MiBluetooth、MiLink、蓝牙进程 binder hook）
         listOf(

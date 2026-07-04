@@ -824,7 +824,7 @@ object HeadsetServiceBinderHook {
     /**
      * 从广播 Intent 解析 TwsBatteryState。
      * 在 com.xiaomi.bluetooth 进程中没有 GATT client，必须从广播中解析状态。
-     * 与 BluetoothProcessGattClient.broadcastState() 的 extras 格式一致。
+     * 与 GattDeviceSession.broadcastState() 的 extras 格式一致。
      */
     private fun Intent.parseBatteryFromExtras(): TwsBatteryState? {
         val leftLevelRaw = getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)

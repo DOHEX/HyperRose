@@ -21,6 +21,7 @@ import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.withLastKnownCaseBattery
 import com.dohex.hyperrose.profile.DeviceProfile
 import com.dohex.hyperrose.profile.DeviceResponse
+import com.dohex.hyperrose.profile.TransportSpec
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +40,9 @@ class StandaloneGattClient(
         CONNECTING,
         CONNECTED,
     }
+
+    private val gattSpec: TransportSpec.Gatt
+        get() = profile.transport as TransportSpec.Gatt
 
     // 状态 Flow
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
@@ -61,6 +65,9 @@ class StandaloneGattClient(
 
     private val _gameMode = MutableStateFlow<Boolean?>(null)
     val gameMode: StateFlow<Boolean?> = _gameMode.asStateFlow()
+
+    private val _lowLatency = MutableStateFlow<Boolean?>(null)
+    val lowLatency: StateFlow<Boolean?> = _lowLatency.asStateFlow()
 
     private val _deviceName = MutableStateFlow<String?>(null)
     val deviceName: StateFlow<String?> = _deviceName.asStateFlow()
@@ -91,6 +98,7 @@ class StandaloneGattClient(
         _transLevel.value = null
         _eqMode.value = null
         _gameMode.value = null
+        _lowLatency.value = null
         _deviceName.value = null
     }
 
@@ -121,11 +129,28 @@ class StandaloneGattClient(
 
     fun setGameMode(enabled: Boolean) = sendCommand(profile.protocol.gameModeCommand(enabled))
 
+    fun setLowLatency(enabled: Boolean) = sendCommand(profile.protocol.lowLatencyCommand(enabled))
+
     fun findLeft() = sendCommand(profile.protocol.findLeftOn)
 
     fun findRight() = sendCommand(profile.protocol.findRightOn)
 
     fun stopFind() = sendCommand(profile.protocol.findAllOff)
+
+    /** 发送原始 hex 指令（供调试页使用） */
+    fun sendRawCommand(hex: String) {
+        val normalized = hex.replace(" ", "").replace("\n", "").replace("\r", "")
+        if (normalized.isEmpty() || normalized.length % 2 != 0 ||
+            !normalized.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
+        ) {
+            Log.w(TAG, "sendRawCommand: invalid hex: $hex")
+            return
+        }
+        val bytes = ByteArray(normalized.length / 2) {
+            normalized.substring(it * 2, it * 2 + 2).toInt(16).toByte()
+        }
+        sendCommand(bytes)
+    }
 
     // ==================== GATT Callback ====================
 
@@ -161,15 +186,15 @@ class StandaloneGattClient(
                     return
                 }
 
-                val service = gatt.getService(profile.gattSpec.serviceUuid)
+                val service = gatt.getService(gattSpec.serviceUuid)
                 if (service == null) {
                     Log.e(TAG, "Service not found")
                     _connectionState.value = ConnectionState.DISCONNECTED
                     return
                 }
 
-                writeChar = service.getCharacteristic(profile.gattSpec.writeCharUuid)
-                val notifyChar = service.getCharacteristic(profile.gattSpec.notifyCharUuid)
+                writeChar = service.getCharacteristic(gattSpec.writeCharUuid)
+                val notifyChar = service.getCharacteristic(gattSpec.notifyCharUuid)
 
                 if (writeChar == null || notifyChar == null) {
                     Log.e(TAG, "Characteristics not found")
@@ -179,7 +204,7 @@ class StandaloneGattClient(
 
                 // 启用通知
                 gatt.setCharacteristicNotification(notifyChar, true)
-                val descriptor = notifyChar.getDescriptor(profile.gattSpec.cccdUuid)
+                val descriptor = notifyChar.getDescriptor(gattSpec.cccdUuid)
                 if (descriptor != null) {
                     descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     gatt.writeDescriptor(descriptor)
@@ -191,7 +216,7 @@ class StandaloneGattClient(
                 // 查询全部状态
                 handler.postDelayed(
                     { queryAllStatus() },
-                    profile.timing.initialStatusQueryDelayMs
+                    profile.gattTiming?.initialStatusQueryDelayMs ?: 120L
                 )
             }
 
@@ -238,6 +263,11 @@ class StandaloneGattClient(
                 _gameMode.value = result.enabled
             }
 
+            is DeviceResponse.LowLatencyChanged -> {
+                Log.d(TAG, "← ${data.toHexString()} → $result")
+                _lowLatency.value = result.enabled
+            }
+
             is DeviceResponse.Unknown -> {
                 Log.d(TAG, "← ${data.toHexString()} → Unknown")
             }
@@ -248,7 +278,7 @@ class StandaloneGattClient(
         profile.protocol.statusQuerySequence.forEachIndexed { index, query ->
             handler.postDelayed(
                 { sendCommand(query) },
-                profile.timing.statusQueryStepDelayMs * index,
+                (profile.gattTiming?.statusQueryStepDelayMs ?: 100L) * index,
             )
         }
         // 启动电量轮询
@@ -256,11 +286,10 @@ class StandaloneGattClient(
             object : Runnable {
                 override fun run() {
                     sendCommand(profile.protocol.queryBattery)
-
-                    handler.postDelayed(this, profile.timing.batteryPollIntervalMs)
+                    handler.postDelayed(this, profile.gattTiming?.batteryPollIntervalMs ?: 30_000L)
                 }
             },
-            profile.timing.batteryPollIntervalMs,
+            profile.gattTiming?.batteryPollIntervalMs ?: 30_000L,
         )
     }
 }

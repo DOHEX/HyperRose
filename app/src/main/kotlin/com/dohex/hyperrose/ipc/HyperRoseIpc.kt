@@ -25,6 +25,7 @@ object HyperRoseIpc {
     const val TRANS_LEVEL_CHANGED = "$PREFIX.trans_level_changed"
     const val EQ_CHANGED = "$PREFIX.eq_changed"
     const val GAME_MODE_CHANGED = "$PREFIX.game_mode_changed"
+    const val LOW_LATENCY_CHANGED = "$PREFIX.low_latency_changed"
 
     // App → Bluetooth 进程（白名单变更通知）
     const val WHITELIST_CHANGED = "$PREFIX.whitelist_changed"
@@ -35,6 +36,7 @@ object HyperRoseIpc {
     const val SET_TRANS_LEVEL = "$PREFIX.set_trans_level"
     const val SET_EQ = "$PREFIX.set_eq"
     const val SET_GAME_MODE = "$PREFIX.set_game_mode"
+    const val SET_LOW_LATENCY = "$PREFIX.set_low_latency"
     const val FIND_EARPHONE = "$PREFIX.find_earphone"
     const val REFRESH_STATUS = "$PREFIX.refresh_status"
     const val DISCONNECT_GATT = "$PREFIX.disconnect_gatt"
@@ -78,6 +80,7 @@ object HyperRoseIpc {
             TRANS_LEVEL_CHANGED,
             EQ_CHANGED,
             GAME_MODE_CHANGED,
+            LOW_LATENCY_CHANGED,
         )
 
     val APP_CONTROL_ACTIONS: List<String> =
@@ -91,5 +94,6 @@ object HyperRoseIpc {
             REFRESH_STATUS,
             DISCONNECT_GATT,
             ANC_SELECT,
+            SET_LOW_LATENCY,
         )
 }

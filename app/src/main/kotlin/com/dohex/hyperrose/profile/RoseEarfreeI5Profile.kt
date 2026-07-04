@@ -15,14 +15,14 @@ object RoseEarfreeI5Profile : DeviceProfile {
     override val displayName = "ROSESELSA EARFREE i5"
     override val nameKeywords = listOf("ROSE EARFREE", "ROSE EARFEEL")
 
-    override val gattSpec = GattSpec(
+    override val transport = TransportSpec.Gatt(
         serviceUuid = RoseGattSpec.SERVICE_UUID,
         writeCharUuid = RoseGattSpec.WRITE_UUID,
         notifyCharUuid = RoseGattSpec.NOTIFY_UUID,
         cccdUuid = RoseGattSpec.CCCD_UUID,
     )
 
-    override val timing = GattTiming(
+    override val gattTiming = GattTiming(
         initialStatusQueryDelayMs = RoseGattTiming.INITIAL_STATUS_QUERY_DELAY_MS,
         statusQueryStepDelayMs = RoseGattTiming.STATUS_QUERY_STEP_DELAY_MS,
         batteryPollIntervalMs = RoseGattTiming.BATTERY_POLL_INTERVAL_MS,
@@ -36,7 +36,18 @@ object RoseEarfreeI5Profile : DeviceProfile {
         supportedTransLevels = TransparencyLevel.entries.toSet(),
         supportedEqPresets = EqPreset.entries.toSet(),
         hasGameMode = true,
+        hasLowLatency = false,
         hasFindEarphone = true,
+    )
+
+    override val debugHexHint = "HEX 指令 (如 08 EE 00 00 00 06...)"
+    override val debugQuickCommands = listOf(
+        "查询电量" to RoseCommandSet.QUERY_BATTERY,
+        "查询 ANC" to RoseCommandSet.QUERY_ANC,
+        "降噪模式" to RoseCommandSet.ANC_NOISE_CANCEL,
+        "普通模式" to RoseCommandSet.ANC_NORMAL,
+        "通透模式" to RoseCommandSet.ANC_TRANSPARENT,
+        "风噪模式" to RoseCommandSet.ANC_WIND_NOISE,
     )
 }
 
