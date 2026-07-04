@@ -854,7 +854,7 @@ object HeadsetServiceBinderHook {
      * 避免 sendRealStatus 推送旧状态导致控制中心 UI 回弹。
      */
     private fun readCurrentState(): CurrentState {
-        val gatt = BluetoothProcessHook.currentGattClient()
+        val gatt = BluetoothProcessHook.currentSession()
         val battery = gatt?.currentBattery ?: cachedBattery
         // ANC 字段：优先用乐观更新的缓存（耳机回报后会同步更新）
         val anc = cachedAnc ?: gatt?.currentAnc
@@ -1053,7 +1053,7 @@ object HeadsetServiceBinderHook {
      */
     private fun sendAncToGatt(mode: AncMode?) {
         if (mode == null) return
-        val gatt = BluetoothProcessHook.currentGattClient()
+        val gatt = BluetoothProcessHook.currentSession()
         if (gatt != null) {
             gatt.sendCommand(gatt.profile.protocol.ancCommand(mode))
             moduleLog("ANC command sent directly: $mode")
@@ -1086,7 +1086,7 @@ object HeadsetServiceBinderHook {
     }
 
     private fun sendAncDepthToGatt(depth: AncDepth) {
-        val gatt = BluetoothProcessHook.currentGattClient()
+        val gatt = BluetoothProcessHook.currentSession()
         if (gatt != null) {
             gatt.sendCommand(gatt.profile.protocol.ancDepthCommand(depth))
             moduleLog("ANC depth sent directly: $depth")
@@ -1099,7 +1099,7 @@ object HeadsetServiceBinderHook {
     }
 
     private fun sendTransLevelToGatt(level: TransparencyLevel) {
-        val gatt = BluetoothProcessHook.currentGattClient()
+        val gatt = BluetoothProcessHook.currentSession()
         if (gatt != null) {
             gatt.sendCommand(gatt.profile.protocol.transLevelCommand(level))
             moduleLog("Trans level sent directly: $level")
@@ -1117,7 +1117,7 @@ object HeadsetServiceBinderHook {
      * Binder hook 可能比 GATT 连接更早收到 ANC 命令，因此需要缓存重放机制。
      */
     private fun replayPendingAncCommands() {
-        val gatt = BluetoothProcessHook.currentGattClient()
+        val gatt = BluetoothProcessHook.currentSession()
         if (gatt == null) {
             moduleLog(
                 "replayPendingAncCommands: GATT still null, " +

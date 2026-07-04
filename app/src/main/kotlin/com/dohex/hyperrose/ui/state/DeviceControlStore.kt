@@ -214,7 +214,7 @@ class DeviceControlStore(
         _pairedDevices.value =
             adapter.bondedDevices
                 .mapNotNull { device ->
-                    val name = device.name ?: return@mapNotNull null
+                    val name = device.name ?: device.alias ?: return@mapNotNull null
                     RoseDeviceItem(name = name, address = device.address)
                 }.sortedWith(
                     compareByDescending<RoseDeviceItem> {

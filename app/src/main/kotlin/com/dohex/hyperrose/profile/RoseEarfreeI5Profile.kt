@@ -13,7 +13,7 @@ import com.dohex.hyperrose.profile.earfree_i5.RoseResponseParser
 object RoseEarfreeI5Profile : DeviceProfile {
     override val id = "rose-earfree-i5"
     override val displayName = "ROSESELSA EARFREE i5"
-    override val nameKeywords = listOf("ROSE EARFREE", "ROSE EARFEEL")
+    override val nameKeywords = listOf("ROSE EARFREE i5", "ROSE EARFEEL")
 
     override val transport = TransportSpec.Gatt(
         serviceUuid = RoseGattSpec.SERVICE_UUID,

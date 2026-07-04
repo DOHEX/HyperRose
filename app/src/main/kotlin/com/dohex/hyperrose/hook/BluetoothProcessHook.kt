@@ -23,10 +23,10 @@ import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 object BluetoothProcessHook {
 
     @SuppressLint("StaticFieldLeak")
-    private var gattClient: GattDeviceSession? = null
+    private var session: DeviceSession? = null
 
     /** 同进程内直接访问当前 GATT 客户端（供 HeadsetServiceBinderHook 使用） */
-    internal fun currentGattClient(): GattDeviceSession? = gattClient
+    internal fun currentSession(): DeviceSession? = session
 
     private var commandReceiverRegistered = false
 
@@ -117,7 +117,7 @@ object BluetoothProcessHook {
 
     @SuppressLint("MissingPermission")
     private fun isSupportedDevice(device: BluetoothDevice): Boolean {
-        val name = device.name
+        val name = device.name ?: device.alias
         if (name != null && DeviceProfileRegistry.findByName(name) != null) return true
         val address = device.address ?: return false
         return com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)
@@ -130,7 +130,7 @@ object BluetoothProcessHook {
     ) {
         val context = resolveContext(serviceObj) ?: return
 
-        val profile = device.name?.let { DeviceProfileRegistry.findByName(it) }
+        val profile = (device.name ?: device.alias)?.let { DeviceProfileRegistry.findByName(it) }
             ?: run {
                 module.log(Log.WARN, TAG, "No profile for ${device.name}")
                 return
@@ -139,9 +139,14 @@ object BluetoothProcessHook {
         registerCommandReceiverIfNeeded(module, context)
 
         // 启动 GATT 通信
-        gattClient?.disconnect()
-        gattClient =
-            GattDeviceSession(context, module, profile).also { it.connect(device) }
+        // 根据 TransportSpec 选择对应的传输实现
+        session?.disconnect()
+        session = when (profile.transport) {
+            is com.dohex.hyperrose.profile.TransportSpec.Gatt ->
+                GattDeviceSession(context, module, profile)
+            is com.dohex.hyperrose.profile.TransportSpec.Rfcomm ->
+                RfcommDeviceSession(context, module, profile)
+        }.also { it.connect(device) }
 
         // 广播连接事件（给 App、MiBluetooth、MiLink、蓝牙进程 binder hook）
         listOf(
@@ -166,8 +171,8 @@ object BluetoothProcessHook {
         device: BluetoothDevice,
     ) {
         // 断开 GATT
-        gattClient?.disconnect()
-        gattClient = null
+        session?.disconnect()
+        session = null
 
         val context = resolveContext(serviceObj) ?: return
 
@@ -216,15 +221,15 @@ object BluetoothProcessHook {
                     module.log(
                         Log.DEBUG,
                         TAG,
-                        ">>> CommandReceiver: action=${intent.action} gattClient=${gattClient != null} extras=${
+                        ">>> CommandReceiver: action=${intent.action} session=${session != null} extras=${
                             intent.extras?.keySet()?.joinToString()
                         }"
                     )
-                    val manager = gattClient ?: run {
+                    val manager = session ?: run {
                         module.log(
                             Log.WARN,
                             TAG,
-                            "!!! CommandReceiver: gattClient is NULL, dropping ${intent.action}"
+                            "!!! CommandReceiver: session is NULL, dropping ${intent.action}"
                         )
                         return
                     }
@@ -321,7 +326,7 @@ object BluetoothProcessHook {
 
                             HyperRoseAction.DISCONNECT_GATT -> {
                                 manager.disconnect()
-                                gattClient = null
+                                session = null
                             }
                         }
                     } catch (e: Throwable) {
