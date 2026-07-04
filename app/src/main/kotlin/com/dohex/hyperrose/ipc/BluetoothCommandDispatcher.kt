@@ -49,6 +49,13 @@ object BluetoothCommandDispatcher {
         send(context, HyperRoseIpc.SET_GAME_MODE) { putExtra(HyperRoseIpc.EXTRA_ENABLED, enabled) }
     }
 
+    fun setLowLatency(
+        context: Context,
+        enabled: Boolean,
+    ) {
+        send(context, HyperRoseIpc.SET_LOW_LATENCY) { putExtra(HyperRoseIpc.EXTRA_ENABLED, enabled) }
+    }
+
     fun findLeft(context: Context) {
         send(context, HyperRoseIpc.FIND_EARPHONE) {
             putExtra(HyperRoseIpc.EXTRA_SIDE, HyperRoseIpc.SIDE_LEFT)

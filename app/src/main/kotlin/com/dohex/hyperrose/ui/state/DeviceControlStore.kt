@@ -95,6 +95,9 @@ class DeviceControlStore(
     private val _gameMode = MutableStateFlow(false)
     val gameMode: StateFlow<Boolean> = _gameMode.asStateFlow()
 
+    private val _lowLatency = MutableStateFlow(false)
+    val lowLatency: StateFlow<Boolean> = _lowLatency.asStateFlow()
+
     private var receiverRegistered = false
 
     private val bridgeReceiver =
@@ -160,6 +163,13 @@ class DeviceControlStore(
                     HyperRoseAction.GAME_MODE_CHANGED -> {
                         if (intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) {
                             _gameMode.value =
+                                intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
+                        }
+                    }
+
+                    HyperRoseAction.LOW_LATENCY_CHANGED -> {
+                        if (intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) {
+                            _lowLatency.value =
                                 intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
                         }
                     }
@@ -265,6 +275,14 @@ class DeviceControlStore(
         routeControl(
             direct = { directGattClient.setGameMode(enabled) },
             bridge = { BluetoothCommandDispatcher.setGameMode(appContext, enabled) },
+        )
+    }
+
+    fun setLowLatency(enabled: Boolean) {
+        _lowLatency.value = enabled
+        routeControl(
+            direct = { directGattClient.setLowLatency(enabled) },
+            bridge = { BluetoothCommandDispatcher.setLowLatency(appContext, enabled) },
         )
     }
 
@@ -452,5 +470,6 @@ class DeviceControlStore(
         _transLevel.value = null
         _eqMode.value = null
         _gameMode.value = false
+        _lowLatency.value = false
     }
 }
