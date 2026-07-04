@@ -36,26 +36,31 @@ data class DeviceCapabilities(
 interface DeviceProtocol {
     // --- commands ---
     fun ancCommand(mode: AncMode): ByteArray
-    fun ancDepthCommand(depth: AncDepth): ByteArray
-    fun transLevelCommand(level: TransparencyLevel): ByteArray
-    fun eqCommand(mode: EqPreset): ByteArray
-    fun gameModeCommand(enabled: Boolean): ByteArray
-    val findLeftOn: ByteArray
-    val findRightOn: ByteArray
-    val findAllOff: ByteArray
+    fun ancDepthCommand(depth: AncDepth): ByteArray = unsupported()
+    fun transLevelCommand(level: TransparencyLevel): ByteArray = unsupported()
+    fun eqCommand(mode: EqPreset): ByteArray = unsupported()
+    fun gameModeCommand(enabled: Boolean): ByteArray = unsupported()
+    fun lowLatencyCommand(enabled: Boolean): ByteArray = unsupported()
+    val findLeftOn: ByteArray get() = unsupported()
+    val findRightOn: ByteArray get() = unsupported()
+    val findAllOff: ByteArray get() = unsupported()
 
     // --- queries ---
     val queryBattery: ByteArray
     val queryAnc: ByteArray
-    val queryAncDepth: ByteArray
-    val queryTransLevel: ByteArray
-    val queryEq: ByteArray
-    val queryGameMode: ByteArray
+    val queryAncDepth: ByteArray get() = unsupported()
+    val queryTransLevel: ByteArray get() = unsupported()
+    val queryEq: ByteArray get() = unsupported()
+    val queryGameMode: ByteArray get() = unsupported()
+    val queryLowLatency: ByteArray get() = unsupported()
     val statusQuerySequence: List<ByteArray>
 
     // --- response parsing ---
     fun parseResponse(data: ByteArray): DeviceResponse
 }
+
+private fun unsupported(): Nothing =
+    throw UnsupportedOperationException("Not supported by this device profile")
 
 /** Parsed response from a device. Device-agnostic — all profiles emit these same subtypes. */
 sealed class DeviceResponse {
@@ -66,17 +71,43 @@ sealed class DeviceResponse {
     data class Eq(val mode: EqPreset) : DeviceResponse()
     data class GameMode(val enabled: Boolean) : DeviceResponse()
     data object Unknown : DeviceResponse()
+    data class LowLatencyChanged(val enabled: Boolean) : DeviceResponse()
 }
 
-/** Complete device-model profile: identification, GATT, protocol, capabilities. */
+/** 传输层规格：描述如何连接到设备。 */
+sealed class TransportSpec {
+    /** BLE GATT 传输 */
+    data class Gatt(
+        val serviceUuid: UUID,
+        val writeCharUuid: UUID,
+        val notifyCharUuid: UUID,
+        val cccdUuid: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"),
+    ) : TransportSpec()
+
+    /** Bluetooth Classic RFCOMM 传输 */
+    data class Rfcomm(
+        val dataChannelUuid: UUID,
+        val sppChannelUuid: UUID? = null,
+    ) : TransportSpec()
+}
+
+/** Complete device-model profile: identification, transport, protocol, capabilities. */
 interface DeviceProfile {
     val id: String
     val displayName: String
     val nameKeywords: List<String>
-    val gattSpec: GattSpec
-    val timing: GattTiming
+    val transport: TransportSpec
     val protocol: DeviceProtocol
     val capabilities: DeviceCapabilities
+
+    /** 仅 GATT 传输时有意义；RFCOMM 返回 null */
+    val gattTiming: GattTiming? get() = null
+
+    /** 调试页 hex 输入框提示文案 */
+    val debugHexHint: String get() = "HEX 指令"
+
+    /** 调试页预设快捷指令 */
+    val debugQuickCommands: List<Pair<String, ByteArray>> get() = emptyList()
 
     /** Case-insensitive substring match against [deviceName]. */
     fun matchesDeviceName(deviceName: String): Boolean =
