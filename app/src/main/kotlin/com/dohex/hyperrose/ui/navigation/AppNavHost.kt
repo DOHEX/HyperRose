@@ -15,6 +15,8 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.ui.NavDisplay
+import com.dohex.hyperrose.profile.DeviceProfileRegistry
+import com.dohex.hyperrose.ui.screen.BleDebugPage
 import com.dohex.hyperrose.ui.screen.DevicePickerPage
 import com.dohex.hyperrose.ui.screen.HomePage
 import com.dohex.hyperrose.ui.screen.SettingsPage
@@ -31,6 +33,9 @@ sealed interface AppDestination : NavKey {
 
     @Serializable
     data object Settings : AppDestination
+
+    @Serializable
+    data object BleDebug : AppDestination
 }
 
 @Composable
@@ -74,24 +79,14 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
             buildList {
                 add(Manifest.permission.BLUETOOTH_CONNECT)
                 add(Manifest.permission.BLUETOOTH_SCAN)
-            }
-                .toTypedArray()
+            }.toTypedArray()
         permissionLauncher.launch(permissions)
     }
 
     val entryProvider =
         remember(
-            hasPermission,
-            pairedDevices,
-            connectionState,
-            transport,
-            deviceName,
-            battery,
-            ancMode,
-            ancDepth,
-            transLevel,
-            eqMode,
-            gameMode,
+            hasPermission, pairedDevices, connectionState, transport, deviceName,
+            battery, ancMode, ancDepth, transLevel, eqMode, gameMode,
         ) {
             entryProvider<NavKey> {
                 entry<AppDestination.DeviceList> {
@@ -145,6 +140,16 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
                 entry<AppDestination.Settings> {
                     SettingsPage(
                         onBack = { if (backStack.size > 1) backStack.removeLast() },
+                        onOpenBleDebug = { backStack.add(AppDestination.BleDebug) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                entry<AppDestination.BleDebug> {
+                    BleDebugPage(
+                        deviceControlStore = deviceControlStore,
+                        profile = DeviceProfileRegistry.defaultProfile,
+                        onBack = { if (backStack.size > 1) backStack.removeLast() },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -153,12 +158,5 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
 
     val entries = rememberDecoratedNavEntries(backStack = backStack, entryProvider = entryProvider)
 
-    NavDisplay(
-        entries = entries,
-        onBack = {
-            if (backStack.size > 1) {
-                backStack.removeLast()
-            }
-        },
-    )
+    NavDisplay(entries = entries, onBack = { if (backStack.size > 1) backStack.removeLast() })
 }

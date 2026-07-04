@@ -11,9 +11,6 @@ import com.dohex.hyperrose.profile.TransportSpec
 import io.github.libxposed.api.XposedModule
 import java.io.IOException
 
-/**
- * Bluetooth Classic RFCOMM 传输实现 — 用于不支持 BLE GATT 的设备（如 JieLi AC697 方案）。
- */
 @SuppressLint("MissingPermission")
 class RfcommDeviceSession(
     context: Context,
@@ -35,6 +32,7 @@ class RfcommDeviceSession(
             dataSocket!!.connect()
             module.log(Log.INFO, TAG, "RfcommDeviceSession: RFCOMM connected")
             registerRefreshReceiver()
+            registerBleLogReceiver()
             startReader()
             queryAllStatus()
         } catch (e: IOException) {
@@ -47,9 +45,7 @@ class RfcommDeviceSession(
         running = false
         readerThread?.interrupt()
         readerThread = null
-        try {
-            dataSocket?.close()
-        } catch (_: IOException) {}
+        try { dataSocket?.close() } catch (_: IOException) {}
         dataSocket = null
         connectedDevice = null
         handler.removeCallbacksAndMessages(null)
@@ -66,7 +62,9 @@ class RfcommDeviceSession(
     override fun sendCommand(packet: ByteArray) {
         try {
             dataSocket?.outputStream?.write(packet)
-            module.log(Log.DEBUG, TAG, "→ ${packet.toHexString()}")
+            val hex = packet.toHexString()
+            module.log(Log.DEBUG, TAG, "→ $hex")
+            logTx(hex)
         } catch (e: IOException) {
             module.log(Log.ERROR, TAG, "RfcommDeviceSession: send failed", e)
         }
@@ -102,9 +100,7 @@ class RfcommDeviceSession(
                         }
                     }
                 } catch (e: IOException) {
-                    if (running) {
-                        module.log(Log.ERROR, TAG, "RfcommDeviceSession: read error", e)
-                    }
+                    if (running) module.log(Log.ERROR, TAG, "RfcommDeviceSession: read error", e)
                     break
                 }
             }

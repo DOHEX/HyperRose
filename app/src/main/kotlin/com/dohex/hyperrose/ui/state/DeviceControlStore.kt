@@ -287,6 +287,20 @@ class DeviceControlStore(
     }
 
     fun findLeft() {
+
+    /** 发送原始 hex 指令（供调试页使用），根据当前传输模式路由 */
+    fun sendRawCommand(hex: String) {
+        if (isDirectConnected()) {
+            directGattClient.sendRawCommand(hex)
+        } else {
+            Intent(HyperRoseAction.RAW_SEND).apply {
+                setPackage(HyperRoseAction.PACKAGE_BLUETOOTH)
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                putExtra(HyperRoseAction.EXTRA_HEX, hex)
+                appContext.sendBroadcast(this)
+            }
+        }
+    }
         routeControl(
             direct = { directGattClient.findLeft() },
             bridge = { BluetoothCommandDispatcher.findLeft(appContext) },
@@ -306,6 +320,20 @@ class DeviceControlStore(
             bridge = { BluetoothCommandDispatcher.stopFind(appContext) },
         )
     }
+    /** 发送原始 hex 指令（供调试页使用），根据当前传输模式路由 */
+    fun sendRawCommand(hex: String) {
+        if (isDirectConnected()) {
+            directGattClient.sendRawCommand(hex)
+        } else {
+            Intent(HyperRoseAction.RAW_SEND).apply {
+                setPackage(HyperRoseAction.PACKAGE_BLUETOOTH)
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                putExtra(HyperRoseAction.EXTRA_HEX, hex)
+                appContext.sendBroadcast(this)
+            }
+        }
+    }
+
 
     fun refreshStatus() {
         routeControl(

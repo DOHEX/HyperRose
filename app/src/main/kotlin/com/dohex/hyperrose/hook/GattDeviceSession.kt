@@ -34,6 +34,7 @@ class GattDeviceSession(
         connectedDevice = device
         module.log(Log.INFO, TAG, "GattDeviceSession: connecting to ${device.address}")
         registerRefreshReceiver()
+        registerBleLogReceiver()
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
     }
 
@@ -58,7 +59,7 @@ class GattDeviceSession(
         val g = gatt ?: return
         val hex = packet.toHexString()
         module.log(Log.DEBUG, TAG, "→ $hex")
-        char.value = packet
+        logTx(hex)
         g.writeCharacteristic(char)
     }
 

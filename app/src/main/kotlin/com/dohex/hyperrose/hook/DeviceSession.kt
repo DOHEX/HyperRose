@@ -19,12 +19,11 @@ import com.dohex.hyperrose.model.withLastKnownCaseBattery
 import com.dohex.hyperrose.profile.DeviceProfile
 import com.dohex.hyperrose.profile.DeviceResponse
 import io.github.libxposed.api.XposedModule
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
-/**
- * 设备通信会话基类 — 广播、状态缓存、回包处理等共享逻辑。
- * 子类实现具体的传输方式（GATT / RFCOMM）。
- */
 @SuppressLint("MissingPermission")
 abstract class DeviceSession(
     protected val context: Context,
@@ -44,17 +43,20 @@ abstract class DeviceSession(
     var currentGameMode: Boolean? = null; protected set
     var currentLowLatency: Boolean? = null; protected set
 
+    private var bleLogEnabled = false
+    private var bleLogReceiverRegistered = false
+    private val bleLogTimeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
+
     abstract fun connect(device: BluetoothDevice)
     abstract fun disconnect()
     abstract fun sendCommand(packet: ByteArray)
 
-    fun refreshStatus() {
-        queryAllStatus()
-    }
+    fun refreshStatus() { queryAllStatus() }
 
     protected fun handleResponse(data: ByteArray) {
         val hex = data.toHexString()
         val result = profile.protocol.parseResponse(data)
+        logRx(hex, result.toString())
         module.log(Log.DEBUG, TAG, "← $hex → $result")
 
         when (result) {
@@ -158,6 +160,25 @@ abstract class DeviceSession(
         }
     }
 
+    protected fun logTx(hex: String) { broadcastBleLog("TX", hex, "") }
+    protected fun logRx(hex: String, parsed: String) { broadcastBleLog("RX", hex, parsed) }
+
+    private fun broadcastBleLog(direction: String, data: String, parsed: String) {
+        if (!bleLogEnabled) return
+        val time = bleLogTimeFormat.format(Date())
+        Intent(HyperRoseAction.BLE_LOG).apply {
+            setPackage(HyperRoseAction.PACKAGE_APP)
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            putExtra(HyperRoseAction.EXTRA_LOG_SOURCE, "Hook")
+            putExtra(HyperRoseAction.EXTRA_LOG_DIRECTION, direction)
+            putExtra(HyperRoseAction.EXTRA_LOG_DATA, data)
+            putExtra(HyperRoseAction.EXTRA_LOG_PARSED, parsed)
+            putExtra(HyperRoseAction.EXTRA_LOG_TIME, time)
+            putExtra(HyperRoseAction.EXTRA_DEVICE_NAME, connectedDevice?.name)
+            context.sendBroadcast(this)
+        }
+    }
+
     private var refreshReceiverRegistered = false
 
     protected fun registerRefreshReceiver() {
@@ -166,8 +187,43 @@ abstract class DeviceSession(
         val filter = IntentFilter().apply { addAction(HyperRoseAction.REFRESH_STATUS) }
         context.registerReceiver(
             object : BroadcastReceiver() {
-                override fun onReceive(ctx: Context, intent: Intent) {
-                    if (intent.action == HyperRoseAction.REFRESH_STATUS) queryAllStatus()
+                override fun onReceive(ctx: Context?, intent: Intent?) {
+                    if (intent?.action == HyperRoseAction.REFRESH_STATUS) queryAllStatus()
+                }
+            },
+            filter,
+            Context.RECEIVER_EXPORTED,
+        )
+    }
+
+    protected fun registerBleLogReceiver() {
+        if (bleLogReceiverRegistered) return
+        bleLogReceiverRegistered = true
+        val filter = IntentFilter().apply {
+            addAction(HyperRoseAction.BLE_LOG_CONNECT)
+            addAction(HyperRoseAction.BLE_LOG_DISCONNECT)
+            addAction(HyperRoseAction.BLE_LOG_CLEAR)
+            addAction(HyperRoseAction.RAW_SEND)
+        }
+        context.registerReceiver(
+            object : BroadcastReceiver() {
+                override fun onReceive(ctx: Context?, intent: Intent?) {
+                    when (intent?.action) {
+                        HyperRoseAction.BLE_LOG_CONNECT -> bleLogEnabled = true
+                        HyperRoseAction.BLE_LOG_DISCONNECT -> bleLogEnabled = false
+                        HyperRoseAction.BLE_LOG_CLEAR -> { /* app-side */ }
+                        HyperRoseAction.RAW_SEND -> {
+                            val hex = intent.getStringExtra(HyperRoseAction.EXTRA_HEX) ?: return
+                            val normalized = hex.replace(" ", "").replace("\n", "").replace("\r", "")
+                            if (normalized.isEmpty() || normalized.length % 2 != 0 ||
+                                !normalized.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
+                            ) return
+                            val bytes = ByteArray(normalized.length / 2) {
+                                normalized.substring(it * 2, it * 2 + 2).toInt(16).toByte()
+                            }
+                            sendCommand(bytes)
+                        }
+                    }
                 }
             },
             filter,

@@ -41,6 +41,15 @@ object HyperRoseIpc {
     const val REFRESH_STATUS = "$PREFIX.refresh_status"
     const val DISCONNECT_GATT = "$PREFIX.disconnect_gatt"
 
+    // App → Bluetooth 进程（调试页原始 hex 指令）
+    const val RAW_SEND = "$PREFIX.raw_send"
+
+    // App ↔ Bluetooth 进程（BLE 调试日志）
+    const val BLE_LOG_CONNECT = "$PREFIX.ble_log_connect"
+    const val BLE_LOG_DISCONNECT = "$PREFIX.ble_log_disconnect"
+    const val BLE_LOG_CLEAR = "$PREFIX.ble_log_clear"
+    const val BLE_LOG = "$PREFIX.ble_log"
+
     // MiLink 进程 → Bluetooth 进程（ANC 控制命令）
     const val ANC_SELECT = "$PREFIX.anc_select"
 
@@ -58,6 +67,12 @@ object HyperRoseIpc {
     const val EXTRA_LEFT_CHARGING = "$EXTRA_PREFIX.left_charging"
     const val EXTRA_RIGHT_CHARGING = "$EXTRA_PREFIX.right_charging"
     const val EXTRA_CASE_LEVEL = "$EXTRA_PREFIX.case_level"
+    const val EXTRA_HEX = "$EXTRA_PREFIX.hex"
+    const val EXTRA_LOG_SOURCE = "$EXTRA_PREFIX.log_source"
+    const val EXTRA_LOG_DIRECTION = "$EXTRA_PREFIX.log_direction"
+    const val EXTRA_LOG_DATA = "$EXTRA_PREFIX.log_data"
+    const val EXTRA_LOG_PARSED = "$EXTRA_PREFIX.log_parsed"
+    const val EXTRA_LOG_TIME = "$EXTRA_PREFIX.log_time"
 
     const val SIDE_LEFT = "LEFT"
     const val SIDE_RIGHT = "RIGHT"
@@ -95,5 +110,6 @@ object HyperRoseIpc {
             DISCONNECT_GATT,
             ANC_SELECT,
             SET_LOW_LATENCY,
+            RAW_SEND,
         )
 }
