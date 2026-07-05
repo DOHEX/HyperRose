@@ -2,6 +2,7 @@ package com.dohex.hyperrose.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.dohex.hyperrose.ipc.AuthorizedDeviceProvider
 
 /**
@@ -26,17 +27,17 @@ object AuthorizedDeviceStore {
 
     fun add(context: Context, address: String) {
         val normalized = address.uppercase()
-        prefs(context).edit()
-            .putStringSet(KEY_ADDRESSES, getAll(context) + normalized)
-            .apply()
+        prefs(context).edit {
+            putStringSet(KEY_ADDRESSES, getAll(context) + normalized)
+        }
         AuthorizedDeviceProvider.refresh(context)
     }
 
     fun remove(context: Context, address: String) {
         val normalized = address.uppercase()
-        prefs(context).edit()
-            .putStringSet(KEY_ADDRESSES, getAll(context) - normalized)
-            .apply()
+        prefs(context).edit {
+            putStringSet(KEY_ADDRESSES, getAll(context) - normalized)
+        }
         AuthorizedDeviceProvider.refresh(context)
     }
 }

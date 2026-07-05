@@ -5,7 +5,7 @@ import com.dohex.hyperrose.profile.budsfeel_mk2.BudsFeelMk2Profile
 object DeviceProfileRegistry {
     /** All known device profiles, ordered by priority (first match wins). */
     val profiles: List<DeviceProfile> = listOf(
-        RoseEarfreeI5Profile,
+        EarfreeI5Profile,
         BudsFeelMk2Profile,
     )
 

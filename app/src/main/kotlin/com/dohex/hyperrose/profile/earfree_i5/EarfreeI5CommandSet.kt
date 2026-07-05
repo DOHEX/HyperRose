@@ -6,7 +6,7 @@ import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 
 /** ROSESELSA EARFREE i5 全部控制/查询命令。 协议帧前缀：请求 08 EE / 回包 09 FF 通信通道：BLE GATT */
-object RoseCommandSet {
+object EarfreeI5CommandSet {
     // ==================== ANC 模式切换 ====================
 
     val ANC_NOISE_CANCEL: ByteArray = hexToBytes("08 EE 00 00 00 06 82 0E 00 01 00 00 00 8D")

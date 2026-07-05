@@ -1,7 +1,6 @@
 package com.dohex.hyperrose.ui.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,8 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -25,12 +24,14 @@ import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun AncSelector(
+    modifier: Modifier = Modifier,
     ancMode: AncMode?,
     ancDepth: AncDepth?,
     transLevel: TransparencyLevel?,
@@ -40,11 +41,10 @@ fun AncSelector(
     enabled: Boolean,
     showAncDepth: Boolean = true,
     showTransLevel: Boolean = true,
-    modifier: Modifier = Modifier,
-) {
+
+    ) {
     SectionCard(
-        title = "噪声控制",
-        modifier = modifier
+        title = "噪声控制", modifier = modifier
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -107,7 +107,7 @@ private fun AncModeIcon(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val colorScheme = MiuixTheme.colorScheme
+    val colors = MiuixTheme.colorScheme
 
     val iconRes = when (mode) {
         AncMode.NOISE_CANCEL -> R.drawable.anc_normal
@@ -117,38 +117,44 @@ private fun AncModeIcon(
     }
 
     val bgColor = when {
-        !enabled -> Color.Transparent
-        selected -> colorScheme.primary
-        else -> Color.Transparent
+        !enabled -> colors.disabledSecondary
+        selected -> colors.primary
+        else -> colors.secondary
     }
     val iconTint = when {
-        !enabled -> colorScheme.disabledOnSurface
-        selected -> colorScheme.onPrimary
-        else -> colorScheme.onSurfaceVariantSummary
+        !enabled -> colors.disabledOnSecondary
+        selected -> colors.onPrimary
+        else -> colors.onSurfaceSecondary
     }
     val labelColor = when {
-        !enabled -> colorScheme.disabledOnSurface
-        selected -> colorScheme.primary
-        else -> colorScheme.onSurfaceVariantSummary
+        !enabled -> colors.disabledSecondary
+        selected -> colors.primary
+        else -> colors.onSurfaceSecondary
     }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            painter = painterResource(id = iconRes),
-            contentDescription = mode.label,
-            tint = iconTint,
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
             modifier = Modifier
                 .size(54.dp)
                 .clip(CircleShape)
-                .background(bgColor, CircleShape)
-                .clickable(enabled = enabled) { onClick() }
-                .padding(10.dp),
-        )
+                .background(bgColor, CircleShape),
+        ) {
+            Icon(
+                imageVector = ImageVector.vectorResource(id = iconRes),
+                contentDescription = mode.label,
+                tint = iconTint,
+                modifier = Modifier
+                    .size(54.dp)
+                    .padding(start = 10.dp, top = 4.dp, end = 10.dp, bottom = 10.dp),
+            )
+        }
         Text(
             text = mode.label,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = labelColor,
             fontWeight = if (selected && enabled) FontWeight.Bold else FontWeight.Normal,
             modifier = Modifier.padding(top = 4.dp),

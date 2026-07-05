@@ -34,7 +34,6 @@ class GattDeviceSession(
         connectedDevice = device
         module.log(Log.INFO, TAG, "GattDeviceSession: connecting to ${device.address}")
         registerRefreshReceiver()
-        registerBleLogReceiver()
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
     }
 
@@ -54,13 +53,22 @@ class GattDeviceSession(
         currentLowLatency = null
     }
 
-    override fun sendCommand(packet: ByteArray) {
-        val char = writeChar ?: return
-        val g = gatt ?: return
+    override fun sendCommand(packet: ByteArray, description: String) {
+        val char = writeChar ?: run {
+            module.log(Log.WARN, TAG, "!!! sendCommand dropped: writeChar is null ($description)")
+            return
+        }
+        val g = gatt ?: run {
+            module.log(Log.WARN, TAG, "!!! sendCommand dropped: gatt is null ($description)")
+            return
+        }
         val hex = packet.toHexString()
         module.log(Log.DEBUG, TAG, "→ $hex")
-        logTx(hex)
-        g.writeCharacteristic(char)
+        logTx(hex, description)
+        char.value = packet
+        if (!g.writeCharacteristic(char)) {
+            module.log(Log.WARN, TAG, "!!! writeCharacteristic returned false ($description)")
+        }
     }
 
     // ==================== GATT Callback ====================
@@ -113,6 +121,8 @@ class GattDeviceSession(
                     )
                     return
                 }
+                @Suppress("DEPRECATION")
+                writeChar?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
 
                 val notifyChar = service.getCharacteristic(gattSpec.notifyCharUuid)
                 if (notifyChar == null) {

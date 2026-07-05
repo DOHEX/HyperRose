@@ -17,8 +17,8 @@ import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.ui.NavDisplay
 import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import com.dohex.hyperrose.ui.screen.BleDebugPage
+import com.dohex.hyperrose.ui.screen.DeviceDetailPage
 import com.dohex.hyperrose.ui.screen.DevicePickerPage
-import com.dohex.hyperrose.ui.screen.HomePage
 import com.dohex.hyperrose.ui.screen.SettingsPage
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import kotlinx.serialization.Serializable
@@ -112,7 +112,8 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
             }
 
             entry<AppDestination.DeviceDetail> {
-                HomePage(
+                DeviceDetailPage(
+                    address = it.address,
                     connectionState = connectionState,
                     transport = transport,
                     deviceName = deviceName ?: it.name,

@@ -24,7 +24,8 @@ object BluetoothProcessHook {
 
     @SuppressLint("StaticFieldLeak")
     private var session: DeviceSession? = null
-
+    private var bleLogEnabled = false
+    internal fun isBleLogEnabled(): Boolean = bleLogEnabled
     /** 同进程内直接访问当前 GATT 客户端（供 HeadsetServiceBinderHook 使用） */
     internal fun currentSession(): DeviceSession? = session
 
@@ -212,7 +213,13 @@ object BluetoothProcessHook {
         if (commandReceiverRegistered) return
 
         val filter =
-            IntentFilter().apply { HyperRoseAction.APP_CONTROL_ACTIONS.forEach(::addAction) }
+            IntentFilter().apply {
+                HyperRoseAction.APP_CONTROL_ACTIONS.forEach(::addAction)
+                addAction(HyperRoseAction.BLE_LOG_CONNECT)
+                addAction(HyperRoseAction.BLE_LOG_DISCONNECT)
+                addAction(HyperRoseAction.BLE_LOG_CLEAR)
+                addAction(HyperRoseAction.RAW_SEND)
+            }
 
         val receiver =
             object : BroadcastReceiver() {
@@ -220,13 +227,20 @@ object BluetoothProcessHook {
                     ctx: Context,
                     intent: Intent,
                 ) {
-                    module.log(
-                        Log.DEBUG,
-                        TAG,
-                        ">>> CommandReceiver: action=${intent.action} session=${session != null} extras=${
-                            intent.extras?.keySet()?.joinToString()
-                        }"
-                    )
+                    // --- actions that don't require an active session ---
+                    when (intent.action) {
+                        HyperRoseAction.BLE_LOG_CONNECT -> {
+                            bleLogEnabled = true
+                            return
+                        }
+                        HyperRoseAction.BLE_LOG_DISCONNECT -> {
+                            bleLogEnabled = false
+                            return
+                        }
+                        HyperRoseAction.BLE_LOG_CLEAR -> { /* app-side only */ return }
+                    }
+
+                    // --- actions that require an active session ---
                     val manager = session ?: run {
                         module.log(
                             Log.WARN,
@@ -242,7 +256,7 @@ object BluetoothProcessHook {
                                     intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
                                         ?.let(AncMode::valueOf)
                                         ?: return
-                                manager.sendCommand(manager.profile.protocol.ancCommand(mode))
+                                manager.sendCommand(manager.profile.protocol.ancCommand(mode), "Set ANC: $mode")
                             }
 
                             HyperRoseAction.SET_ANC_DEPTH -> {
@@ -250,7 +264,7 @@ object BluetoothProcessHook {
                                     intent.getStringExtra(HyperRoseAction.EXTRA_DEPTH)
                                         ?.let(AncDepth::valueOf)
                                         ?: return
-                                manager.sendCommand(manager.profile.protocol.ancDepthCommand(depth))
+                                manager.sendCommand(manager.profile.protocol.ancDepthCommand(depth), "Set ANC depth: $depth")
                             }
 
                             HyperRoseAction.SET_TRANS_LEVEL -> {
@@ -258,7 +272,7 @@ object BluetoothProcessHook {
                                     intent
                                         .getStringExtra(HyperRoseAction.EXTRA_LEVEL)
                                         ?.let(TransparencyLevel::valueOf) ?: return
-                                manager.sendCommand(manager.profile.protocol.transLevelCommand(level))
+                                manager.sendCommand(manager.profile.protocol.transLevelCommand(level), "Set transparency: $level")
                             }
 
                             HyperRoseAction.SET_EQ -> {
@@ -266,14 +280,14 @@ object BluetoothProcessHook {
                                     intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
                                         ?.let(EqPreset::valueOf)
                                         ?: return
-                                manager.sendCommand(manager.profile.protocol.eqCommand(mode))
+                                manager.sendCommand(manager.profile.protocol.eqCommand(mode), "Set EQ: $mode")
                             }
 
                             HyperRoseAction.SET_GAME_MODE -> {
                                 if (!intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) return
                                 val enabled =
                                     intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
-                                manager.sendCommand(manager.profile.protocol.gameModeCommand(enabled))
+                                manager.sendCommand(manager.profile.protocol.gameModeCommand(enabled), "Set game mode: $enabled")
                             }
 
                             HyperRoseAction.SET_LOW_LATENCY -> {
@@ -281,9 +295,8 @@ object BluetoothProcessHook {
                                 val enabled =
                                     intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
                                 manager.sendCommand(
-                                    manager.profile.protocol.lowLatencyCommand(
-                                        enabled
-                                    )
+                                    manager.profile.protocol.lowLatencyCommand(enabled),
+                                    "Set low latency: $enabled",
                                 )
                             }
 
@@ -292,18 +305,16 @@ object BluetoothProcessHook {
                                     ?.uppercase()) {
                                     HyperRoseAction.SIDE_LEFT -> {
                                         manager.sendCommand(
-                                            manager.profile.protocol.findLeftOn,
-                                        )
+                                            manager.profile.protocol.findLeftOn, "Find left")
                                     }
 
                                     HyperRoseAction.SIDE_RIGHT -> {
                                         manager.sendCommand(
-                                            manager.profile.protocol.findRightOn,
-                                        )
+                                            manager.profile.protocol.findRightOn, "Find right")
                                     }
 
                                     else -> {
-                                        manager.sendCommand(manager.profile.protocol.findAllOff)
+                                        manager.sendCommand(manager.profile.protocol.findAllOff, "Stop find")
                                     }
                                 }
                             }
@@ -325,7 +336,7 @@ object BluetoothProcessHook {
                                     )
                                     return
                                 }
-                                manager.sendCommand(manager.profile.protocol.ancCommand(mode))
+                                manager.sendCommand(manager.profile.protocol.ancCommand(mode), "Set ANC: $mode")
                                 module.log(
                                     Log.DEBUG,
                                     TAG,
@@ -340,6 +351,19 @@ object BluetoothProcessHook {
                             HyperRoseAction.DISCONNECT_GATT -> {
                                 manager.disconnect()
                                 session = null
+                            }
+
+                            HyperRoseAction.RAW_SEND -> {
+                                val hex = intent.getStringExtra(HyperRoseAction.EXTRA_HEX) ?: return
+                                val normalized =
+                                    hex.replace(" ", "").replace("\n", "").replace("\r", "")
+                                if (normalized.isEmpty() || normalized.length % 2 != 0 ||
+                                    !normalized.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
+                                ) return
+                                val bytes = ByteArray(normalized.length / 2) {
+                                    normalized.substring(it * 2, it * 2 + 2).toInt(16).toByte()
+                                }
+                                manager.sendCommand(bytes, "Raw: $normalized")
                             }
                         }
                     } catch (e: Throwable) {

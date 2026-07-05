@@ -15,6 +15,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import com.dohex.hyperrose.data.DeviceImageStore
+import com.dohex.hyperrose.data.LocalDeviceImageStore
 import com.dohex.hyperrose.ui.navigation.AppNavHost
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
@@ -32,6 +34,7 @@ class AppEntryActivity : ComponentActivity() {
             val context = LocalContext.current
             val deviceControlStore = remember(context) { DeviceControlStore(context) }
             val themeStore = remember(context) { ThemeSettingsStore(context) }
+            val deviceImageStore = remember(context) { DeviceImageStore(context) }
             val scope = rememberCoroutineScope()
             val themeMode by themeStore.themeModeFlow.collectAsState(initial = ThemeMode())
 
@@ -67,6 +70,7 @@ class AppEntryActivity : ComponentActivity() {
                 colorMode = themeMode.colorMode,
             ) {
                 CompositionLocalProvider(
+                    LocalDeviceImageStore provides deviceImageStore,
                     LocalThemeMode provides themeMode,
                     LocalUpdateThemeMode provides updateThemeMode,
                     LocalCanUpdateThemeMode provides true,

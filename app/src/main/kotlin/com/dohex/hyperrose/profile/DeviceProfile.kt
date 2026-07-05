@@ -15,11 +15,11 @@ data class GattSpec(
     val cccdUuid: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"),
 )
 
-/** Timing parameters for status queries and battery polling. */
+/** Timing parameters for status queries and periodic refresh. */
 data class GattTiming(
     val initialStatusQueryDelayMs: Long,
     val statusQueryStepDelayMs: Long,
-    val batteryPollIntervalMs: Long,
+    val statusRefreshIntervalMs: Long,
 )
 
 data class DeviceCapabilities(

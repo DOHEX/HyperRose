@@ -4,11 +4,7 @@ package com.dohex.hyperrose.service
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -26,17 +22,19 @@ import com.dohex.hyperrose.profile.TransportSpec
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** 独立 App 用的 BLE GATT 通信管理器。 所有状态通过 StateFlow 暴露给 Compose UI。 */
-class StandaloneGattClient(
+/** App-process RFCOMM client for devices using Bluetooth Classic (e.g. BudsFeel MK2).
+ *  All state exposed via StateFlow for Compose UI consumption. */
+class StandaloneRfcommClient(
     private val context: Context,
     val profile: DeviceProfile,
 ) : StandaloneClient {
     companion object {
-        private const val TAG = "HyperRose.StandaloneGattClient"
+        private const val TAG = "HyperRose.StandaloneRfcommClient"
         private val logTimeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
     }
 
@@ -46,10 +44,11 @@ class StandaloneGattClient(
         CONNECTED,
     }
 
-    private val gattSpec: TransportSpec.Gatt
-        get() = profile.transport as TransportSpec.Gatt
+    // Transport spec (non-null after init; profile must have TransportSpec.Rfcomm)
+    private val rfcommSpec: TransportSpec.Rfcomm
+        get() = profile.transport as TransportSpec.Rfcomm
 
-    // 状态 Flow
+    // StateFlows
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
@@ -77,25 +76,50 @@ class StandaloneGattClient(
     private val _deviceName = MutableStateFlow<String?>(null)
     val deviceName: StateFlow<String?> = _deviceName.asStateFlow()
 
-    private var gatt: BluetoothGatt? = null
-    private var writeChar: BluetoothGattCharacteristic? = null
+    // Internal state
+    private var dataSocket: BluetoothSocket? = null
+    private var readerThread: Thread? = null
+    @Volatile private var running = false
     private val handler = Handler(Looper.getMainLooper())
 
-    // ==================== 公开方法 ====================
+    // ==================== Public methods ====================
 
     override fun connect(device: BluetoothDevice) {
-        _connectionState.value = ConnectionState.CONNECTING
         _deviceName.value = device.name
-        Log.i(TAG, "Connecting to ${device.address}")
-        gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        _connectionState.value = ConnectionState.CONNECTING
+        Log.i(TAG, "Connecting to ${device.address} via RFCOMM")
+
+        Thread {
+            try {
+                val socket = device.createRfcommSocketToServiceRecord(rfcommSpec.dataChannelUuid)
+                socket.connect()
+                dataSocket = socket
+                handler.post {
+                    _connectionState.value = ConnectionState.CONNECTED
+                    Log.i(TAG, "RFCOMM connected")
+                    startReader()
+                    queryAllStatus()
+                }
+            } catch (e: IOException) {
+                Log.e(TAG, "RFCOMM connect failed", e)
+                handler.post {
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                }
+            }
+        }.apply {
+            name = "RfcommConnect"
+            isDaemon = true
+            start()
+        }
     }
 
     override fun disconnect() {
+        running = false
+        readerThread?.interrupt()
+        readerThread = null
+        runCatching { dataSocket?.close() }
+        dataSocket = null
         handler.removeCallbacksAndMessages(null)
-        gatt?.disconnect()
-        gatt?.close()
-        gatt = null
-        writeChar = null
         _connectionState.value = ConnectionState.DISCONNECTED
         _battery.value = null
         _ancMode.value = null
@@ -108,22 +132,13 @@ class StandaloneGattClient(
     }
 
     fun sendCommand(packet: ByteArray, description: String = "") {
-        val char = writeChar ?: run {
-            Log.w(TAG, "!!! sendCommand dropped: writeChar is null ($description)")
-            return
-        }
-        val g = gatt ?: run {
-            Log.w(TAG, "!!! sendCommand dropped: gatt is null ($description)")
-            return
-        }
-        val hex = packet.toHexString()
-        Log.d(TAG, "→ $hex")
-        BleLog.log("App", "TX", hex, description, logTimeFormat.format(Date()))
-        @Suppress("DEPRECATION")
-        char.value = packet
-        @Suppress("DEPRECATION")
-        if (!g.writeCharacteristic(char)) {
-            Log.w(TAG, "!!! writeCharacteristic returned false ($description)")
+        try {
+            dataSocket?.outputStream?.write(packet)
+            val hex = packet.toHexString()
+            Log.d(TAG, "→ $hex")
+            BleLog.log("App", "TX", hex, description, logTimeFormat.format(Date()))
+        } catch (e: IOException) {
+            Log.e(TAG, "RFCOMM send failed", e)
         }
     }
 
@@ -132,7 +147,7 @@ class StandaloneGattClient(
         queryAllStatus()
     }
 
-    // 便捷方法
+    // Convenience methods
     override fun setAnc(mode: AncMode) = sendCommand(profile.protocol.ancCommand(mode), "Set ANC: $mode")
 
     override fun setAncDepth(depth: AncDepth) = sendCommand(profile.protocol.ancDepthCommand(depth), "Set ANC depth: $depth")
@@ -152,7 +167,7 @@ class StandaloneGattClient(
 
     override fun stopFind() = sendCommand(profile.protocol.findAllOff, "Stop find")
 
-    /** 发送原始 hex 指令（供调试页使用） */
+    /** Send raw hex command (for debug page). */
     override fun sendRawCommand(hex: String) {
         val normalized = hex.replace(" ", "").replace("\n", "").replace("\r", "")
         if (normalized.isEmpty() || normalized.length % 2 != 0 ||
@@ -167,86 +182,62 @@ class StandaloneGattClient(
         sendCommand(bytes, "Raw: $normalized")
     }
 
-    // ==================== GATT Callback ====================
+    // ==================== Reader thread ====================
 
-    @Suppress("DEPRECATION")
-    private val gattCallback =
-        object : BluetoothGattCallback() {
-            override fun onConnectionStateChange(
-                gatt: BluetoothGatt,
-                status: Int,
-                newState: Int,
-            ) {
-                when (newState) {
-                    BluetoothProfile.STATE_CONNECTED -> {
-                        Log.i(TAG, "GATT connected, discovering services")
-                        gatt.discoverServices()
+    private fun startReader() {
+        running = true
+        readerThread = Thread {
+            val buf = ByteArray(512)
+            val input = dataSocket!!.inputStream
+            var frameBuf = ByteArray(0)
+
+            while (running) {
+                try {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    frameBuf += buf.copyOf(n)
+
+                    while (frameBuf.size >= 4) {
+                        val aaIdx = frameBuf.indexOf(0xAA.toByte())
+                        if (aaIdx < 2) {
+                            if (aaIdx == -1) break
+                            frameBuf = frameBuf.copyOfRange(aaIdx + 1, frameBuf.size)
+                            continue
+                        }
+                        val frameEnd = aaIdx + 1
+                        val frame = frameBuf.copyOfRange(0, frameEnd)
+                        if (verifyChecksum(frame)) {
+                            handler.post { handleResponse(frame) }
+                            frameBuf = frameBuf.copyOfRange(frameEnd, frameBuf.size)
+                        } else {
+                            frameBuf = frameBuf.copyOfRange(1, frameBuf.size)
+                        }
                     }
-
-                    BluetoothProfile.STATE_DISCONNECTED -> {
-                        Log.i(TAG, "GATT disconnected")
-                        _connectionState.value = ConnectionState.DISCONNECTED
-                        handler.removeCallbacksAndMessages(null)
-                    }
+                } catch (e: IOException) {
+                    if (running) Log.e(TAG, "RFCOMM read error", e)
+                    break
                 }
             }
 
-            override fun onServicesDiscovered(
-                gatt: BluetoothGatt,
-                status: Int,
-            ) {
-                if (status != BluetoothGatt.GATT_SUCCESS) {
-                    Log.e(TAG, "Service discovery failed: $status")
-                    _connectionState.value = ConnectionState.DISCONNECTED
-                    return
-                }
-
-                val service = gatt.getService(gattSpec.serviceUuid)
-                if (service == null) {
-                    Log.e(TAG, "Service not found")
-                    _connectionState.value = ConnectionState.DISCONNECTED
-                    return
-                }
-                writeChar = service.getCharacteristic(gattSpec.writeCharUuid)
-                val notifyChar = service.getCharacteristic(gattSpec.notifyCharUuid)
-
-                if (writeChar == null || notifyChar == null) {
-                    Log.e(TAG, "Characteristics not found")
-                    _connectionState.value = ConnectionState.DISCONNECTED
-                    return
-                }
-
-                @Suppress("DEPRECATION")
-                writeChar?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-
-                // 启用通知
-                gatt.setCharacteristicNotification(notifyChar, true)
-                val descriptor = notifyChar.getDescriptor(gattSpec.cccdUuid)
-                if (descriptor != null) {
-                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                    gatt.writeDescriptor(descriptor)
-                }
-
-                _connectionState.value = ConnectionState.CONNECTED
-                Log.i(TAG, "GATT ready")
-
-                // 查询全部状态
-                handler.postDelayed(
-                    { queryAllStatus() },
-                    profile.gattTiming?.initialStatusQueryDelayMs ?: 120L
-                )
+            // Unexpected disconnect
+            if (running) {
+                handler.post { disconnect() }
             }
-
-            override fun onCharacteristicChanged(
-                gatt: BluetoothGatt,
-                characteristic: BluetoothGattCharacteristic,
-            ) {
-                val data = characteristic.value ?: return
-                handleResponse(data)
-            }
+        }.apply {
+            name = "RfcommReader"
+            isDaemon = true
+            start()
         }
+    }
 
-    // ==================== 回包处理 ====================
+    private fun verifyChecksum(frame: ByteArray): Boolean {
+        if (frame.size < 4) return false
+        val ckPos = frame.size - 2
+        val expectedCk = (frame.copyOfRange(0, ckPos).sum() and 0xFF).toByte()
+        return frame[ckPos] == expectedCk
+    }
+
+    // ==================== Response handling ====================
 
     private fun handleResponse(data: ByteArray) {
         val hex = data.toHexString()
@@ -294,22 +285,17 @@ class StandaloneGattClient(
         }
     }
 
+    // ==================== Status polling ====================
+
     private fun queryAllStatus() {
         profile.protocol.statusQuerySequence.forEachIndexed { index, query ->
-            handler.postDelayed(
-                { sendCommand(query, "Query status") },
-                (profile.gattTiming?.statusQueryStepDelayMs ?: 100L) * index,
-            )
+            handler.postDelayed({ sendCommand(query, "Query status") }, 120L * index)
         }
-        // 启动定期全量状态刷新
-        handler.postDelayed(
-            object : Runnable {
-                override fun run() {
-                    queryAllStatus()
-                }
-            },
-            profile.gattTiming?.statusRefreshIntervalMs ?: 20_000L,
-        )
+        handler.postDelayed(object : Runnable {
+            override fun run() {
+                queryAllStatus()
+            }
+        }, 30_000L)
     }
 }
 

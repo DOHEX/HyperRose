@@ -32,7 +32,6 @@ class RfcommDeviceSession(
             dataSocket!!.connect()
             module.log(Log.INFO, TAG, "RfcommDeviceSession: RFCOMM connected")
             registerRefreshReceiver()
-            registerBleLogReceiver()
             startReader()
             queryAllStatus()
         } catch (e: IOException) {
@@ -62,12 +61,12 @@ class RfcommDeviceSession(
         module.log(Log.INFO, TAG, "RfcommDeviceSession: disconnected")
     }
 
-    override fun sendCommand(packet: ByteArray) {
+    override fun sendCommand(packet: ByteArray, description: String) {
         try {
             dataSocket?.outputStream?.write(packet)
             val hex = packet.toHexString()
             module.log(Log.DEBUG, TAG, "→ $hex")
-            logTx(hex)
+            logTx(hex, description)
         } catch (e: IOException) {
             module.log(Log.ERROR, TAG, "RfcommDeviceSession: send failed", e)
         }

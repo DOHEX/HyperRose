@@ -43,13 +43,11 @@ abstract class DeviceSession(
     var currentGameMode: Boolean? = null; protected set
     var currentLowLatency: Boolean? = null; protected set
 
-    private var bleLogEnabled = false
-    private var bleLogReceiverRegistered = false
     private val bleLogTimeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
     abstract fun connect(device: BluetoothDevice)
     abstract fun disconnect()
-    abstract fun sendCommand(packet: ByteArray)
+    abstract fun sendCommand(packet: ByteArray, description: String = "")
 
     fun refreshStatus() {
         queryAllStatus()
@@ -147,18 +145,18 @@ abstract class DeviceSession(
     protected fun queryAllStatus() {
         profile.protocol.statusQuerySequence.forEachIndexed { index, query ->
             handler.postDelayed(
-                { sendCommand(query) },
+                { sendCommand(query, "Query status") },
                 (profile.gattTiming?.statusQueryStepDelayMs ?: 100L) * index,
             )
         }
         handler.postDelayed(
             object : Runnable {
                 override fun run() {
-                    sendCommand(profile.protocol.queryBattery)
-                    handler.postDelayed(this, profile.gattTiming?.batteryPollIntervalMs ?: 30_000L)
+                    sendCommand(profile.protocol.queryBattery, "Query battery")
+                    handler.postDelayed(this, profile.gattTiming?.statusRefreshIntervalMs ?: 30_000L)
                 }
             },
-            profile.gattTiming?.batteryPollIntervalMs ?: 30_000L,
+            profile.gattTiming?.statusRefreshIntervalMs ?: 30_000L,
         )
     }
 
@@ -178,8 +176,8 @@ abstract class DeviceSession(
         }
     }
 
-    protected fun logTx(hex: String) {
-        broadcastBleLog("TX", hex, "")
+    protected fun logTx(hex: String, description: String = "") {
+        broadcastBleLog("TX", hex, description)
     }
 
     protected fun logRx(hex: String, parsed: String) {
@@ -187,7 +185,7 @@ abstract class DeviceSession(
     }
 
     private fun broadcastBleLog(direction: String, data: String, parsed: String) {
-        if (!bleLogEnabled) return
+        if (!BluetoothProcessHook.isBleLogEnabled()) return
         val time = bleLogTimeFormat.format(Date())
         Intent(HyperRoseAction.BLE_LOG).apply {
             setPackage(HyperRoseAction.PACKAGE_APP)
@@ -219,43 +217,6 @@ abstract class DeviceSession(
         )
     }
 
-    protected fun registerBleLogReceiver() {
-        if (bleLogReceiverRegistered) return
-        bleLogReceiverRegistered = true
-        val filter = IntentFilter().apply {
-            addAction(HyperRoseAction.BLE_LOG_CONNECT)
-            addAction(HyperRoseAction.BLE_LOG_DISCONNECT)
-            addAction(HyperRoseAction.BLE_LOG_CLEAR)
-            addAction(HyperRoseAction.RAW_SEND)
-        }
-        context.registerReceiver(
-            object : BroadcastReceiver() {
-                override fun onReceive(ctx: Context?, intent: Intent?) {
-                    when (intent?.action) {
-                        HyperRoseAction.BLE_LOG_CONNECT -> bleLogEnabled = true
-                        HyperRoseAction.BLE_LOG_DISCONNECT -> bleLogEnabled = false
-                        HyperRoseAction.BLE_LOG_CLEAR -> { /* app-side */
-                        }
-
-                        HyperRoseAction.RAW_SEND -> {
-                            val hex = intent.getStringExtra(HyperRoseAction.EXTRA_HEX) ?: return
-                            val normalized =
-                                hex.replace(" ", "").replace("\n", "").replace("\r", "")
-                            if (normalized.isEmpty() || normalized.length % 2 != 0 ||
-                                !normalized.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
-                            ) return
-                            val bytes = ByteArray(normalized.length / 2) {
-                                normalized.substring(it * 2, it * 2 + 2).toInt(16).toByte()
-                            }
-                            sendCommand(bytes)
-                        }
-                    }
-                }
-            },
-            filter,
-            Context.RECEIVER_EXPORTED,
-        )
-    }
 
     protected fun ByteArray.toHexString(): String = joinToString(" ") { "%02X".format(it) }
 }

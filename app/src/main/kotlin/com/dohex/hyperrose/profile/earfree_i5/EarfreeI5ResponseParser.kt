@@ -10,11 +10,11 @@ import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.model.isBatteryLevelOrUnknown
 
 /** ROSESELSA EARFREE i5 回包解析器。 所有回包以 09 FF 开头，通过帧结构匹配分发到具体解析方法。 */
-object RoseResponseParser {
+object EarfreeI5ResponseParser {
     /** 统一解析入口 */
-    fun parse(data: ByteArray): RoseResponse {
+    fun parse(data: ByteArray): EarfreeI5Response {
         if (data.size < 2 || data[0] != 0x09.toByte() || data[1] != 0xFF.toByte()) {
-            return RoseResponse.Unknown
+            return EarfreeI5Response.Unknown
         }
 
         // 电量回包: 09 FF 00 00 01 01 01 11 ... (至少 17 字节)
@@ -47,13 +47,13 @@ object RoseResponseParser {
             return parseGameMode(data)
         }
 
-        return RoseResponse.Unknown
+        return EarfreeI5Response.Unknown
     }
 
     // ==================== 回包 Header 模式 ====================
 
     private val BATTERY_HEADER =
-        intArrayOf(0x09, 0xFF, 0x00, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x00, 0x01)
+        intArrayOf(0x09, 0xFF, 0x00, 0x00, 0x01, 0x01, 0x01, 0x11)
     private val ANC_HEADER = intArrayOf(0x09, 0xFF, 0x00, 0x00, 0x01, 0x06, 0x02, 0x0E)
     private val ANC_DEPTH_HEADER = intArrayOf(0x09, 0xFF, 0x00, 0x00, 0x01, 0x06, 0x07, 0x0B)
     private val TRANS_LEVEL_HEADER = intArrayOf(0x09, 0xFF, 0x00, 0x00, 0x01, 0x06, 0x04, 0x0B)
@@ -71,7 +71,7 @@ object RoseResponseParser {
      *
      * 优先使用严格校验和校验；若校验失败但字段值合理，使用容错解析， 以降低首包偶发损坏导致的状态丢失。
      */
-    private fun parseBattery(data: ByteArray): RoseResponse {
+    private fun parseBattery(data: ByteArray): EarfreeI5Response {
         val leftLevelRaw = data[11].toInt() and 0xFF
         val rightLevelRaw = data[12].toInt() and 0xFF
         val leftChargingRaw = data[13].toInt() and 0xFF
@@ -92,7 +92,7 @@ object RoseResponseParser {
                 caseLevel = caseLevelRaw,
             )
         ) {
-            return RoseResponse.Unknown
+            return EarfreeI5Response.Unknown
         }
 
         val leftLevel = leftLevelRaw.asBatteryLevelOrNull()
@@ -102,10 +102,10 @@ object RoseResponseParser {
         val rightCharging = rightChargingRaw == 0x01
 
         if (leftLevel == null && rightLevel == null && caseLevel == null) {
-            return RoseResponse.Unknown
+            return EarfreeI5Response.Unknown
         }
 
-        return RoseResponse.Battery(
+        return EarfreeI5Response.Battery(
             TwsBatteryState(
                 left = leftLevel?.let { EarBatteryState(it, leftCharging) },
                 right = rightLevel?.let { EarBatteryState(it, rightCharging) },
@@ -119,7 +119,7 @@ object RoseResponseParser {
      * - [9]=01 → 降噪, [10]=01 → 普通, [11]=01 → 风噪, [12]=01 → 通透
      * 完整模式: 降噪 00 01 00 00 00 / 普通 00 00 01 00 00 / 风噪 00 00 00 01 00 / 通透 00 00 00 00 01
      */
-    private fun parseAnc(data: ByteArray): RoseResponse {
+    private fun parseAnc(data: ByteArray): EarfreeI5Response {
         val noiseCancel = data[9].toInt() and 0xFF
         val normal = data[10].toInt() and 0xFF
         val windNoise = data[11].toInt() and 0xFF
@@ -131,60 +131,60 @@ object RoseResponseParser {
                 normal == 1 -> AncMode.NORMAL
                 windNoise == 1 -> AncMode.WIND_NOISE
                 transparent == 1 -> AncMode.TRANSPARENT
-                else -> return RoseResponse.Unknown
+                else -> return EarfreeI5Response.Unknown
             }
-        return RoseResponse.Anc(mode)
+        return EarfreeI5Response.Anc(mode)
     }
 
     /** 解析降噪深度回包。 Header: 09 FF 00 00 01 06 07 0B 00 [value] [cs] value: 00=轻度, 01=中度, 02=深度 */
-    private fun parseAncDepth(data: ByteArray): RoseResponse {
+    private fun parseAncDepth(data: ByteArray): EarfreeI5Response {
         val value = data[9].toInt() and 0xFF
         val depth = when (value) {
             0x00 -> AncDepth.LIGHT
             0x01 -> AncDepth.MEDIUM
             0x02 -> AncDepth.DEEP
-            else -> return RoseResponse.Unknown
+            else -> return EarfreeI5Response.Unknown
         }
-        return RoseResponse.AncDepthChanged(depth)
+        return EarfreeI5Response.AncDepthChanged(depth)
     }
 
     /** 解析通透强度回包。 Header: 09 FF 00 00 01 06 04 0B 00 [value] [cs] value: 00=舒适, 01=人声, 02=标准 */
-    private fun parseTransLevel(data: ByteArray): RoseResponse {
+    private fun parseTransLevel(data: ByteArray): EarfreeI5Response {
         val value = data[9].toInt() and 0xFF
         val level = when (value) {
             0x00 -> TransparencyLevel.COMFORTABLE
             0x01 -> TransparencyLevel.VOCAL
             0x02 -> TransparencyLevel.STANDARD
-            else -> return RoseResponse.Unknown
+            else -> return EarfreeI5Response.Unknown
         }
-        return RoseResponse.TransparencyChanged(level)
+        return EarfreeI5Response.TransparencyChanged(level)
     }
 
     /**
      * 解析 EQ 回包。 Header: 09 FF 00 00 01 02 01 0B 00 [value] [cs] value: 00=弱水经典, 01=日系柔情, 02=乐器大师,
      * 03=清新空灵
      */
-    private fun parseEq(data: ByteArray): RoseResponse {
+    private fun parseEq(data: ByteArray): EarfreeI5Response {
         val value = data[9].toInt() and 0xFF
         val mode = when (value) {
             0x00 -> EqPreset.CLASSIC
             0x01 -> EqPreset.JAPANESE
             0x02 -> EqPreset.INSTRUMENT
             0x03 -> EqPreset.FRESH
-            else -> return RoseResponse.Unknown
+            else -> return EarfreeI5Response.Unknown
         }
-        return RoseResponse.Eq(mode)
+        return EarfreeI5Response.Eq(mode)
     }
 
     /** 解析游戏模式回包。 Header: 09 FF 00 00 01 06 03 0B 00 [value] [cs] value: 00=开, 01=关 */
-    private fun parseGameMode(data: ByteArray): RoseResponse {
+    private fun parseGameMode(data: ByteArray): EarfreeI5Response {
         val value = data[9].toInt() and 0xFF
         val enabled = when (value) {
             0x00 -> true
             0x01 -> false
-            else -> return RoseResponse.Unknown
+            else -> return EarfreeI5Response.Unknown
         }
-        return RoseResponse.GameMode(enabled)
+        return EarfreeI5Response.GameMode(enabled)
     }
 
     private fun isPlausibleBatteryFrame(
@@ -217,30 +217,30 @@ object RoseResponseParser {
 }
 
 /** 回包解析结果 */
-sealed class RoseResponse {
+sealed class EarfreeI5Response {
     data class Anc(
         val mode: AncMode,
-    ) : RoseResponse()
+    ) : EarfreeI5Response()
 
     data class AncDepthChanged(
         val depth: AncDepth,
-    ) : RoseResponse()
+    ) : EarfreeI5Response()
 
     data class TransparencyChanged(
         val level: TransparencyLevel,
-    ) : RoseResponse()
+    ) : EarfreeI5Response()
 
     data class Eq(
         val mode: EqPreset,
-    ) : RoseResponse()
+    ) : EarfreeI5Response()
 
     data class GameMode(
         val enabled: Boolean,
-    ) : RoseResponse()
+    ) : EarfreeI5Response()
 
     data class Battery(
         val info: TwsBatteryState,
-    ) : RoseResponse()
+    ) : EarfreeI5Response()
 
-    data object Unknown : RoseResponse()
+    data object Unknown : EarfreeI5Response()
 }

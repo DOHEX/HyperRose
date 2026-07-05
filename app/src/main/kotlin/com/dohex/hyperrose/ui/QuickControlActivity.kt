@@ -61,6 +61,7 @@ class QuickControlActivity : ComponentActivity() {
                 onDispose { deviceControlStore.release() }
             }
 
+
             LaunchedEffect(deviceControlStore) {
                 val currentName = deviceControlStore.deviceName.value
                 val hasPresetBattery = presetLeftLevel >= 0 || presetRightLevel >= 0

@@ -1094,6 +1094,21 @@ object HeadsetServiceBinderHook {
         } else {
             pendingAncDepth = depth
             moduleLog("GATT client null, caching ANC depth=$depth for retry")
+            val ctx = context ?: return
+            ctx.sendBroadcast(
+                Intent(HyperRoseAction.SET_ANC_DEPTH).apply {
+                    putExtra(HyperRoseAction.EXTRA_DEPTH, depth.name)
+                    `package` = HyperRoseAction.PACKAGE_BLUETOOTH
+                    addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                },
+            )
+            if (pendingRetryCount < MAX_PENDING_RETRIES) {
+                pendingRetryCount++
+                handler.postDelayed(
+                    { replayPendingAncCommands() },
+                    PENDING_RETRY_DELAY_MS * pendingRetryCount
+                )
+            }
         }
         requestStatusRefresh("sendAncDepth:$depth")
     }
@@ -1107,6 +1122,21 @@ object HeadsetServiceBinderHook {
         } else {
             pendingTransLevel = level
             moduleLog("GATT client null, caching trans level=$level for retry")
+            val ctx = context ?: return
+            ctx.sendBroadcast(
+                Intent(HyperRoseAction.SET_TRANS_LEVEL).apply {
+                    putExtra(HyperRoseAction.EXTRA_LEVEL, level.name)
+                    `package` = HyperRoseAction.PACKAGE_BLUETOOTH
+                    addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                },
+            )
+            if (pendingRetryCount < MAX_PENDING_RETRIES) {
+                pendingRetryCount++
+                handler.postDelayed(
+                    { replayPendingAncCommands() },
+                    PENDING_RETRY_DELAY_MS * pendingRetryCount
+                )
+            }
         }
         requestStatusRefresh("sendTransLevel:$level")
     }
@@ -1117,37 +1147,57 @@ object HeadsetServiceBinderHook {
      * Binder hook 可能比 GATT 连接更早收到 ANC 命令，因此需要缓存重放机制。
      */
     private fun replayPendingAncCommands() {
+        val ctx = context ?: return
         val gatt = BluetoothProcessHook.currentSession()
-        if (gatt == null) {
-            moduleLog(
-                "replayPendingAncCommands: GATT still null, " +
-                        "pendingAnc=$pendingAncMode depth=$pendingAncDepth trans=$pendingTransLevel",
-            )
-            if (pendingAncMode != null && pendingRetryCount < MAX_PENDING_RETRIES) {
-                pendingRetryCount++
-                handler.postDelayed(
-                    { replayPendingAncCommands() },
-                    PENDING_RETRY_DELAY_MS * pendingRetryCount
-                )
-            }
-            return
-        }
-        pendingRetryCount = 0
         pendingAncMode?.let { mode ->
-            gatt.sendCommand(gatt.profile.protocol.ancCommand(mode))
-            moduleLog("replay: ANC command sent: $mode")
+            if (gatt != null) {
+                gatt.sendCommand(gatt.profile.protocol.ancCommand(mode))
+                moduleLog("replay direct: ANC $mode")
+            } else {
+                ctx.sendBroadcast(
+                    Intent(HyperRoseAction.ANC_SELECT).apply {
+                        putExtra(HyperRoseAction.EXTRA_MODE, mode.name)
+                        `package` = HyperRoseAction.PACKAGE_BLUETOOTH
+                        addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                    },
+                )
+                moduleLog("replay broadcast: ANC $mode")
+            }
             pendingAncMode = null
         }
         pendingAncDepth?.let { depth ->
-            gatt.sendCommand(gatt.profile.protocol.ancDepthCommand(depth))
-            moduleLog("replay: ANC depth sent: $depth")
+            if (gatt != null) {
+                gatt.sendCommand(gatt.profile.protocol.ancDepthCommand(depth))
+                moduleLog("replay direct: ANC depth $depth")
+            } else {
+                ctx.sendBroadcast(
+                    Intent(HyperRoseAction.SET_ANC_DEPTH).apply {
+                        putExtra(HyperRoseAction.EXTRA_DEPTH, depth.name)
+                        `package` = HyperRoseAction.PACKAGE_BLUETOOTH
+                        addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                    },
+                )
+                moduleLog("replay broadcast: ANC depth $depth")
+            }
             pendingAncDepth = null
         }
         pendingTransLevel?.let { level ->
-            gatt.sendCommand(gatt.profile.protocol.transLevelCommand(level))
-            moduleLog("replay: trans level sent: $level")
+            if (gatt != null) {
+                gatt.sendCommand(gatt.profile.protocol.transLevelCommand(level))
+                moduleLog("replay direct: trans level $level")
+            } else {
+                ctx.sendBroadcast(
+                    Intent(HyperRoseAction.SET_TRANS_LEVEL).apply {
+                        putExtra(HyperRoseAction.EXTRA_LEVEL, level.name)
+                        `package` = HyperRoseAction.PACKAGE_BLUETOOTH
+                        addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                    },
+                )
+                moduleLog("replay broadcast: trans level $level")
+            }
             pendingTransLevel = null
         }
+        pendingRetryCount = 0
         if (pendingAncMode != null || pendingAncDepth != null || pendingTransLevel != null) {
             requestStatusRefresh("replayPendingAncCommands")
         }

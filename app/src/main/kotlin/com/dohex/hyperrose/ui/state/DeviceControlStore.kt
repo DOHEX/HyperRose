@@ -18,7 +18,10 @@ import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.model.withLastKnownCaseBattery
+import com.dohex.hyperrose.profile.TransportSpec
 import com.dohex.hyperrose.service.StandaloneGattClient
+import com.dohex.hyperrose.service.StandaloneClient
+import com.dohex.hyperrose.service.StandaloneRfcommClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,15 +34,11 @@ import kotlinx.coroutines.flow.onEach
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
 enum class DeviceConnectionState {
-    DISCONNECTED,
-    CONNECTING,
-    CONNECTED,
+    DISCONNECTED, CONNECTING, CONNECTED,
 }
 
 enum class ConnectionTransport {
-    NONE,
-    DIRECT_BLE,
-    HOOK_BRIDGE,
+    NONE, DIRECT_BLE, DIRECT_RFCOMM, HOOK_BRIDGE,
 }
 
 data class RoseDeviceItem(
@@ -57,9 +56,9 @@ class DeviceControlStore(
 ) {
     private val appContext = context.applicationContext
     private val directGattClient = StandaloneGattClient(
-        appContext,
-        com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile
+        appContext, com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile
     )
+    private var directRfcommClient: StandaloneRfcommClient? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val _hasBluetoothPermission = MutableStateFlow(false)
@@ -106,89 +105,85 @@ class DeviceControlStore(
 
     private var receiverRegistered = false
 
-    private val bridgeReceiver =
-        object : BroadcastReceiver() {
-            @SuppressLint("MissingPermission")
-            override fun onReceive(
-                context: Context,
-                intent: Intent,
-            ) {
-                when (intent.action) {
-                    HyperRoseAction.DEVICE_CONNECTED -> {
-                        val device =
-                            intent.getParcelableExtra(
-                                HyperRoseAction.EXTRA_DEVICE,
-                                android.bluetooth.BluetoothDevice::class.java,
-                            )
-                        val needsHookBridge =
-                            _transport.value != ConnectionTransport.DIRECT_BLE ||
-                                    _connectionState.value != DeviceConnectionState.CONNECTED
-                        if (needsHookBridge) {
-                            _transport.value = ConnectionTransport.HOOK_BRIDGE
-                            _connectionState.value = DeviceConnectionState.CONNECTED
-                            _deviceName.value = device?.name ?: _deviceName.value
-                                    ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName
-                            val profileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
-                            if (profileId != null) {
-                                _capabilities.value =
-                                    com.dohex.hyperrose.profile.DeviceProfileRegistry
-                                        .findById(profileId)?.capabilities
-                                        ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
-                            }
+    private val bridgeReceiver = object : BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
+        override fun onReceive(
+            context: Context,
+            intent: Intent,
+        ) {
+            when (intent.action) {
+                HyperRoseAction.DEVICE_CONNECTED -> {
+                    val device = intent.getParcelableExtra(
+                        HyperRoseAction.EXTRA_DEVICE,
+                        android.bluetooth.BluetoothDevice::class.java,
+                    )
+                    val needsHookBridge =
+                        (_transport.value != ConnectionTransport.DIRECT_BLE && _transport.value != ConnectionTransport.DIRECT_RFCOMM) || _connectionState.value != DeviceConnectionState.CONNECTED
+                    if (needsHookBridge) {
+                        _transport.value = ConnectionTransport.HOOK_BRIDGE
+                        _connectionState.value = DeviceConnectionState.CONNECTED
+                        _deviceName.value = device?.name ?: _deviceName.value
+                                ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName
+                        val profileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
+                        if (profileId != null) {
+                            _capabilities.value =
+                                com.dohex.hyperrose.profile.DeviceProfileRegistry.findById(profileId)?.capabilities
+                                    ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
                         }
                     }
+                }
 
-                    HyperRoseAction.DEVICE_DISCONNECTED -> {
-                        if (_transport.value == ConnectionTransport.HOOK_BRIDGE) {
-                            _connectionState.value = DeviceConnectionState.DISCONNECTED
-                            _transport.value = ConnectionTransport.NONE
-                            clearState()
-                        }
+                HyperRoseAction.DEVICE_DISCONNECTED -> {
+                    if (_transport.value == ConnectionTransport.HOOK_BRIDGE) {
+                        _connectionState.value = DeviceConnectionState.DISCONNECTED
+                        _transport.value = ConnectionTransport.NONE
+                        clearState()
                     }
+                }
 
-                    HyperRoseAction.BATTERY_CHANGED -> {
-                        parseBattery(intent)?.let {
-                            _battery.value = it.withLastKnownCaseBattery(_battery.value)
-                        }
+                HyperRoseAction.BATTERY_CHANGED -> {
+                    parseBattery(intent)?.let {
+                        _battery.value = it.withLastKnownCaseBattery(_battery.value)
                     }
+                }
 
-                    HyperRoseAction.ANC_CHANGED -> {
-                        intent.enumExtra<AncMode>(HyperRoseAction.EXTRA_MODE)
-                            ?.let { _ancMode.value = it }
+                HyperRoseAction.ANC_CHANGED -> {
+                    intent.enumExtra<AncMode>(HyperRoseAction.EXTRA_MODE)
+                        ?.let { _ancMode.value = it }
+                }
+
+                HyperRoseAction.ANC_DEPTH_CHANGED -> {
+                    intent.enumExtra<AncDepth>(HyperRoseAction.EXTRA_DEPTH)
+                        ?.let { _ancDepth.value = it }
+                }
+
+                HyperRoseAction.TRANS_LEVEL_CHANGED -> {
+                    intent.enumExtra<TransparencyLevel>(HyperRoseAction.EXTRA_LEVEL)?.let {
+                        _transLevel.value = it
                     }
+                }
 
-                    HyperRoseAction.ANC_DEPTH_CHANGED -> {
-                        intent.enumExtra<AncDepth>(HyperRoseAction.EXTRA_DEPTH)
-                            ?.let { _ancDepth.value = it }
+                HyperRoseAction.EQ_CHANGED -> {
+                    intent.enumExtra<EqPreset>(HyperRoseAction.EXTRA_MODE)
+                        ?.let { _eqMode.value = it }
+                }
+
+                HyperRoseAction.GAME_MODE_CHANGED -> {
+                    if (intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) {
+                        _gameMode.value =
+                            intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
                     }
+                }
 
-                    HyperRoseAction.TRANS_LEVEL_CHANGED -> {
-                        intent.enumExtra<TransparencyLevel>(HyperRoseAction.EXTRA_LEVEL)?.let {
-                            _transLevel.value = it
-                        }
-                    }
-
-                    HyperRoseAction.EQ_CHANGED -> {
-                        intent.enumExtra<EqPreset>(HyperRoseAction.EXTRA_MODE)
-                            ?.let { _eqMode.value = it }
-                    }
-
-                    HyperRoseAction.GAME_MODE_CHANGED -> {
-                        if (intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) {
-                            _gameMode.value =
-                                intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
-                        }
-                    }
-
-                    HyperRoseAction.LOW_LATENCY_CHANGED -> {
-                        if (intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) {
-                            _lowLatency.value =
-                                intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
-                        }
+                HyperRoseAction.LOW_LATENCY_CHANGED -> {
+                    if (intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) {
+                        _lowLatency.value =
+                            intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
                     }
                 }
             }
         }
+    }
 
     init {
         observeDirectGatt()
@@ -197,16 +192,14 @@ class DeviceControlStore(
     }
 
     fun refreshPermissionState() {
-        val hasConnect =
-            ContextCompat.checkSelfPermission(
-                appContext,
-                Manifest.permission.BLUETOOTH_CONNECT,
-            ) == PackageManager.PERMISSION_GRANTED
-        val hasScan =
-            ContextCompat.checkSelfPermission(
-                appContext,
-                Manifest.permission.BLUETOOTH_SCAN,
-            ) == PackageManager.PERMISSION_GRANTED
+        val hasConnect = ContextCompat.checkSelfPermission(
+            appContext,
+            Manifest.permission.BLUETOOTH_CONNECT,
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasScan = ContextCompat.checkSelfPermission(
+            appContext,
+            Manifest.permission.BLUETOOTH_SCAN,
+        ) == PackageManager.PERMISSION_GRANTED
         _hasBluetoothPermission.value = hasConnect && hasScan
     }
 
@@ -217,24 +210,19 @@ class DeviceControlStore(
             return
         }
 
-        val adapter =
-            BluetoothAdapter.getDefaultAdapter()
-                ?: run {
-                    _pairedDevices.value = emptyList()
-                    return
-                }
+        val adapter = BluetoothAdapter.getDefaultAdapter() ?: run {
+            _pairedDevices.value = emptyList()
+            return
+        }
 
-        _pairedDevices.value =
-            adapter.bondedDevices
-                .mapNotNull { device ->
-                    val name = device.name ?: device.alias ?: return@mapNotNull null
-                    RoseDeviceItem(name = name, address = device.address)
-                }.sortedWith(
-                    compareByDescending<RoseDeviceItem> {
-                        com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it.name) != null
-                    }.thenBy { it.name.lowercase() }
-                        .thenBy { it.address },
-                )
+        _pairedDevices.value = adapter.bondedDevices.mapNotNull { device ->
+            val name = device.name ?: device.alias ?: return@mapNotNull null
+            RoseDeviceItem(name = name, address = device.address)
+        }.sortedWith(
+            compareByDescending<RoseDeviceItem> {
+                com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it.name) != null
+            }.thenBy { it.name.lowercase() }.thenBy { it.address },
+        )
     }
 
     @SuppressLint("MissingPermission")
@@ -245,107 +233,124 @@ class DeviceControlStore(
 
         com.dohex.hyperrose.data.AuthorizedDeviceStore.add(appContext, address)
 
-        _transport.value = ConnectionTransport.DIRECT_BLE
-        _connectionState.value = DeviceConnectionState.CONNECTING
+        val profile = com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(
+            bonded.name ?: ""
+        )
         _deviceName.value = bonded.name ?: address
-        directGattClient.connect(bonded)
-    }
 
-    fun setAnc(mode: AncMode) {
-        _ancMode.value = mode
-        routeControl(
-            direct = { directGattClient.setAnc(mode) },
-            bridge = { BluetoothCommandDispatcher.setAnc(appContext, mode) },
-        )
-    }
-
-    fun setAncDepth(depth: AncDepth) {
-        _ancDepth.value = depth
-        routeControl(
-            direct = { directGattClient.setAncDepth(depth) },
-            bridge = { BluetoothCommandDispatcher.setAncDepth(appContext, depth) },
-        )
-    }
-
-    fun setTransLevel(level: TransparencyLevel) {
-        _transLevel.value = level
-        routeControl(
-            direct = { directGattClient.setTransLevel(level) },
-            bridge = { BluetoothCommandDispatcher.setTransLevel(appContext, level) },
-        )
-    }
-
-    fun setEq(mode: EqPreset) {
-        _eqMode.value = mode
-        routeControl(
-            direct = { directGattClient.setEq(mode) },
-            bridge = { BluetoothCommandDispatcher.setEq(appContext, mode) },
-        )
-    }
-
-    fun setGameMode(enabled: Boolean) {
-        _gameMode.value = enabled
-        routeControl(
-            direct = { directGattClient.setGameMode(enabled) },
-            bridge = { BluetoothCommandDispatcher.setGameMode(appContext, enabled) },
-        )
-    }
-
-    fun setLowLatency(enabled: Boolean) {
-        _lowLatency.value = enabled
-        routeControl(
-            direct = { directGattClient.setLowLatency(enabled) },
-            bridge = { BluetoothCommandDispatcher.setLowLatency(appContext, enabled) },
-        )
-    }
-
-    fun findLeft() {
-        routeControl(
-            direct = { directGattClient.findLeft() },
-            bridge = { BluetoothCommandDispatcher.findLeft(appContext) },
-        )
-    }
-
-    fun findRight() {
-        routeControl(
-            direct = { directGattClient.findRight() },
-            bridge = { BluetoothCommandDispatcher.findRight(appContext) },
-        )
-    }
-
-    fun stopFind() {
-        routeControl(
-            direct = { directGattClient.stopFind() },
-            bridge = { BluetoothCommandDispatcher.stopFind(appContext) },
-        )
-    }
-
-    /** 发送原始 hex 指令（供调试页使用），根据当前传输模式路由 */
-    fun sendRawCommand(hex: String) {
-        if (isDirectConnected()) {
-            directGattClient.sendRawCommand(hex)
-        } else {
-            Intent(HyperRoseAction.RAW_SEND).apply {
-                setPackage(HyperRoseAction.PACKAGE_BLUETOOTH)
-                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-                putExtra(HyperRoseAction.EXTRA_HEX, hex)
-                appContext.sendBroadcast(this)
+        when (profile?.transport) {
+            is TransportSpec.Rfcomm -> {
+                directRfcommClient?.disconnect()
+                val client = StandaloneRfcommClient(appContext, profile)
+                directRfcommClient = client
+                observeDirectRfcomm(client)
+                _capabilities.value = profile.capabilities
+                _transport.value = ConnectionTransport.DIRECT_RFCOMM
+                _connectionState.value = DeviceConnectionState.CONNECTING
+                client.connect(bonded)
+            }
+            else -> {
+                _transport.value = ConnectionTransport.DIRECT_BLE
+                _connectionState.value = DeviceConnectionState.CONNECTING
+                directGattClient.connect(bonded)
             }
         }
     }
 
+    fun setAnc(mode: AncMode) {
+        _ancMode.value = mode
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.setAnc(appContext, mode)
+            else -> client.setAnc(mode)
+        }
+    }
+
+    fun setAncDepth(depth: AncDepth) {
+        _ancDepth.value = depth
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.setAncDepth(appContext, depth)
+            else -> client.setAncDepth(depth)
+        }
+    }
+
+    fun setTransLevel(level: TransparencyLevel) {
+        _transLevel.value = level
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.setTransLevel(appContext, level)
+            else -> client.setTransLevel(level)
+        }
+    }
+
+    fun setEq(mode: EqPreset) {
+        _eqMode.value = mode
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.setEq(appContext, mode)
+            else -> client.setEq(mode)
+        }
+    }
+
+    fun setGameMode(enabled: Boolean) {
+        _gameMode.value = enabled
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.setGameMode(appContext, enabled)
+            else -> client.setGameMode(enabled)
+        }
+    }
+
+    fun setLowLatency(enabled: Boolean) {
+        _lowLatency.value = enabled
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.setLowLatency(appContext, enabled)
+            else -> client.setLowLatency(enabled)
+        }
+    }
+
+    fun findLeft() {
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.findLeft(appContext)
+            else -> client.findLeft()
+        }
+    }
+
+    fun findRight() {
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.findRight(appContext)
+            else -> client.findRight()
+        }
+    }
+
+    fun stopFind() {
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.stopFind(appContext)
+            else -> client.stopFind()
+        }
+    }
+
+    /** 发送原始 hex 指令（供调试页使用），根据当前传输模式路由 */
+    fun sendRawCommand(hex: String) {
+        when (val client = activeDirectClient()) {
+            null -> {
+                Intent(HyperRoseAction.RAW_SEND).apply {
+                    setPackage(HyperRoseAction.PACKAGE_BLUETOOTH)
+                    addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                    putExtra(HyperRoseAction.EXTRA_HEX, hex)
+                    appContext.sendBroadcast(this)
+                }
+            }
+            else -> client.sendRawCommand(hex)
+        }
+    }
 
     fun refreshStatus() {
-        routeControl(
-            direct = { directGattClient.refreshStatus() },
-            bridge = { BluetoothCommandDispatcher.refreshStatus(appContext) },
-        )
+        when (val client = activeDirectClient()) {
+            null -> BluetoothCommandDispatcher.refreshStatus(appContext)
+            else -> client.refreshStatus()
+        }
     }
 
     fun disconnect() {
-        if (isDirectConnected()) {
-            directGattClient.disconnect()
-        }
+        directRfcommClient?.disconnect()
+        directGattClient.disconnect()
         BluetoothCommandDispatcher.disconnectGatt(appContext)
         _connectionState.value = DeviceConnectionState.DISCONNECTED
         _transport.value = ConnectionTransport.NONE
@@ -370,50 +375,47 @@ class DeviceControlStore(
             runCatching { appContext.unregisterReceiver(bridgeReceiver) }
             receiverRegistered = false
         }
+        directRfcommClient?.disconnect()
+        directRfcommClient = null
         directGattClient.disconnect()
         scope.coroutineContext.cancel()
     }
 
     private fun observeDirectGatt() {
-        directGattClient.connectionState
-            .onEach { state ->
-                if (
-                    _transport.value != ConnectionTransport.DIRECT_BLE &&
-                    state == StandaloneGattClient.ConnectionState.CONNECTED
-                ) {
+        directGattClient.connectionState.onEach { state ->
+            if (_transport.value != ConnectionTransport.DIRECT_BLE && state == StandaloneGattClient.ConnectionState.CONNECTED) {
+                _transport.value = ConnectionTransport.DIRECT_BLE
+            }
+            when (state) {
+                StandaloneGattClient.ConnectionState.DISCONNECTED -> {
+                    if (_transport.value == ConnectionTransport.DIRECT_BLE) {
+                        _connectionState.value = DeviceConnectionState.DISCONNECTED
+                        _transport.value = ConnectionTransport.NONE
+                        clearState()
+                    }
+                }
+
+                StandaloneGattClient.ConnectionState.CONNECTING -> {
+                    _connectionState.value = DeviceConnectionState.CONNECTING
                     _transport.value = ConnectionTransport.DIRECT_BLE
                 }
-                when (state) {
-                    StandaloneGattClient.ConnectionState.DISCONNECTED -> {
-                        if (_transport.value == ConnectionTransport.DIRECT_BLE) {
-                            _connectionState.value = DeviceConnectionState.DISCONNECTED
-                            _transport.value = ConnectionTransport.NONE
-                            clearState()
-                        }
-                    }
 
-                    StandaloneGattClient.ConnectionState.CONNECTING -> {
-                        _connectionState.value = DeviceConnectionState.CONNECTING
-                        _transport.value = ConnectionTransport.DIRECT_BLE
-                    }
-
-                    StandaloneGattClient.ConnectionState.CONNECTED -> {
-                        _connectionState.value = DeviceConnectionState.CONNECTED
-                        _transport.value = ConnectionTransport.DIRECT_BLE
-                    }
+                StandaloneGattClient.ConnectionState.CONNECTED -> {
+                    _connectionState.value = DeviceConnectionState.CONNECTED
+                    _transport.value = ConnectionTransport.DIRECT_BLE
                 }
-            }.launchIn(scope)
+            }
+        }.launchIn(scope)
 
-        directGattClient.deviceName
-            .onEach { name ->
-                if (!name.isNullOrBlank()) {
-                    _deviceName.value = name
-                }
-            }.launchIn(scope)
+        directGattClient.deviceName.onEach { name ->
+            if (!name.isNullOrBlank()) {
+                _deviceName.value = name
+            }
+        }.launchIn(scope)
 
-        directGattClient.battery
-            .onEach { _battery.value = it?.withLastKnownCaseBattery(_battery.value) }
-            .launchIn(scope)
+        directGattClient.battery.onEach {
+            _battery.value = it?.withLastKnownCaseBattery(_battery.value)
+        }.launchIn(scope)
 
         directGattClient.ancMode.onEach { if (it != null) _ancMode.value = it }.launchIn(scope)
 
@@ -427,6 +429,41 @@ class DeviceControlStore(
         directGattClient.gameMode.onEach { if (it != null) _gameMode.value = it }.launchIn(scope)
     }
 
+    private fun observeDirectRfcomm(client: StandaloneRfcommClient) {
+        client.connectionState.onEach { state ->
+            when (state) {
+                StandaloneRfcommClient.ConnectionState.DISCONNECTED -> {
+                    if (_transport.value == ConnectionTransport.DIRECT_RFCOMM) {
+                        _connectionState.value = DeviceConnectionState.DISCONNECTED
+                        _transport.value = ConnectionTransport.NONE
+                        clearState()
+                    }
+                }
+                StandaloneRfcommClient.ConnectionState.CONNECTING -> {
+                    _connectionState.value = DeviceConnectionState.CONNECTING
+                }
+                StandaloneRfcommClient.ConnectionState.CONNECTED -> {
+                    _connectionState.value = DeviceConnectionState.CONNECTED
+                }
+            }
+        }.launchIn(scope)
+
+        client.deviceName.onEach { name ->
+            if (!name.isNullOrBlank()) _deviceName.value = name
+        }.launchIn(scope)
+
+        client.battery.onEach {
+            _battery.value = it?.withLastKnownCaseBattery(_battery.value)
+        }.launchIn(scope)
+
+        client.ancMode.onEach { if (it != null) _ancMode.value = it }.launchIn(scope)
+        client.ancDepth.onEach { if (it != null) _ancDepth.value = it }.launchIn(scope)
+        client.transLevel.onEach { if (it != null) _transLevel.value = it }.launchIn(scope)
+        client.eqMode.onEach { if (it != null) _eqMode.value = it }.launchIn(scope)
+        client.gameMode.onEach { if (it != null) _gameMode.value = it }.launchIn(scope)
+        client.lowLatency.onEach { if (it != null) _lowLatency.value = it }.launchIn(scope)
+    }
+
     private fun registerBridgeReceiver() {
         if (receiverRegistered) return
         val filter =
@@ -435,19 +472,12 @@ class DeviceControlStore(
         receiverRegistered = true
     }
 
-    private fun isDirectConnected(): Boolean =
-        directGattClient.connectionState.value == StandaloneGattClient.ConnectionState.CONNECTED
-
-    private inline fun routeControl(
-        direct: () -> Unit,
-        bridge: () -> Unit,
-    ) {
-        if (isDirectConnected()) {
-            direct()
-        } else {
-            bridge()
-        }
+    private fun activeDirectClient(): StandaloneClient? = when (_transport.value) {
+        ConnectionTransport.DIRECT_BLE -> directGattClient
+        ConnectionTransport.DIRECT_RFCOMM -> directRfcommClient
+        else -> null
     }
+
 
     private inline fun <reified T : Enum<T>> Intent.enumExtra(key: String): T? =
         getStringExtra(key)?.let { runCatching { enumValueOf<T>(it) }.getOrNull() }
@@ -464,24 +494,21 @@ class DeviceControlStore(
             return null
         }
 
-        val left =
-            leftLevel?.let {
-                EarBatteryState(
-                    level = it,
-                    isCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false),
-                )
-            }
+        val left = leftLevel?.let {
+            EarBatteryState(
+                level = it,
+                isCharging = intent.getBooleanExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, false),
+            )
+        }
 
-        val right =
-            rightLevel?.let {
-                EarBatteryState(
-                    level = it,
-                    isCharging = intent.getBooleanExtra(
-                        HyperRoseAction.EXTRA_RIGHT_CHARGING,
-                        false
-                    ),
-                )
-            }
+        val right = rightLevel?.let {
+            EarBatteryState(
+                level = it,
+                isCharging = intent.getBooleanExtra(
+                    HyperRoseAction.EXTRA_RIGHT_CHARGING, false
+                ),
+            )
+        }
 
         return TwsBatteryState(
             left = left,

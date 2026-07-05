@@ -96,8 +96,7 @@ private val ThanksGithubLinks = listOf(
 
 @Composable
 fun SettingsPage(
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    onBack: () -> Unit, modifier: Modifier = Modifier
 ) {
     val themeMode = LocalThemeMode.current
     val updateThemeMode = LocalUpdateThemeMode.current
