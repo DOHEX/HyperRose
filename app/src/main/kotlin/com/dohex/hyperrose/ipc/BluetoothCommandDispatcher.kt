@@ -53,7 +53,12 @@ object BluetoothCommandDispatcher {
         context: Context,
         enabled: Boolean,
     ) {
-        send(context, HyperRoseIpc.SET_LOW_LATENCY) { putExtra(HyperRoseIpc.EXTRA_ENABLED, enabled) }
+        send(context, HyperRoseIpc.SET_LOW_LATENCY) {
+            putExtra(
+                HyperRoseIpc.EXTRA_ENABLED,
+                enabled
+            )
+        }
     }
 
     fun findLeft(context: Context) {

@@ -51,6 +51,7 @@ import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
+import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
@@ -68,16 +69,20 @@ fun HomePage(
     transLevel: TransparencyLevel?,
     eqMode: EqPreset?,
     gameMode: Boolean,
+    lowLatency: Boolean,
+    capabilities: com.dohex.hyperrose.profile.DeviceCapabilities,
     onAncModeChange: (AncMode) -> Unit,
     onAncDepthChange: (AncDepth) -> Unit,
     onTransLevelChange: (TransparencyLevel) -> Unit,
     onEqModeChange: (EqPreset) -> Unit,
     onGameModeChange: (Boolean) -> Unit,
+    onLowLatencyChange: (Boolean) -> Unit,
     onFindLeft: () -> Unit,
     onFindRight: () -> Unit,
     onStopFind: () -> Unit,
     onRefreshStatus: () -> Unit,
     onDisconnect: () -> Unit,
+    onOpenBleDebug: () -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -98,6 +103,11 @@ fun HomePage(
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(MiuixIcons.ChevronBackward, contentDescription = "返回")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onOpenBleDebug) {
+                            Icon(MiuixIcons.Info, contentDescription = "BLE 调试")
                         }
                     },
                     scrollBehavior = scrollBehavior,
@@ -187,28 +197,47 @@ fun HomePage(
                         onAncDepthChange = onAncDepthChange,
                         onTransLevelChange = onTransLevelChange,
                         enabled = true,
+                        showAncDepth = capabilities.supportedAncDepths.isNotEmpty(),
+                        showTransLevel = capabilities.supportedTransLevels.isNotEmpty(),
                     )
                 }
-                item {
-                    EqSelector(
-                        eqMode = eqMode,
-                        onSelect = onEqModeChange,
-                        enabled = true,
-                    )
-                }
-                item {
-                    Card {
-                        SwitchPreference(
-                            title = "游戏模式",
-                            checked = gameMode,
-                            onCheckedChange = onGameModeChange
+                if (capabilities.supportedEqPresets.isNotEmpty()) {
+                    item {
+                        EqSelector(
+                            eqMode = eqMode,
+                            onSelect = onEqModeChange,
+                            enabled = true,
                         )
                     }
                 }
-                item {
-                    Card {
-                        ArrowPreference(
-                            title = "查找耳机", onClick = { showFindDialog = true })
+                if (capabilities.hasGameMode) {
+                    item {
+                        Card {
+                            SwitchPreference(
+                                title = "游戏模式",
+                                checked = gameMode,
+                                onCheckedChange = onGameModeChange
+                            )
+                        }
+                    }
+                }
+                if (capabilities.hasLowLatency) {
+                    item {
+                        Card {
+                            SwitchPreference(
+                                title = "低延迟",
+                                checked = lowLatency,
+                                onCheckedChange = onLowLatencyChange
+                            )
+                        }
+                    }
+                }
+                if (capabilities.hasFindEarphone) {
+                    item {
+                        Card {
+                            ArrowPreference(
+                                title = "查找耳机", onClick = { showFindDialog = true })
+                        }
                     }
                 }
             }
@@ -284,11 +313,14 @@ private fun HomePagePreview_Connected() {
                 transLevel = TransparencyLevel.STANDARD,
                 eqMode = EqPreset.CLASSIC,
                 gameMode = false,
+                lowLatency = false,
+                capabilities = com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities,
                 onAncModeChange = {},
                 onAncDepthChange = {},
                 onTransLevelChange = {},
                 onEqModeChange = {},
                 onGameModeChange = {},
+                onLowLatencyChange = {},
                 onFindLeft = {},
                 onFindRight = {},
                 onStopFind = {},
@@ -319,11 +351,14 @@ private fun HomePagePreview_ConnectedGameMode() {
                 transLevel = TransparencyLevel.VOCAL,
                 eqMode = EqPreset.JAPANESE,
                 gameMode = true,
+                lowLatency = false,
+                capabilities = com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities,
                 onAncModeChange = {},
                 onAncDepthChange = {},
                 onTransLevelChange = {},
                 onEqModeChange = {},
                 onGameModeChange = {},
+                onLowLatencyChange = {},
                 onFindLeft = {},
                 onFindRight = {},
                 onStopFind = {},
@@ -350,11 +385,14 @@ private fun HomePagePreview_Disconnected() {
                 transLevel = null,
                 eqMode = null,
                 gameMode = false,
+                lowLatency = false,
+                capabilities = com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities,
                 onAncModeChange = {},
                 onAncDepthChange = {},
                 onTransLevelChange = {},
                 onEqModeChange = {},
                 onGameModeChange = {},
+                onLowLatencyChange = {},
                 onFindLeft = {},
                 onFindRight = {},
                 onStopFind = {},

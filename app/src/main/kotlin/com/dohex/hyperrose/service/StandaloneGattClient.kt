@@ -13,6 +13,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.dohex.hyperrose.debug.BleLog
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.EqPreset
@@ -25,6 +26,9 @@ import com.dohex.hyperrose.profile.TransportSpec
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /** 独立 App 用的 BLE GATT 通信管理器。 所有状态通过 StateFlow 暴露给 Compose UI。 */
 class StandaloneGattClient(
@@ -33,6 +37,7 @@ class StandaloneGattClient(
 ) {
     companion object {
         private const val TAG = "HyperRose.StandaloneGattClient"
+        private val logTimeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
     }
 
     enum class ConnectionState {
@@ -105,7 +110,9 @@ class StandaloneGattClient(
     fun sendCommand(packet: ByteArray) {
         val char = writeChar ?: return
         val g = gatt ?: return
-        Log.d(TAG, "→ ${packet.toHexString()}")
+        val hex = packet.toHexString()
+        Log.d(TAG, "→ $hex")
+        BleLog.log("App", "TX", hex, "", logTimeFormat.format(Date()))
         @Suppress("DEPRECATION")
         char.value = packet
         @Suppress("DEPRECATION")
@@ -232,44 +239,47 @@ class StandaloneGattClient(
     // ==================== 回包处理 ====================
 
     private fun handleResponse(data: ByteArray) {
-        when (val result = profile.protocol.parseResponse(data)) {
+        val hex = data.toHexString()
+        val result = profile.protocol.parseResponse(data)
+        BleLog.log("App", "RX", hex, result.toString(), logTimeFormat.format(Date()))
+        when (result) {
             is DeviceResponse.Battery -> {
-                Log.d(TAG, "← ${data.toHexString()} → $result")
+                Log.d(TAG, "← $hex → $result")
                 _battery.value = result.info.withLastKnownCaseBattery(_battery.value)
             }
 
             is DeviceResponse.Anc -> {
-                Log.d(TAG, "← ${data.toHexString()} → $result")
+                Log.d(TAG, "← $hex → $result")
                 _ancMode.value = result.mode
             }
 
             is DeviceResponse.AncDepthChanged -> {
-                Log.d(TAG, "← ${data.toHexString()} → $result")
+                Log.d(TAG, "← $hex → $result")
                 _ancDepth.value = result.depth
             }
 
             is DeviceResponse.TransparencyChanged -> {
-                Log.d(TAG, "← ${data.toHexString()} → $result")
+                Log.d(TAG, "← $hex → $result")
                 _transLevel.value = result.level
             }
 
             is DeviceResponse.Eq -> {
-                Log.d(TAG, "← ${data.toHexString()} → $result")
+                Log.d(TAG, "← $hex → $result")
                 _eqMode.value = result.mode
             }
 
             is DeviceResponse.GameMode -> {
-                Log.d(TAG, "← ${data.toHexString()} → $result")
+                Log.d(TAG, "← $hex → $result")
                 _gameMode.value = result.enabled
             }
 
             is DeviceResponse.LowLatencyChanged -> {
-                Log.d(TAG, "← ${data.toHexString()} → $result")
+                Log.d(TAG, "← $hex → $result")
                 _lowLatency.value = result.enabled
             }
 
             is DeviceResponse.Unknown -> {
-                Log.d(TAG, "← ${data.toHexString()} → Unknown")
+                Log.d(TAG, "← $hex → Unknown")
             }
         }
     }

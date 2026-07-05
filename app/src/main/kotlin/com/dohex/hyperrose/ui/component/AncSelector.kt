@@ -1,6 +1,5 @@
 package com.dohex.hyperrose.ui.component
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -26,6 +24,7 @@ import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
+import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -39,6 +38,8 @@ fun AncSelector(
     onAncDepthChange: (AncDepth) -> Unit,
     onTransLevelChange: (TransparencyLevel) -> Unit,
     enabled: Boolean,
+    showAncDepth: Boolean = true,
+    showTransLevel: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     SectionCard(
@@ -61,7 +62,7 @@ fun AncSelector(
             }
         }
 
-        if (ancMode == AncMode.NOISE_CANCEL) {
+        if (showAncDepth && ancMode == AncMode.NOISE_CANCEL) {
             val depthOptions = AncDepth.entries.map { it.label }
             val depthSelectedIndex = AncDepth.entries.indexOf(ancDepth).coerceAtLeast(0)
 
@@ -79,7 +80,7 @@ fun AncSelector(
             )
         }
 
-        if (ancMode == AncMode.TRANSPARENT) {
+        if (showTransLevel && ancMode == AncMode.TRANSPARENT) {
             val transOptions = TransparencyLevel.entries.map { it.label }
             val transSelectedIndex = TransparencyLevel.entries.indexOf(transLevel).coerceAtLeast(0)
 
@@ -109,10 +110,10 @@ private fun AncModeIcon(
     val colorScheme = MiuixTheme.colorScheme
 
     val iconRes = when (mode) {
-        AncMode.NOISE_CANCEL -> if (selected) R.drawable.anc_normal_activate else R.drawable.anc_normal
-        AncMode.WIND_NOISE -> if (selected) R.drawable.anc_wind_activate else R.drawable.anc_wind
-        AncMode.NORMAL -> if (selected) R.drawable.anc_close_activate else R.drawable.anc_close
-        AncMode.TRANSPARENT -> if (selected) R.drawable.anc_trans_activate else R.drawable.anc_trans
+        AncMode.NOISE_CANCEL -> R.drawable.anc_normal
+        AncMode.WIND_NOISE -> R.drawable.anc_wind
+        AncMode.NORMAL -> R.drawable.anc_close
+        AncMode.TRANSPARENT -> R.drawable.anc_trans
     }
 
     val bgColor = when {
@@ -122,8 +123,8 @@ private fun AncModeIcon(
     }
     val iconTint = when {
         !enabled -> colorScheme.disabledOnSurface
-        !selected -> colorScheme.onSurfaceVariantSummary
-        else -> null
+        selected -> colorScheme.onPrimary
+        else -> colorScheme.onSurfaceVariantSummary
     }
     val labelColor = when {
         !enabled -> colorScheme.disabledOnSurface
@@ -134,16 +135,16 @@ private fun AncModeIcon(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Image(
+        Icon(
             painter = painterResource(id = iconRes),
             contentDescription = mode.label,
+            tint = iconTint,
             modifier = Modifier
                 .size(54.dp)
                 .clip(CircleShape)
                 .background(bgColor, CircleShape)
                 .clickable(enabled = enabled) { onClick() }
                 .padding(10.dp),
-            colorFilter = iconTint?.let { ColorFilter.tint(it) },
         )
         Text(
             text = mode.label,

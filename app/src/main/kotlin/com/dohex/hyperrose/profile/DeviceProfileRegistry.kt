@@ -15,4 +15,8 @@ object DeviceProfileRegistry {
     /** Find the first profile whose [DeviceProfile.nameKeywords] match [deviceName]. */
     fun findByName(deviceName: String): DeviceProfile? =
         profiles.firstOrNull { it.matchesDeviceName(deviceName) }
+
+    /** Find profile by its [DeviceProfile.id]. */
+    fun findById(id: String): DeviceProfile? =
+        profiles.firstOrNull { it.id == id }
 }

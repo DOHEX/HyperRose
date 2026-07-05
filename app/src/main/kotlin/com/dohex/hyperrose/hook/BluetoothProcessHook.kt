@@ -144,6 +144,7 @@ object BluetoothProcessHook {
         session = when (profile.transport) {
             is com.dohex.hyperrose.profile.TransportSpec.Gatt ->
                 GattDeviceSession(context, module, profile)
+
             is com.dohex.hyperrose.profile.TransportSpec.Rfcomm ->
                 RfcommDeviceSession(context, module, profile)
         }.also { it.connect(device) }
@@ -158,6 +159,7 @@ object BluetoothProcessHook {
             context.sendBroadcast(
                 Intent(HyperRoseAction.DEVICE_CONNECTED).apply {
                     putExtra(HyperRoseAction.EXTRA_DEVICE, device)
+                    putExtra(HyperRoseAction.EXTRA_PROFILE_ID, profile.id)
                     setPackage(pkg)
                     addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
                 },
@@ -272,6 +274,17 @@ object BluetoothProcessHook {
                                 val enabled =
                                     intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
                                 manager.sendCommand(manager.profile.protocol.gameModeCommand(enabled))
+                            }
+
+                            HyperRoseAction.SET_LOW_LATENCY -> {
+                                if (!intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) return
+                                val enabled =
+                                    intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
+                                manager.sendCommand(
+                                    manager.profile.protocol.lowLatencyCommand(
+                                        enabled
+                                    )
+                                )
                             }
 
                             HyperRoseAction.FIND_EARPHONE -> {

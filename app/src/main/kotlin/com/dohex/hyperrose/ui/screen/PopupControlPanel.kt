@@ -40,6 +40,8 @@ fun PopupControlPanel(
     val transLevel by deviceControlStore.transLevel.collectAsState()
     val eqMode by deviceControlStore.eqMode.collectAsState()
     val gameMode by deviceControlStore.gameMode.collectAsState()
+    val lowLatency by deviceControlStore.lowLatency.collectAsState()
+    val capabilities by deviceControlStore.capabilities.collectAsState()
     val themeMode = LocalThemeMode.current
     val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
 
@@ -70,25 +72,40 @@ fun PopupControlPanel(
                     onAncDepthChange = deviceControlStore::setAncDepth,
                     onTransLevelChange = deviceControlStore::setTransLevel,
                     enabled = true,
+                    showAncDepth = capabilities.supportedAncDepths.isNotEmpty(),
+                    showTransLevel = capabilities.supportedTransLevels.isNotEmpty(),
                 )
-                val eqItems = EqPreset.entries.map { it.label }
-                val eqSelectedIndex = EqPreset.entries.indexOf(eqMode).coerceAtLeast(0)
-                Card {
-                    WindowDropdownPreference(
-                        title = "音色",
-                        items = eqItems,
-                        selectedIndex = eqSelectedIndex,
-                        onSelectedIndexChange = { index ->
-                            EqPreset.entries.getOrNull(index)?.let(deviceControlStore::setEq)
-                        },
-                    )
+                if (capabilities.supportedEqPresets.isNotEmpty()) {
+                    val eqItems = EqPreset.entries.map { it.label }
+                    val eqSelectedIndex = EqPreset.entries.indexOf(eqMode).coerceAtLeast(0)
+                    Card {
+                        WindowDropdownPreference(
+                            title = "音色",
+                            items = eqItems,
+                            selectedIndex = eqSelectedIndex,
+                            onSelectedIndexChange = { index ->
+                                EqPreset.entries.getOrNull(index)?.let(deviceControlStore::setEq)
+                            },
+                        )
+                    }
                 }
-                Card {
-                    SwitchPreference(
-                        title = "游戏模式",
-                        checked = gameMode,
-                        onCheckedChange = deviceControlStore::setGameMode,
-                    )
+                if (capabilities.hasGameMode) {
+                    Card {
+                        SwitchPreference(
+                            title = "游戏模式",
+                            checked = gameMode,
+                            onCheckedChange = deviceControlStore::setGameMode,
+                        )
+                    }
+                }
+                if (capabilities.hasLowLatency) {
+                    Card {
+                        SwitchPreference(
+                            title = "低延迟",
+                            checked = lowLatency,
+                            onCheckedChange = deviceControlStore::setLowLatency,
+                        )
+                    }
                 }
             } else {
                 SectionCard(

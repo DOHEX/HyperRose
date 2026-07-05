@@ -44,18 +44,18 @@ import com.dohex.hyperrose.debug.BleLog
 import com.dohex.hyperrose.ipc.HyperRoseIpc
 import com.dohex.hyperrose.profile.DeviceProfile
 import com.dohex.hyperrose.ui.state.DeviceControlStore
+import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
-import top.yukonga.miuix.kmp.icon.extended.Settings
+import top.yukonga.miuix.kmp.icon.extended.Clear
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -70,7 +70,6 @@ fun BleDebugPage(
     val bleEntries by BleLog.entries.collectAsState()
     var hexInput by remember { mutableStateOf("") }
     var clearRequest by remember { mutableIntStateOf(0) }
-    val scrollBehavior = MiuixScrollBehavior()
     val listState = rememberLazyListState()
 
     DisposableEffect(context) {
@@ -86,7 +85,9 @@ fun BleDebugPage(
                 )
             }
         }
-        context.registerReceiver(receiver, IntentFilter(HyperRoseIpc.BLE_LOG), Context.RECEIVER_EXPORTED)
+        context.registerReceiver(
+            receiver, IntentFilter(HyperRoseIpc.BLE_LOG), Context.RECEIVER_EXPORTED
+        )
         Intent(HyperRoseIpc.BLE_LOG_CONNECT).apply {
             setPackage(HyperRoseIpc.PACKAGE_BLUETOOTH)
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
@@ -122,7 +123,7 @@ fun BleDebugPage(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
+            SmallTopAppBar(
                 title = "调试 · ${profile.displayName}",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -131,10 +132,9 @@ fun BleDebugPage(
                 },
                 actions = {
                     IconButton(onClick = { clearRequest++ }) {
-                        Icon(MiuixIcons.Settings, contentDescription = "清空日志")
+                        Icon(MiuixIcons.Clear, contentDescription = "清空日志")
                     }
-                },
-                scrollBehavior = scrollBehavior,
+                }
             )
         },
     ) { paddingValues ->
@@ -156,12 +156,8 @@ fun BleDebugPage(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     profile.debugQuickCommands.forEach { (label, cmd) ->
-                        Card(onClick = { deviceControlStore.sendRawCommand(cmd.toHexStr()) }) {
-                            Text(
-                                text = label,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                fontSize = 13.sp,
-                            )
+                        Button(onClick = { deviceControlStore.sendRawCommand(cmd.toHexStr()) }) {
+                            Text(label)
                         }
                     }
                 }
@@ -169,7 +165,9 @@ fun BleDebugPage(
 
             // Log list
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -178,7 +176,9 @@ fun BleDebugPage(
                         Card {
                             Text(
                                 text = "等待指令…\n连接耳机后收发指令会在此显示",
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                 fontSize = 14.sp,
                             )

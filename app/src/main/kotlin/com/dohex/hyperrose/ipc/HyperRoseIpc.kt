@@ -56,6 +56,7 @@ object HyperRoseIpc {
     // 广播 Extra 键
     const val EXTRA_DEVICE = "$EXTRA_PREFIX.device"
     const val EXTRA_DEVICE_NAME = "$EXTRA_PREFIX.device_name"
+    const val EXTRA_PROFILE_ID = "$EXTRA_PREFIX.profile_id"
     const val EXTRA_FORCE_CONNECTED = "$EXTRA_PREFIX.force_connected"
     const val EXTRA_MODE = "$EXTRA_PREFIX.mode"
     const val EXTRA_DEPTH = "$EXTRA_PREFIX.depth"

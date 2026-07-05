@@ -53,7 +53,8 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
     val transLevel by deviceControlStore.transLevel.collectAsState()
     val eqMode by deviceControlStore.eqMode.collectAsState()
     val gameMode by deviceControlStore.gameMode.collectAsState()
-
+    val lowLatency by deviceControlStore.lowLatency.collectAsState()
+    val capabilities by deviceControlStore.capabilities.collectAsState()
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -83,78 +84,83 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
         permissionLauncher.launch(permissions)
     }
 
-    val entryProvider =
-        remember(
-            hasPermission, pairedDevices, connectionState, transport, deviceName,
-            battery, ancMode, ancDepth, transLevel, eqMode, gameMode,
-        ) {
-            entryProvider<NavKey> {
-                entry<AppDestination.DeviceList> {
-                    DevicePickerPage(
-                        hasPermission = hasPermission,
-                        devices = pairedDevices,
-                        connectionState = connectionState,
-                        onRequestPermission = requestPermissions,
-                        onRefresh = deviceControlStore::refreshBondedDevices,
-                        onConnect = { address ->
-                            val selected = pairedDevices.firstOrNull { it.address == address }
-                            deviceControlStore.connectDirect(address)
-                            backStack.add(
-                                AppDestination.DeviceDetail(
-                                    address = address,
-                                    name = selected?.name ?: address,
-                                )
+    val entryProvider = remember(
+        hasPermission, pairedDevices, connectionState, transport, deviceName,
+        battery, ancMode, ancDepth, transLevel, eqMode, gameMode, lowLatency, capabilities,
+    ) {
+        entryProvider<NavKey> {
+            entry<AppDestination.DeviceList> {
+                DevicePickerPage(
+                    hasPermission = hasPermission,
+                    devices = pairedDevices,
+                    connectionState = connectionState,
+                    onRequestPermission = requestPermissions,
+                    onRefresh = deviceControlStore::refreshBondedDevices,
+                    onConnect = { address ->
+                        val selected = pairedDevices.firstOrNull { it.address == address }
+                        deviceControlStore.connectDirect(address)
+                        backStack.add(
+                            AppDestination.DeviceDetail(
+                                address = address,
+                                name = selected?.name ?: address,
                             )
-                        },
-                        onOpenSettings = { backStack.add(AppDestination.Settings) },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                        )
+                    },
+                    onOpenSettings = { backStack.add(AppDestination.Settings) },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
-                entry<AppDestination.DeviceDetail> {
-                    HomePage(
-                        connectionState = connectionState,
-                        transport = transport,
-                        deviceName = deviceName ?: it.name,
-                        battery = battery,
-                        ancMode = ancMode,
-                        ancDepth = ancDepth,
-                        transLevel = transLevel,
-                        eqMode = eqMode,
-                        gameMode = gameMode,
-                        onAncModeChange = deviceControlStore::setAnc,
-                        onAncDepthChange = deviceControlStore::setAncDepth,
-                        onTransLevelChange = deviceControlStore::setTransLevel,
-                        onEqModeChange = deviceControlStore::setEq,
-                        onGameModeChange = deviceControlStore::setGameMode,
-                        onFindLeft = deviceControlStore::findLeft,
-                        onFindRight = deviceControlStore::findRight,
-                        onStopFind = deviceControlStore::stopFind,
-                        onRefreshStatus = deviceControlStore::refreshStatus,
-                        onDisconnect = deviceControlStore::disconnect,
-                        onBack = { if (backStack.size > 1) backStack.removeLast() },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+            entry<AppDestination.DeviceDetail> {
+                HomePage(
+                    connectionState = connectionState,
+                    transport = transport,
+                    deviceName = deviceName ?: it.name,
+                    battery = battery,
+                    ancMode = ancMode,
+                    ancDepth = ancDepth,
+                    transLevel = transLevel,
+                    eqMode = eqMode,
+                    gameMode = gameMode,
+                    lowLatency = lowLatency,
+                    capabilities = capabilities,
+                    onAncModeChange = deviceControlStore::setAnc,
+                    onAncDepthChange = deviceControlStore::setAncDepth,
+                    onTransLevelChange = deviceControlStore::setTransLevel,
+                    onEqModeChange = deviceControlStore::setEq,
+                    onGameModeChange = deviceControlStore::setGameMode,
+                    onLowLatencyChange = deviceControlStore::setLowLatency,
+                    onFindLeft = deviceControlStore::findLeft,
+                    onFindRight = deviceControlStore::findRight,
+                    onStopFind = deviceControlStore::stopFind,
+                    onRefreshStatus = deviceControlStore::refreshStatus,
+                    onDisconnect = deviceControlStore::disconnect,
+                    onOpenBleDebug = { backStack.add(AppDestination.BleDebug) },
+                    onBack = { if (backStack.size > 1) backStack.removeLast() },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
-                entry<AppDestination.Settings> {
-                    SettingsPage(
-                        onBack = { if (backStack.size > 1) backStack.removeLast() },
-                        onOpenBleDebug = { backStack.add(AppDestination.BleDebug) },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+            entry<AppDestination.Settings> {
+                SettingsPage(
+                    onBack = { if (backStack.size > 1) backStack.removeLast() },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
-                entry<AppDestination.BleDebug> {
-                    BleDebugPage(
-                        deviceControlStore = deviceControlStore,
-                        profile = DeviceProfileRegistry.defaultProfile,
-                        onBack = { if (backStack.size > 1) backStack.removeLast() },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+            entry<AppDestination.BleDebug> {
+                val debugProfile = deviceName?.let {
+                    DeviceProfileRegistry.findByName(it)
+                } ?: DeviceProfileRegistry.defaultProfile
+                BleDebugPage(
+                    deviceControlStore = deviceControlStore,
+                    profile = debugProfile,
+                    onBack = { if (backStack.size > 1) backStack.removeLast() },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
+    }
 
     val entries = rememberDecoratedNavEntries(backStack = backStack, entryProvider = entryProvider)
 

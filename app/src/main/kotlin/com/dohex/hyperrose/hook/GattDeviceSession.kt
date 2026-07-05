@@ -86,25 +86,41 @@ class GattDeviceSession(
                 status: Int,
             ) {
                 if (status != BluetoothGatt.GATT_SUCCESS) {
-                    module.log(Log.ERROR, TAG, "GattDeviceSession: service discovery failed: $status")
+                    module.log(
+                        Log.ERROR,
+                        TAG,
+                        "GattDeviceSession: service discovery failed: $status"
+                    )
                     return
                 }
 
                 val service = gatt.getService(gattSpec.serviceUuid)
                 if (service == null) {
-                    module.log(Log.ERROR, TAG, "GattDeviceSession: service ${gattSpec.serviceUuid} not found")
+                    module.log(
+                        Log.ERROR,
+                        TAG,
+                        "GattDeviceSession: service ${gattSpec.serviceUuid} not found"
+                    )
                     return
                 }
 
                 writeChar = service.getCharacteristic(gattSpec.writeCharUuid)
                 if (writeChar == null) {
-                    module.log(Log.ERROR, TAG, "GattDeviceSession: write char ${gattSpec.writeCharUuid} not found")
+                    module.log(
+                        Log.ERROR,
+                        TAG,
+                        "GattDeviceSession: write char ${gattSpec.writeCharUuid} not found"
+                    )
                     return
                 }
 
                 val notifyChar = service.getCharacteristic(gattSpec.notifyCharUuid)
                 if (notifyChar == null) {
-                    module.log(Log.ERROR, TAG, "GattDeviceSession: notify char ${gattSpec.notifyCharUuid} not found")
+                    module.log(
+                        Log.ERROR,
+                        TAG,
+                        "GattDeviceSession: notify char ${gattSpec.notifyCharUuid} not found"
+                    )
                     return
                 }
 

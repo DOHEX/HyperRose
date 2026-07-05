@@ -95,7 +95,10 @@ private val ThanksGithubLinks = listOf(
 )
 
 @Composable
-fun SettingsPage(onBack: () -> Unit, onOpenBleDebug: () -> Unit = {}, modifier: Modifier = Modifier) {
+fun SettingsPage(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val themeMode = LocalThemeMode.current
     val updateThemeMode = LocalUpdateThemeMode.current
     val canUpdateThemeMode = LocalCanUpdateThemeMode.current
@@ -139,6 +142,7 @@ fun SettingsPage(onBack: () -> Unit, onOpenBleDebug: () -> Unit = {}, modifier: 
                 top = paddingValues.calculateTopPadding(),
                 start = 8.dp,
                 end = 8.dp,
+                bottom = paddingValues.calculateBottomPadding()
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -188,16 +192,6 @@ fun SettingsPage(onBack: () -> Unit, onOpenBleDebug: () -> Unit = {}, modifier: 
                             onClick = { openExternalUrl(context, link.url) },
                         )
                     }
-                }
-            }
-            item {
-                SmallTitle(text = "调试")
-                Card {
-                    ArrowPreference(
-                        title = "BLE 指令日志",
-                        summary = "查看指令收发记录，发送原始 hex 指令",
-                        onClick = onOpenBleDebug,
-                    )
                 }
             }
 

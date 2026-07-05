@@ -41,7 +41,10 @@ class BudsFeelMk2ProtocolTest {
         val frame = payload + byteArrayOf(ck, 0xAA.toByte())
 
         val result = protocol.parseResponse(frame)
-        assertTrue("Expected LowLatencyChanged, got $result", result is DeviceResponse.LowLatencyChanged)
+        assertTrue(
+            "Expected LowLatencyChanged, got $result",
+            result is DeviceResponse.LowLatencyChanged
+        )
         assertEquals(true, (result as DeviceResponse.LowLatencyChanged).enabled)
     }
 

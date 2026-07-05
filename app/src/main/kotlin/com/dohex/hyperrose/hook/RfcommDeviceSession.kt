@@ -45,7 +45,10 @@ class RfcommDeviceSession(
         running = false
         readerThread?.interrupt()
         readerThread = null
-        try { dataSocket?.close() } catch (_: IOException) {}
+        try {
+            dataSocket?.close()
+        } catch (_: IOException) {
+        }
         dataSocket = null
         connectedDevice = null
         handler.removeCallbacksAndMessages(null)

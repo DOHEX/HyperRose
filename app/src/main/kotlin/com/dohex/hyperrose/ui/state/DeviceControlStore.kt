@@ -98,6 +98,12 @@ class DeviceControlStore(
     private val _lowLatency = MutableStateFlow(false)
     val lowLatency: StateFlow<Boolean> = _lowLatency.asStateFlow()
 
+    private val _capabilities = MutableStateFlow(
+        com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
+    )
+    val capabilities: StateFlow<com.dohex.hyperrose.profile.DeviceCapabilities> =
+        _capabilities.asStateFlow()
+
     private var receiverRegistered = false
 
     private val bridgeReceiver =
@@ -122,6 +128,13 @@ class DeviceControlStore(
                             _connectionState.value = DeviceConnectionState.CONNECTED
                             _deviceName.value = device?.name ?: _deviceName.value
                                     ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName
+                            val profileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
+                            if (profileId != null) {
+                                _capabilities.value =
+                                    com.dohex.hyperrose.profile.DeviceProfileRegistry
+                                        .findById(profileId)?.capabilities
+                                        ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
+                            }
                         }
                     }
 
@@ -287,20 +300,6 @@ class DeviceControlStore(
     }
 
     fun findLeft() {
-
-    /** 发送原始 hex 指令（供调试页使用），根据当前传输模式路由 */
-    fun sendRawCommand(hex: String) {
-        if (isDirectConnected()) {
-            directGattClient.sendRawCommand(hex)
-        } else {
-            Intent(HyperRoseAction.RAW_SEND).apply {
-                setPackage(HyperRoseAction.PACKAGE_BLUETOOTH)
-                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-                putExtra(HyperRoseAction.EXTRA_HEX, hex)
-                appContext.sendBroadcast(this)
-            }
-        }
-    }
         routeControl(
             direct = { directGattClient.findLeft() },
             bridge = { BluetoothCommandDispatcher.findLeft(appContext) },
@@ -320,6 +319,7 @@ class DeviceControlStore(
             bridge = { BluetoothCommandDispatcher.stopFind(appContext) },
         )
     }
+
     /** 发送原始 hex 指令（供调试页使用），根据当前传输模式路由 */
     fun sendRawCommand(hex: String) {
         if (isDirectConnected()) {
@@ -499,5 +499,7 @@ class DeviceControlStore(
         _eqMode.value = null
         _gameMode.value = false
         _lowLatency.value = false
+        _capabilities.value =
+            com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
     }
 }
