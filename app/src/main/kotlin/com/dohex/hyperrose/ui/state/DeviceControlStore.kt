@@ -19,8 +19,8 @@ import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.model.withLastKnownCaseBattery
 import com.dohex.hyperrose.profile.TransportSpec
-import com.dohex.hyperrose.service.StandaloneGattClient
 import com.dohex.hyperrose.service.StandaloneClient
+import com.dohex.hyperrose.service.StandaloneGattClient
 import com.dohex.hyperrose.service.StandaloneRfcommClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -249,6 +249,7 @@ class DeviceControlStore(
                 _connectionState.value = DeviceConnectionState.CONNECTING
                 client.connect(bonded)
             }
+
             else -> {
                 _transport.value = ConnectionTransport.DIRECT_BLE
                 _connectionState.value = DeviceConnectionState.CONNECTING
@@ -337,6 +338,7 @@ class DeviceControlStore(
                     appContext.sendBroadcast(this)
                 }
             }
+
             else -> client.sendRawCommand(hex)
         }
     }
@@ -439,9 +441,11 @@ class DeviceControlStore(
                         clearState()
                     }
                 }
+
                 StandaloneRfcommClient.ConnectionState.CONNECTING -> {
                     _connectionState.value = DeviceConnectionState.CONNECTING
                 }
+
                 StandaloneRfcommClient.ConnectionState.CONNECTED -> {
                     _connectionState.value = DeviceConnectionState.CONNECTED
                 }

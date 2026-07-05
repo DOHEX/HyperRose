@@ -133,18 +133,23 @@ class StandaloneGattClient(
     }
 
     // 便捷方法
-    override fun setAnc(mode: AncMode) = sendCommand(profile.protocol.ancCommand(mode), "Set ANC: $mode")
+    override fun setAnc(mode: AncMode) =
+        sendCommand(profile.protocol.ancCommand(mode), "Set ANC: $mode")
 
-    override fun setAncDepth(depth: AncDepth) = sendCommand(profile.protocol.ancDepthCommand(depth), "Set ANC depth: $depth")
+    override fun setAncDepth(depth: AncDepth) =
+        sendCommand(profile.protocol.ancDepthCommand(depth), "Set ANC depth: $depth")
 
     override fun setTransLevel(level: TransparencyLevel) =
         sendCommand(profile.protocol.transLevelCommand(level), "Set transparency: $level")
 
-    override fun setEq(mode: EqPreset) = sendCommand(profile.protocol.eqCommand(mode), "Set EQ: $mode")
+    override fun setEq(mode: EqPreset) =
+        sendCommand(profile.protocol.eqCommand(mode), "Set EQ: $mode")
 
-    override fun setGameMode(enabled: Boolean) = sendCommand(profile.protocol.gameModeCommand(enabled), "Set game mode: $enabled")
+    override fun setGameMode(enabled: Boolean) =
+        sendCommand(profile.protocol.gameModeCommand(enabled), "Set game mode: $enabled")
 
-    override fun setLowLatency(enabled: Boolean) = sendCommand(profile.protocol.lowLatencyCommand(enabled), "Set low latency: $enabled")
+    override fun setLowLatency(enabled: Boolean) =
+        sendCommand(profile.protocol.lowLatencyCommand(enabled), "Set low latency: $enabled")
 
     override fun findLeft() = sendCommand(profile.protocol.findLeftOn, "Find left")
 

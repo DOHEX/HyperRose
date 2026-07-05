@@ -153,7 +153,10 @@ abstract class DeviceSession(
             object : Runnable {
                 override fun run() {
                     sendCommand(profile.protocol.queryBattery, "Query battery")
-                    handler.postDelayed(this, profile.gattTiming?.statusRefreshIntervalMs ?: 30_000L)
+                    handler.postDelayed(
+                        this,
+                        profile.gattTiming?.statusRefreshIntervalMs ?: 30_000L
+                    )
                 }
             },
             profile.gattTiming?.statusRefreshIntervalMs ?: 30_000L,

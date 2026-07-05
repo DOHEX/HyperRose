@@ -26,6 +26,7 @@ object BluetoothProcessHook {
     private var session: DeviceSession? = null
     private var bleLogEnabled = false
     internal fun isBleLogEnabled(): Boolean = bleLogEnabled
+
     /** 同进程内直接访问当前 GATT 客户端（供 HeadsetServiceBinderHook 使用） */
     internal fun currentSession(): DeviceSession? = session
 
@@ -233,11 +234,14 @@ object BluetoothProcessHook {
                             bleLogEnabled = true
                             return
                         }
+
                         HyperRoseAction.BLE_LOG_DISCONNECT -> {
                             bleLogEnabled = false
                             return
                         }
-                        HyperRoseAction.BLE_LOG_CLEAR -> { /* app-side only */ return }
+
+                        HyperRoseAction.BLE_LOG_CLEAR -> { /* app-side only */ return
+                        }
                     }
 
                     // --- actions that require an active session ---
@@ -256,7 +260,10 @@ object BluetoothProcessHook {
                                     intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
                                         ?.let(AncMode::valueOf)
                                         ?: return
-                                manager.sendCommand(manager.profile.protocol.ancCommand(mode), "Set ANC: $mode")
+                                manager.sendCommand(
+                                    manager.profile.protocol.ancCommand(mode),
+                                    "Set ANC: $mode"
+                                )
                             }
 
                             HyperRoseAction.SET_ANC_DEPTH -> {
@@ -264,7 +271,10 @@ object BluetoothProcessHook {
                                     intent.getStringExtra(HyperRoseAction.EXTRA_DEPTH)
                                         ?.let(AncDepth::valueOf)
                                         ?: return
-                                manager.sendCommand(manager.profile.protocol.ancDepthCommand(depth), "Set ANC depth: $depth")
+                                manager.sendCommand(
+                                    manager.profile.protocol.ancDepthCommand(depth),
+                                    "Set ANC depth: $depth"
+                                )
                             }
 
                             HyperRoseAction.SET_TRANS_LEVEL -> {
@@ -272,7 +282,10 @@ object BluetoothProcessHook {
                                     intent
                                         .getStringExtra(HyperRoseAction.EXTRA_LEVEL)
                                         ?.let(TransparencyLevel::valueOf) ?: return
-                                manager.sendCommand(manager.profile.protocol.transLevelCommand(level), "Set transparency: $level")
+                                manager.sendCommand(
+                                    manager.profile.protocol.transLevelCommand(level),
+                                    "Set transparency: $level"
+                                )
                             }
 
                             HyperRoseAction.SET_EQ -> {
@@ -280,14 +293,20 @@ object BluetoothProcessHook {
                                     intent.getStringExtra(HyperRoseAction.EXTRA_MODE)
                                         ?.let(EqPreset::valueOf)
                                         ?: return
-                                manager.sendCommand(manager.profile.protocol.eqCommand(mode), "Set EQ: $mode")
+                                manager.sendCommand(
+                                    manager.profile.protocol.eqCommand(mode),
+                                    "Set EQ: $mode"
+                                )
                             }
 
                             HyperRoseAction.SET_GAME_MODE -> {
                                 if (!intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) return
                                 val enabled =
                                     intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
-                                manager.sendCommand(manager.profile.protocol.gameModeCommand(enabled), "Set game mode: $enabled")
+                                manager.sendCommand(
+                                    manager.profile.protocol.gameModeCommand(enabled),
+                                    "Set game mode: $enabled"
+                                )
                             }
 
                             HyperRoseAction.SET_LOW_LATENCY -> {
@@ -305,16 +324,21 @@ object BluetoothProcessHook {
                                     ?.uppercase()) {
                                     HyperRoseAction.SIDE_LEFT -> {
                                         manager.sendCommand(
-                                            manager.profile.protocol.findLeftOn, "Find left")
+                                            manager.profile.protocol.findLeftOn, "Find left"
+                                        )
                                     }
 
                                     HyperRoseAction.SIDE_RIGHT -> {
                                         manager.sendCommand(
-                                            manager.profile.protocol.findRightOn, "Find right")
+                                            manager.profile.protocol.findRightOn, "Find right"
+                                        )
                                     }
 
                                     else -> {
-                                        manager.sendCommand(manager.profile.protocol.findAllOff, "Stop find")
+                                        manager.sendCommand(
+                                            manager.profile.protocol.findAllOff,
+                                            "Stop find"
+                                        )
                                     }
                                 }
                             }
@@ -336,7 +360,10 @@ object BluetoothProcessHook {
                                     )
                                     return
                                 }
-                                manager.sendCommand(manager.profile.protocol.ancCommand(mode), "Set ANC: $mode")
+                                manager.sendCommand(
+                                    manager.profile.protocol.ancCommand(mode),
+                                    "Set ANC: $mode"
+                                )
                                 module.log(
                                     Log.DEBUG,
                                     TAG,
