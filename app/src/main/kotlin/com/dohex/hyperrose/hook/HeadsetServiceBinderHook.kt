@@ -34,7 +34,7 @@ import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
  *
  * 使系统原生耳机控制界面能正确显示目标耳机的状态。
  */
-@SuppressLint("MissingPermission")
+@SuppressLint("MissingPermission", "StaticFieldLeak")
 object HeadsetServiceBinderHook {
     private const val LOG_TAG = "HyperRose-Binder"
     private const val SERVICE_CLASS =
@@ -83,6 +83,7 @@ object HeadsetServiceBinderHook {
 
     // ==================== BluetoothHeadsetService Hook ====================
 
+    @SuppressLint("PrivateApi")
     private fun hookHeadsetService(moduleRef: XposedModule, cl: ClassLoader) {
         mlog(Log.WARN, "=== hookHeadsetService START ===")
         mlog(Log.WARN, "hookHeadsetService: loading $SERVICE_CLASS")
@@ -96,7 +97,7 @@ object HeadsetServiceBinderHook {
         // hook onBind 获取 binder 类
         runCatching {
             val onBind = serviceClass.getDeclaredMethod("onBind", Intent::class.java)
-            moduleRef.hook(onBind)?.intercept { chain ->
+            moduleRef.hook(onBind).intercept { chain ->
                 mlog(Log.WARN, ">>> onBind FIRED")
                 val result = chain.proceed()
                 registerStatusReceiver(chain.thisObject as? Context)
@@ -113,7 +114,7 @@ object HeadsetServiceBinderHook {
         // hook onCreate 也能获取 context
         runCatching {
             val onCreate = serviceClass.getDeclaredMethod("onCreate")
-            moduleRef.hook(onCreate)?.intercept { chain ->
+            moduleRef.hook(onCreate).intercept { chain ->
                 mlog(Log.WARN, ">>> onCreate FIRED")
                 val result = chain.proceed()
                 registerStatusReceiver(chain.thisObject as? Context)
@@ -149,7 +150,7 @@ object HeadsetServiceBinderHook {
 
     private fun hookMiuiHeadsetBinder(moduleRef: XposedModule, cl: ClassLoader) {
         val stubClass = listOf(
-            "com.android.bluetooth.ble.app.IMiuiHeadsetService\$Stub",
+            $$"com.android.bluetooth.ble.app.IMiuiHeadsetService$Stub",
         ).firstNotNullOfOrNull { name -> runCatching { cl.loadClass(name) }.getOrNull() }
         if (stubClass == null) {
             mlog(Log.ERROR, "!!! IMiuiHeadsetService.Stub NOT FOUND — onTransact fallback DISABLED")
@@ -166,7 +167,7 @@ object HeadsetServiceBinderHook {
                 Parcel::class.java,
                 Int::class.javaPrimitiveType!!,
             ) ?: return@runCatching
-            moduleRef.hook(onTransact)?.intercept { chain ->
+            moduleRef.hook(onTransact).intercept { chain ->
                 val code = chain.getArg(0) as? Int ?: return@intercept chain.proceed()
                 val data = chain.getArg(1) as? Parcel ?: return@intercept chain.proceed()
                 val reply = chain.getArg(2) as? Parcel ?: return@intercept chain.proceed()
@@ -354,11 +355,12 @@ object HeadsetServiceBinderHook {
     private fun Parcel.readDevice(): BluetoothDevice? =
         if (readInt() != 0) BluetoothDevice.CREATOR.createFromParcel(this) else null
 
+    @SuppressLint("PrivateApi")
     private fun Parcel.readCallbackBinder(module: XposedModule): Any? {
         val binder = readStrongBinder() ?: return null
         val cl = binderClass?.classLoader ?: stubClassLoader ?: return null
         return runCatching {
-            val stub = cl.loadClass("com.android.bluetooth.ble.app.IMiuiHeadsetCallback\$Stub")
+            val stub = cl.loadClass($$"com.android.bluetooth.ble.app.IMiuiHeadsetCallback$Stub")
             stub.getDeclaredMethod("asInterface", IBinder::class.java).invoke(null, binder)
         }.onFailure {
             module.log(Log.WARN, LOG_TAG, "readCallbackBinder failed", it)
@@ -421,7 +423,7 @@ object HeadsetServiceBinderHook {
                 BluetoothDevice::class.java
             )
                 ?: return@runCatching
-            module.hook(method)?.intercept { chain ->
+            module.hook(method).intercept { chain ->
                 val device = chain.getArg(2) as? BluetoothDevice
                 if (device != null && isRoseEarphone(device)) {
                     val command = chain.getArg(0) as? Int
@@ -452,16 +454,17 @@ object HeadsetServiceBinderHook {
 
     // ==================== Callback 注册拦截 ====================
 
+    @SuppressLint("PrivateApi")
     private fun hookCallbackRegistration(module: XposedModule, binderClass: Class<*>) {
         val callbackClass = runCatching {
-            binderClass.classLoader.loadClass("com.android.bluetooth.ble.app.IMiuiHeadsetCallback")
+            binderClass.classLoader?.loadClass("com.android.bluetooth.ble.app.IMiuiHeadsetCallback")
         }.getOrNull() ?: return
 
         // register(callback)
         runCatching {
             val method =
                 findMethodByParamTypes(binderClass, "register", callbackClass) ?: return@runCatching
-            module.hook(method)?.intercept { chain ->
+            module.hook(method).intercept { chain ->
                 val callback = chain.getArg(0)
                 if (callback != null && currentDevice != null) {
                     rememberCallback(callback)
@@ -484,7 +487,7 @@ object HeadsetServiceBinderHook {
                 BluetoothDevice::class.java
             )
                 ?: return@runCatching
-            module.hook(method)?.intercept { chain ->
+            module.hook(method).intercept { chain ->
                 val callback = chain.getArg(0)
                 val device = chain.getArg(1) as? BluetoothDevice
                 if (device != null && isRoseEarphone(device) && callback != null) {
@@ -513,7 +516,7 @@ object HeadsetServiceBinderHook {
                 BluetoothDevice::class.java
             )
                 ?: return@runCatching
-            module.hook(method)?.intercept { chain ->
+            module.hook(method).intercept { chain ->
                 val callback = chain.getArg(0)
                 val device = chain.getArg(1) as? BluetoothDevice
                 if (device != null && isRoseEarphone(device) && callback != null) {
@@ -628,7 +631,7 @@ object HeadsetServiceBinderHook {
                 )
                 return
             }
-            module.hook(method)?.intercept { chain ->
+            module.hook(method).intercept { chain ->
                 val device = chain.getArg(0) as? BluetoothDevice
                 if (device != null && isRoseEarphone(device)) {
                     currentDevice = device
@@ -663,7 +666,7 @@ object HeadsetServiceBinderHook {
         } ?: return
         runCatching {
             val method = findMethodByParamTypes(clazz, name, String::class.java) ?: return
-            module.hook(method)?.intercept { chain ->
+            module.hook(method).intercept { chain ->
                 val address = chain.getArg(0) as? String
                 if (address != null && isRoseAddress(address)) {
                     return@intercept result()

@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.core.net.toUri
 
 /**
  * Hook 进程侧的白名单客户端。
@@ -30,7 +31,7 @@ object AuthorizedDeviceClient {
         authorizedAddresses.clear()
         runCatching {
             context.contentResolver.query(
-                android.net.Uri.parse("content://${AuthorizedDeviceProvider.AUTHORITY}"),
+                "content://${AuthorizedDeviceProvider.AUTHORITY}".toUri(),
                 arrayOf(AuthorizedDeviceProvider.COLUMN_ADDRESS),
                 null, null, null,
             )?.use { cursor ->

@@ -125,6 +125,7 @@ object BluetoothProcessHook {
         return com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)
     }
 
+    @SuppressLint("MissingPermission")
     private fun onDeviceConnected(
         module: XposedModule,
         serviceObj: Any,

@@ -23,7 +23,7 @@ import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
  * - hook ANC 控制命令，转发给 Bluetooth 进程执行
  * - 监听 Bluetooth 进程广播，缓存电量/ANC 状态供系统查询
  */
-@SuppressLint("MissingPermission")
+@SuppressLint("MissingPermission", "StaticFieldLeak")
 object MiLinkProcessHook {
     private const val LOG_TAG = "HyperRose-MiLink"
 
@@ -59,6 +59,7 @@ object MiLinkProcessHook {
         module?.log(level, LOG_TAG, msg) ?: Log.println(level, LOG_TAG, msg)
     }
 
+    @SuppressLint("PrivateApi")
     fun init(
         module: XposedModule,
         param: PackageLoadedParam,
