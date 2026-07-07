@@ -28,6 +28,7 @@ object AuthorizedDeviceClient {
         authorizedAddresses.any { it.equals(address, ignoreCase = true) }
 
     private fun reload(context: Context) {
+        val previous = authorizedAddresses.toSet()
         authorizedAddresses.clear()
         runCatching {
             context.contentResolver.query(
@@ -40,6 +41,14 @@ object AuthorizedDeviceClient {
                     cursor.getString(idx)?.let { authorizedAddresses.add(it.uppercase()) }
                 }
             }
+        }.onFailure { e ->
+            android.util.Log.w(
+                "AuthorizedDeviceClient",
+                "reload failed, restoring previous cache",
+                e
+            )
+            authorizedAddresses.clear()
+            authorizedAddresses.addAll(previous)
         }
     }
 

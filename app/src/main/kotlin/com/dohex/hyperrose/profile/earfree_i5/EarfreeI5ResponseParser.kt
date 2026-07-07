@@ -120,6 +120,12 @@ object EarfreeI5ResponseParser {
      * 完整模式: 降噪 00 01 00 00 00 / 普通 00 00 01 00 00 / 风噪 00 00 00 01 00 / 通透 00 00 00 00 01
      */
     private fun parseAnc(data: ByteArray): EarfreeI5Response {
+        val checksum = data[data.size - 1].toInt() and 0xFF
+        var sum = 0
+        for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
+        val computed = sum and 0xFF
+        if (checksum != computed) return EarfreeI5Response.Unknown
+
         val noiseCancel = data[9].toInt() and 0xFF
         val normal = data[10].toInt() and 0xFF
         val windNoise = data[11].toInt() and 0xFF
@@ -138,6 +144,12 @@ object EarfreeI5ResponseParser {
 
     /** 解析降噪深度回包。 Header: 09 FF 00 00 01 06 07 0B 00 [value] [cs] value: 00=轻度, 01=中度, 02=深度 */
     private fun parseAncDepth(data: ByteArray): EarfreeI5Response {
+        val checksum = data[data.size - 1].toInt() and 0xFF
+        var sum = 0
+        for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
+        val computed = sum and 0xFF
+        if (checksum != computed) return EarfreeI5Response.Unknown
+
         val value = data[9].toInt() and 0xFF
         val depth = when (value) {
             0x00 -> AncDepth.LIGHT
@@ -150,6 +162,12 @@ object EarfreeI5ResponseParser {
 
     /** 解析通透强度回包。 Header: 09 FF 00 00 01 06 04 0B 00 [value] [cs] value: 00=舒适, 01=人声, 02=标准 */
     private fun parseTransLevel(data: ByteArray): EarfreeI5Response {
+        val checksum = data[data.size - 1].toInt() and 0xFF
+        var sum = 0
+        for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
+        val computed = sum and 0xFF
+        if (checksum != computed) return EarfreeI5Response.Unknown
+
         val value = data[9].toInt() and 0xFF
         val level = when (value) {
             0x00 -> TransparencyLevel.COMFORTABLE
@@ -165,6 +183,12 @@ object EarfreeI5ResponseParser {
      * 03=清新空灵
      */
     private fun parseEq(data: ByteArray): EarfreeI5Response {
+        val checksum = data[data.size - 1].toInt() and 0xFF
+        var sum = 0
+        for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
+        val computed = sum and 0xFF
+        if (checksum != computed) return EarfreeI5Response.Unknown
+
         val value = data[9].toInt() and 0xFF
         val mode = when (value) {
             0x00 -> EqPreset.CLASSIC
@@ -178,6 +202,12 @@ object EarfreeI5ResponseParser {
 
     /** 解析游戏模式回包。 Header: 09 FF 00 00 01 06 03 0B 00 [value] [cs] value: 00=开, 01=关 */
     private fun parseGameMode(data: ByteArray): EarfreeI5Response {
+        val checksum = data[data.size - 1].toInt() and 0xFF
+        var sum = 0
+        for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
+        val computed = sum and 0xFF
+        if (checksum != computed) return EarfreeI5Response.Unknown
+
         val value = data[9].toInt() and 0xFF
         val enabled = when (value) {
             0x00 -> true

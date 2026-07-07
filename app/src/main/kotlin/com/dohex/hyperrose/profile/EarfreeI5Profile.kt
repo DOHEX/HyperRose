@@ -13,7 +13,7 @@ import com.dohex.hyperrose.profile.earfree_i5.EarfreeI5ResponseParser
 object EarfreeI5Profile : DeviceProfile {
     override val id = "rose-earfree-i5"
     override val displayName = "ROSESELSA EARFREE i5"
-    override val nameKeywords = listOf("ROSE EARFREE i5", "ROSE EARFEEL i5")
+    override val nameKeywords = listOf("ROSESELSA EARFREE i5", "ROSE EARFREE i5", "ROSE EARFEEL i5")
 
     override val transport = TransportSpec.Gatt(
         serviceUuid = EarfreeI5GattSpec.SERVICE_UUID,
@@ -71,14 +71,14 @@ private object EarfreeI5Protocol : DeviceProtocol {
     override val queryGameMode get() = EarfreeI5CommandSet.QUERY_GAME_MODE
     override val statusQuerySequence get() = EarfreeI5CommandSet.STATUS_QUERY_SEQUENCE.toList()
 
-    override fun parseResponse(data: ByteArray): DeviceResponse =
+    override fun parseResponse(data: ByteArray): List<DeviceResponse> =
         when (val r = EarfreeI5ResponseParser.parse(data)) {
-            is EarfreeI5Response.Battery -> DeviceResponse.Battery(r.info)
-            is EarfreeI5Response.Anc -> DeviceResponse.Anc(r.mode)
-            is EarfreeI5Response.AncDepthChanged -> DeviceResponse.AncDepthChanged(r.depth)
-            is EarfreeI5Response.TransparencyChanged -> DeviceResponse.TransparencyChanged(r.level)
-            is EarfreeI5Response.Eq -> DeviceResponse.Eq(r.mode)
-            is EarfreeI5Response.GameMode -> DeviceResponse.GameMode(r.enabled)
-            is EarfreeI5Response.Unknown -> DeviceResponse.Unknown
+            is EarfreeI5Response.Battery -> listOf(DeviceResponse.Battery(r.info))
+            is EarfreeI5Response.Anc -> listOf(DeviceResponse.Anc(r.mode))
+            is EarfreeI5Response.AncDepthChanged -> listOf(DeviceResponse.AncDepthChanged(r.depth))
+            is EarfreeI5Response.TransparencyChanged -> listOf(DeviceResponse.TransparencyChanged(r.level))
+            is EarfreeI5Response.Eq -> listOf(DeviceResponse.Eq(r.mode))
+            is EarfreeI5Response.GameMode -> listOf(DeviceResponse.GameMode(r.enabled))
+            is EarfreeI5Response.Unknown -> listOf(DeviceResponse.Unknown)
         }
 }

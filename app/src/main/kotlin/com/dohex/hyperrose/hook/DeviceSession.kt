@@ -55,29 +55,16 @@ abstract class DeviceSession(
 
     protected fun handleResponse(data: ByteArray) {
         val hex = data.toHexString()
-        val result = profile.protocol.parseResponse(data)
-        logRx(hex, result.toString())
-        module.log(Log.DEBUG, TAG, "← $hex → $result")
+        val results = profile.protocol.parseResponse(data)
+        logRx(hex, results.toString())
+        module.log(Log.DEBUG, TAG, "← $hex → $results")
 
-        when (result) {
-            is DeviceResponse.Battery -> {
-                val battery = result.info.withLastKnownCaseBattery(currentBattery)
-                currentBattery = battery
-                broadcastState(HyperRoseAction.BATTERY_CHANGED) {
-                    putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, battery.left?.level ?: -1)
-                    putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, battery.right?.level ?: -1)
-                    putExtra(HyperRoseAction.EXTRA_LEFT_CHARGING, battery.left?.isCharging ?: false)
-                    putExtra(
-                        HyperRoseAction.EXTRA_RIGHT_CHARGING,
-                        battery.right?.isCharging ?: false
-                    )
-                    putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, battery.caseBattery ?: -1)
-                    putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
-                }
-                context.sendBroadcast(
-                    Intent(HyperRoseAction.SHOW_ISLAND).apply {
-                        setPackage(HyperRoseAction.PACKAGE_MI_BLUETOOTH)
-                        addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        for (result in results) {
+            when (result) {
+                is DeviceResponse.Battery -> {
+                    val battery = result.info.withLastKnownCaseBattery(currentBattery)
+                    currentBattery = battery
+                    broadcastState(HyperRoseAction.BATTERY_CHANGED) {
                         putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, battery.left?.level ?: -1)
                         putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, battery.right?.level ?: -1)
                         putExtra(
@@ -90,54 +77,72 @@ abstract class DeviceSession(
                         )
                         putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, battery.caseBattery ?: -1)
                         putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
-                    },
-                )
-            }
-
-            is DeviceResponse.Anc -> {
-                currentAnc = result.mode
-                broadcastState(HyperRoseAction.ANC_CHANGED) {
-                    putExtra(HyperRoseAction.EXTRA_MODE, result.mode.name)
+                    }
+                    context.sendBroadcast(
+                        Intent(HyperRoseAction.SHOW_ISLAND).apply {
+                            setPackage(HyperRoseAction.PACKAGE_MI_BLUETOOTH)
+                            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                            putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, battery.left?.level ?: -1)
+                            putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, battery.right?.level ?: -1)
+                            putExtra(
+                                HyperRoseAction.EXTRA_LEFT_CHARGING,
+                                battery.left?.isCharging ?: false
+                            )
+                            putExtra(
+                                HyperRoseAction.EXTRA_RIGHT_CHARGING,
+                                battery.right?.isCharging ?: false
+                            )
+                            putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, battery.caseBattery ?: -1)
+                            putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
+                        },
+                    )
                 }
-            }
 
-            is DeviceResponse.AncDepthChanged -> {
-                currentAncDepth = result.depth
-                broadcastState(HyperRoseAction.ANC_DEPTH_CHANGED) {
-                    putExtra(HyperRoseAction.EXTRA_DEPTH, result.depth.name)
+                is DeviceResponse.Anc -> {
+                    currentAnc = result.mode
+                    broadcastState(HyperRoseAction.ANC_CHANGED) {
+                        putExtra(HyperRoseAction.EXTRA_MODE, result.mode.name)
+                    }
                 }
-            }
 
-            is DeviceResponse.TransparencyChanged -> {
-                currentTransLevel = result.level
-                broadcastState(HyperRoseAction.TRANS_LEVEL_CHANGED) {
-                    putExtra(HyperRoseAction.EXTRA_LEVEL, result.level.name)
+                is DeviceResponse.AncDepthChanged -> {
+                    currentAncDepth = result.depth
+                    broadcastState(HyperRoseAction.ANC_DEPTH_CHANGED) {
+                        putExtra(HyperRoseAction.EXTRA_DEPTH, result.depth.name)
+                    }
                 }
-            }
 
-            is DeviceResponse.Eq -> {
-                currentEq = result.mode
-                broadcastState(HyperRoseAction.EQ_CHANGED) {
-                    putExtra(HyperRoseAction.EXTRA_MODE, result.mode.name)
+                is DeviceResponse.TransparencyChanged -> {
+                    currentTransLevel = result.level
+                    broadcastState(HyperRoseAction.TRANS_LEVEL_CHANGED) {
+                        putExtra(HyperRoseAction.EXTRA_LEVEL, result.level.name)
+                    }
                 }
-            }
 
-            is DeviceResponse.GameMode -> {
-                currentGameMode = result.enabled
-                broadcastState(HyperRoseAction.GAME_MODE_CHANGED) {
-                    putExtra(HyperRoseAction.EXTRA_ENABLED, result.enabled)
+                is DeviceResponse.Eq -> {
+                    currentEq = result.mode
+                    broadcastState(HyperRoseAction.EQ_CHANGED) {
+                        putExtra(HyperRoseAction.EXTRA_MODE, result.mode.name)
+                    }
                 }
-            }
 
-            is DeviceResponse.LowLatencyChanged -> {
-                currentLowLatency = result.enabled
-                broadcastState(HyperRoseAction.LOW_LATENCY_CHANGED) {
-                    putExtra(HyperRoseAction.EXTRA_ENABLED, result.enabled)
+                is DeviceResponse.GameMode -> {
+                    currentGameMode = result.enabled
+                    broadcastState(HyperRoseAction.GAME_MODE_CHANGED) {
+                        putExtra(HyperRoseAction.EXTRA_ENABLED, result.enabled)
+                    }
                 }
-            }
 
-            is DeviceResponse.Unknown -> {
-                module.log(Log.DEBUG, TAG, "DeviceSession: unknown response: $hex")
+                is DeviceResponse.LowLatencyChanged -> {
+                    currentLowLatency = result.enabled
+                    broadcastState(HyperRoseAction.LOW_LATENCY_CHANGED) {
+                        putExtra(HyperRoseAction.EXTRA_ENABLED, result.enabled)
+                    }
+                }
+
+                is DeviceResponse.Unknown -> {
+                    module.log(Log.DEBUG, TAG, "DeviceSession: unknown response: $hex")
+                }
             }
         }
     }

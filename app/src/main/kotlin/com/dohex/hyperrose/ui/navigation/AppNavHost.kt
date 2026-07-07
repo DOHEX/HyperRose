@@ -19,7 +19,9 @@ import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import com.dohex.hyperrose.ui.screen.BleDebugPage
 import com.dohex.hyperrose.ui.screen.DeviceDetailPage
 import com.dohex.hyperrose.ui.screen.DevicePickerPage
+import com.dohex.hyperrose.ui.screen.EarphoneColorSettingsPage
 import com.dohex.hyperrose.ui.screen.SettingsPage
+import com.dohex.hyperrose.ui.state.DeviceConnectionState
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import kotlinx.serialization.Serializable
 
@@ -36,6 +38,9 @@ sealed interface AppDestination : NavKey {
 
     @Serializable
     data object BleDebug : AppDestination
+
+    @Serializable
+    data class EarphoneColorSettings(val address: String, val deviceId: String?) : AppDestination
 }
 
 @Composable
@@ -98,7 +103,9 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
                     onRefresh = deviceControlStore::refreshBondedDevices,
                     onConnect = { address ->
                         val selected = pairedDevices.firstOrNull { it.address == address }
-                        deviceControlStore.connectDirect(address)
+                        if (connectionState != DeviceConnectionState.CONNECTED) {
+                            deviceControlStore.connectDirect(address)
+                        }
                         backStack.add(
                             AppDestination.DeviceDetail(
                                 address = address,
@@ -136,7 +143,17 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
                     onStopFind = deviceControlStore::stopFind,
                     onRefreshStatus = deviceControlStore::refreshStatus,
                     onDisconnect = deviceControlStore::disconnect,
+                    onConnect = { deviceControlStore.connectDirect(it.address) },
                     onOpenBleDebug = { backStack.add(AppDestination.BleDebug) },
+                    onOpenColorSettings = {
+                        val deviceId = deviceName?.let { DeviceProfileRegistry.findByName(it)?.id }
+                        backStack.add(
+                            AppDestination.EarphoneColorSettings(
+                                address = it.address,
+                                deviceId = deviceId
+                            )
+                        )
+                    },
                     onBack = { if (backStack.size > 1) backStack.removeLast() },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -156,6 +173,15 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
                 BleDebugPage(
                     deviceControlStore = deviceControlStore,
                     profile = debugProfile,
+                    onBack = { if (backStack.size > 1) backStack.removeLast() },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            entry<AppDestination.EarphoneColorSettings> {
+                EarphoneColorSettingsPage(
+                    address = it.address,
+                    deviceId = it.deviceId,
                     onBack = { if (backStack.size > 1) backStack.removeLast() },
                     modifier = Modifier.fillMaxSize(),
                 )

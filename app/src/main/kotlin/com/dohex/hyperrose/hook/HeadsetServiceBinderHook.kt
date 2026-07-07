@@ -892,8 +892,9 @@ object HeadsetServiceBinderHook {
     private fun sendRealStatus(address: String, reason: String) {
         if (callbacks.isEmpty()) return
         val payload = buildMiuiRefreshPayload()
+        val snapshot: List<Any> = synchronized(callbacks) { callbacks.values.toList() }
         handler.post {
-            callbacks.values.toList().forEach { callback ->
+            snapshot.forEach { callback ->
                 runCatching {
                     ReflectionHelper.callMethod(callback, "refreshStatus", address, payload)
                     moduleLog("refreshStatus sent reason=$reason addr=$address")
@@ -1201,9 +1202,6 @@ object HeadsetServiceBinderHook {
             pendingTransLevel = null
         }
         pendingRetryCount = 0
-        if (pendingAncMode != null || pendingAncDepth != null || pendingTransLevel != null) {
-            requestStatusRefresh("replayPendingAncCommands")
-        }
     }
 
     /** 触发 GATT 客户端查询耳机状态（和 OppoPods 的 ACTION_REFRESH_STATUS 一样） */
@@ -1269,8 +1267,8 @@ object HeadsetServiceBinderHook {
                 callback,
                 "asBinder"
             )
-        }.getOrNull() as? IBinder)?.let {
-            callbacks[it] = callback
+        }.getOrNull() as? IBinder)?.let { binder ->
+            synchronized(callbacks) { callbacks[binder] = callback }
         }
     }
 
@@ -1280,8 +1278,8 @@ object HeadsetServiceBinderHook {
                 callback,
                 "asBinder"
             )
-        }.getOrNull() as? IBinder)?.let {
-            callbacks.remove(it)
+        }.getOrNull() as? IBinder)?.let { binder ->
+            synchronized(callbacks) { callbacks.remove(binder) }
         }
     }
 

@@ -7,6 +7,7 @@ import com.dohex.hyperrose.profile.DeviceProtocol
 import com.dohex.hyperrose.profile.DeviceResponse
 import com.dohex.hyperrose.profile.TransportSpec
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 object BudsFeelMk2Profile : DeviceProfile {
     override val id = "rose-budsfeel-mk2"
@@ -26,7 +27,7 @@ object BudsFeelMk2Profile : DeviceProfile {
         supportedTransLevels = emptySet(),
         supportedEqPresets = emptySet(),
         hasGameMode = true,
-        hasLowLatency = true,
+        hasLowLatency = false,
         hasFindEarphone = false,
     )
 
@@ -37,28 +38,24 @@ object BudsFeelMk2Profile : DeviceProfile {
         ),
         "ANC 降噪" to BudsFeelMk2CommandSet.ancCommand(AncMode.NOISE_CANCEL),
         "ANC 普通" to BudsFeelMk2CommandSet.ancCommand(AncMode.NORMAL),
-        "低延迟开" to BudsFeelMk2CommandSet.lowLatencyCommand(true),
         "游戏模式" to BudsFeelMk2CommandSet.gameModeCommand(true),
     )
 }
 
 private object Mk2Protocol : DeviceProtocol {
-    private var seq = 0
+    private val seq = AtomicInteger(0)
 
     override fun ancCommand(mode: AncMode): ByteArray {
         val payload = BudsFeelMk2CommandSet.ancCommand(mode).copyOfRange(3, 5)
-        return BudsFeelMk2CommandSet.buildFrame(0x02, payload, seq++)
+        return BudsFeelMk2CommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
     }
 
     override fun gameModeCommand(enabled: Boolean): ByteArray {
         val payload = BudsFeelMk2CommandSet.gameModeCommand(enabled).copyOfRange(3, 5)
-        return BudsFeelMk2CommandSet.buildFrame(0x02, payload, seq++)
+        return BudsFeelMk2CommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
     }
 
-    override fun lowLatencyCommand(enabled: Boolean): ByteArray {
-        val payload = BudsFeelMk2CommandSet.lowLatencyCommand(enabled).copyOfRange(3, 5)
-        return BudsFeelMk2CommandSet.buildFrame(0x02, payload, seq++)
-    }
+    override fun lowLatencyCommand(enabled: Boolean): ByteArray = gameModeCommand(enabled)
 
     // All individual queries use the capability query (MK2 has no individual query commands)
     override val queryBattery get() = nextSeqQuery()
@@ -71,9 +68,13 @@ private object Mk2Protocol : DeviceProtocol {
             BudsFeelMk2CommandSet.buildFrame(0x1E, BudsFeelMk2CommandSet.QUERY_PAYLOAD, s)
         }
 
-    override fun parseResponse(data: ByteArray): DeviceResponse =
+    override fun parseResponse(data: ByteArray): List<DeviceResponse> =
         BudsFeelMk2ResponseParser.parse(data)
 
     private fun nextSeqQuery(): ByteArray =
-        BudsFeelMk2CommandSet.buildFrame(0x1E, BudsFeelMk2CommandSet.QUERY_PAYLOAD, seq++)
+        BudsFeelMk2CommandSet.buildFrame(
+            0x1E,
+            BudsFeelMk2CommandSet.QUERY_PAYLOAD,
+            seq.getAndIncrement()
+        )
 }

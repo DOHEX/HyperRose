@@ -37,6 +37,7 @@ class StandaloneGattClient(
 ) : StandaloneClient {
     companion object {
         private const val TAG = "HyperRose.StandaloneGattClient"
+        private const val DISCOVERY_TIMEOUT_MS = 10_000L
         private val logTimeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
     }
 
@@ -84,6 +85,11 @@ class StandaloneGattClient(
     // ==================== 公开方法 ====================
 
     override fun connect(device: BluetoothDevice) {
+        // 先释放旧连接，防止 BluetoothGatt 泄漏和回调串扰
+        gatt?.let { old ->
+            old.disconnect()
+            old.close()
+        }
         _connectionState.value = ConnectionState.CONNECTING
         _deviceName.value = device.name
         Log.i(TAG, "Connecting to ${device.address}")
@@ -184,14 +190,24 @@ class StandaloneGattClient(
             ) {
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> {
+                        if (status != BluetoothGatt.GATT_SUCCESS) {
+                            Log.w(TAG, "GATT connected with error status: $status")
+                            return
+                        }
                         Log.i(TAG, "GATT connected, discovering services")
                         gatt.discoverServices()
+                        // 超时保护：部分 BLE 固件可能永不回调 onServicesDiscovered
+                        handler.postDelayed(
+                            { handleDiscoveryTimeout(gatt) },
+                            DISCOVERY_TIMEOUT_MS,
+                        )
                     }
 
                     BluetoothProfile.STATE_DISCONNECTED -> {
                         Log.i(TAG, "GATT disconnected")
                         _connectionState.value = ConnectionState.DISCONNECTED
                         handler.removeCallbacksAndMessages(null)
+                        gatt.close()
                     }
                 }
             }
@@ -200,6 +216,7 @@ class StandaloneGattClient(
                 gatt: BluetoothGatt,
                 status: Int,
             ) {
+                handler.removeCallbacksAndMessages(null)
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     Log.e(TAG, "Service discovery failed: $status")
                     _connectionState.value = ConnectionState.DISCONNECTED
@@ -251,50 +268,59 @@ class StandaloneGattClient(
             }
         }
 
+    private fun handleDiscoveryTimeout(gatt: BluetoothGatt) {
+        Log.w(TAG, "Service discovery timed out, disconnecting")
+        gatt.disconnect()
+        gatt.close()
+        _connectionState.value = ConnectionState.DISCONNECTED
+    }
+
     // ==================== 回包处理 ====================
 
     private fun handleResponse(data: ByteArray) {
         val hex = data.toHexString()
-        val result = profile.protocol.parseResponse(data)
-        BleLog.log("App", "RX", hex, result.toString(), logTimeFormat.format(Date()))
-        when (result) {
-            is DeviceResponse.Battery -> {
-                Log.d(TAG, "← $hex → $result")
-                _battery.value = result.info.withLastKnownCaseBattery(_battery.value)
-            }
+        val results = profile.protocol.parseResponse(data)
+        BleLog.log("App", "RX", hex, results.toString(), logTimeFormat.format(Date()))
+        for (result in results) {
+            when (result) {
+                is DeviceResponse.Battery -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _battery.value = result.info.withLastKnownCaseBattery(_battery.value)
+                }
 
-            is DeviceResponse.Anc -> {
-                Log.d(TAG, "← $hex → $result")
-                _ancMode.value = result.mode
-            }
+                is DeviceResponse.Anc -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _ancMode.value = result.mode
+                }
 
-            is DeviceResponse.AncDepthChanged -> {
-                Log.d(TAG, "← $hex → $result")
-                _ancDepth.value = result.depth
-            }
+                is DeviceResponse.AncDepthChanged -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _ancDepth.value = result.depth
+                }
 
-            is DeviceResponse.TransparencyChanged -> {
-                Log.d(TAG, "← $hex → $result")
-                _transLevel.value = result.level
-            }
+                is DeviceResponse.TransparencyChanged -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _transLevel.value = result.level
+                }
 
-            is DeviceResponse.Eq -> {
-                Log.d(TAG, "← $hex → $result")
-                _eqMode.value = result.mode
-            }
+                is DeviceResponse.Eq -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _eqMode.value = result.mode
+                }
 
-            is DeviceResponse.GameMode -> {
-                Log.d(TAG, "← $hex → $result")
-                _gameMode.value = result.enabled
-            }
+                is DeviceResponse.GameMode -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _gameMode.value = result.enabled
+                }
 
-            is DeviceResponse.LowLatencyChanged -> {
-                Log.d(TAG, "← $hex → $result")
-                _lowLatency.value = result.enabled
-            }
+                is DeviceResponse.LowLatencyChanged -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _lowLatency.value = result.enabled
+                }
 
-            is DeviceResponse.Unknown -> {
-                Log.d(TAG, "← $hex → Unknown")
+                is DeviceResponse.Unknown -> {
+                    Log.d(TAG, "← $hex → Unknown")
+                }
             }
         }
     }

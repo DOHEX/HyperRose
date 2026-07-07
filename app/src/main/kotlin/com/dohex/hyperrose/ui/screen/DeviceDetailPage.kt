@@ -1,45 +1,42 @@
 package com.dohex.hyperrose.ui.screen
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dohex.hyperrose.data.DeviceImageStore
 import com.dohex.hyperrose.data.LocalDeviceImageStore
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
+import com.dohex.hyperrose.model.DeviceColorProfile
 import com.dohex.hyperrose.model.EarBatteryState
-import com.dohex.hyperrose.model.EarphoneColorTheme
 import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.model.TwsBatteryState
+import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.AncSelector
 import com.dohex.hyperrose.ui.component.BatteryCard
@@ -52,7 +49,6 @@ import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import com.dohex.hyperrose.ui.theme.LocalThemeMode
 import com.dohex.hyperrose.ui.theme.ThemeMode
 import com.dohex.hyperrose.ui.theme.rememberBlurBackdrop
-import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -63,6 +59,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
 import top.yukonga.miuix.kmp.icon.extended.Info
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
@@ -95,7 +92,9 @@ fun DeviceDetailPage(
     onStopFind: () -> Unit,
     onRefreshStatus: () -> Unit,
     onDisconnect: () -> Unit,
+    onConnect: () -> Unit = {},
     onOpenBleDebug: () -> Unit = {},
+    onOpenColorSettings: () -> Unit = {},
     onBack: () -> Unit,
 
     ) {
@@ -106,11 +105,14 @@ fun DeviceDetailPage(
     val scrollBehavior = MiuixScrollBehavior()
     val listState = rememberLazyListState()
     var showFindDialog by remember { mutableStateOf(false) }
-
     val deviceImageStore = LocalDeviceImageStore.current
-    val colorTheme by deviceImageStore.colorThemeFlow(address)
-        .collectAsState(initial = EarphoneColorTheme.DEFAULT)
-    val scope = rememberCoroutineScope()
+    val deviceProfile = deviceName?.let { DeviceProfileRegistry.findByName(it) }
+    val deviceId = deviceProfile?.id
+    val colorProfile = DeviceColorProfile.forDevice(deviceId)
+    val defaultTheme =
+        colorProfile?.defaultTheme() ?: DeviceColorProfile.DEFAULT_PROFILE.defaultTheme()
+    val colorTheme by deviceImageStore.colorThemeFlow(address, colorProfile)
+        .collectAsState(initial = defaultTheme)
 
     Scaffold(
         modifier = modifier,
@@ -118,7 +120,7 @@ fun DeviceDetailPage(
             BlurredBar(backdrop = backdrop, blurEnabled = blurActive) {
                 TopAppBar(
                     title = deviceName
-                        ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName,
+                        ?: DeviceProfileRegistry.defaultProfile.displayName,
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(MiuixIcons.ChevronBackward, contentDescription = "返回")
@@ -158,7 +160,8 @@ fun DeviceDetailPage(
                     Image(
                         painter = painterResource(colorTheme.caseRes),
                         contentDescription = deviceName
-                            ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName,
+                            ?: DeviceProfileRegistry.defaultProfile.displayName,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(200.dp)
@@ -173,73 +176,37 @@ fun DeviceDetailPage(
                 }
 
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.Center,
-                    ) {
-                        EarphoneColorTheme.entries.forEach { theme ->
-                            val isSelected = theme == colorTheme
-                            val chipColor = theme.displayColor()
-                            val borderMod = if (!isSelected) {
-                                Modifier.border(2.dp, chipColor, CircleShape)
-                            } else {
-                                Modifier
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .padding(horizontal = 6.dp)
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .then(borderMod)
-                                    .background(
-                                        color = if (isSelected) chipColor else Color.Transparent,
-                                        shape = CircleShape,
-                                    )
-                                    .clickable {
-                                        scope.launch {
-                                            deviceImageStore.setColorTheme(address, theme)
-                                        }
-                                    },
-                            )
-                        }
-                    }
-                }
-
-                item {
                     SectionCard(
-                        title = deviceName
-                            ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName,
-                        subtitle = connectionSummary(connectionState, transport),
+                        title = stateTitle(connectionState),
+                        subtitle = stateSubtitle(connectionState, transport),
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
+                        if (!connected) {
                             ActionButton(
-                                text = if (connected) "刷新状态" else "返回列表",
-                                onClick = if (connected) onRefreshStatus else onBack,
-                                modifier = Modifier.weight(1f),
+                                text = "连接",
+                                onClick = onConnect,
+                                modifier = Modifier.fillMaxWidth(),
                             )
-                            ActionButton(
-                                text = if (connected) "断开" else "返回",
-                                onClick = if (connected) onDisconnect else onBack,
-                                modifier = Modifier.weight(1f),
-                            )
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                ActionButton(
+                                    text = "刷新状态",
+                                    onClick = onRefreshStatus,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                ActionButton(
+                                    text = "断开",
+                                    onClick = onDisconnect,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
                         }
                     }
                 }
 
-                if (!connected) {
-                    item {
-                        SectionCard(
-                            title = "未连接耳机",
-                            subtitle = "可直接在 App 内连接，或等待 LSPosed 桥接状态同步",
-                        ) {}
-                    }
-                    return@LazyColumn
-                }
+                if (!connected) return@LazyColumn
 
                 item { BatteryCard(battery = battery) }
 
@@ -295,6 +262,16 @@ fun DeviceDetailPage(
                         }
                     }
                 }
+
+                item {
+                    Card {
+                        ArrowPreference(
+                            title = "耳机颜色",
+                            summary = colorTheme.label,
+                            onClick = onOpenColorSettings,
+                        )
+                    }
+                }
             }
         }
 
@@ -334,35 +311,39 @@ fun DeviceDetailPage(
     }
 }
 
-private fun connectionSummary(
-    connectionState: DeviceConnectionState,
-    transport: ConnectionTransport,
-): String = when (connectionState) {
+private fun stateTitle(state: DeviceConnectionState): String = when (state) {
+    DeviceConnectionState.CONNECTED -> "已连接"
     DeviceConnectionState.CONNECTING -> "连接中"
-
     DeviceConnectionState.DISCONNECTED -> "未连接"
+}
 
+private fun stateSubtitle(
+    state: DeviceConnectionState,
+    transport: ConnectionTransport,
+): String = when (state) {
     DeviceConnectionState.CONNECTED -> when (transport) {
-        ConnectionTransport.DIRECT_BLE -> "已连接 · 独立 BLE"
-        ConnectionTransport.DIRECT_RFCOMM -> "已连接 · 独立 RFCOMM"
-        ConnectionTransport.HOOK_BRIDGE -> "已连接 · LSPosed 桥接"
-        ConnectionTransport.NONE -> "已连接"
+        ConnectionTransport.DIRECT_BLE -> "独立 BLE 连接"
+        ConnectionTransport.DIRECT_RFCOMM -> "独立 RFCOMM 连接"
+        ConnectionTransport.HOOK_BRIDGE -> "LSPosed 桥接模式"
+        ConnectionTransport.NONE -> ""
     }
+    DeviceConnectionState.CONNECTING -> "正在建立连接…"
+    DeviceConnectionState.DISCONNECTED -> "可直接在 App 内连接，或等待 LSPosed 桥接状态同步"
 }
 
-private fun EarphoneColorTheme.displayColor(): Color = when (this) {
-    EarphoneColorTheme.BLUE -> Color(0xFF4285F4)
-    EarphoneColorTheme.GOLD -> Color(0xFFFFB300)
-    EarphoneColorTheme.GRAY -> Color(0xFF9E9E9E)
-}
 
 // ─── i5 Previews ────────────────────────────────────────────────
 
 @Preview(showBackground = true, name = "i5 - Connected")
 @Composable
 private fun DeviceDetailPagePreview_I5_Connected() {
+    val context = LocalContext.current
+    val imageStore = remember { DeviceImageStore(context) }
     HyperRoseTheme {
-        CompositionLocalProvider(LocalThemeMode provides ThemeMode()) {
+        CompositionLocalProvider(
+            LocalDeviceImageStore provides imageStore,
+            LocalThemeMode provides ThemeMode(),
+        ) {
             DeviceDetailPage(
                 address = "00:00:00:00:00:00",
                 connectionState = DeviceConnectionState.CONNECTED,
@@ -400,8 +381,13 @@ private fun DeviceDetailPagePreview_I5_Connected() {
 @Preview(showBackground = true, name = "i5 - Game Mode + Hook Bridge")
 @Composable
 private fun DeviceDetailPagePreview_I5_GameMode() {
+    val context = LocalContext.current
+    val imageStore = remember { DeviceImageStore(context) }
     HyperRoseTheme {
-        CompositionLocalProvider(LocalThemeMode provides ThemeMode()) {
+        CompositionLocalProvider(
+            LocalDeviceImageStore provides imageStore,
+            LocalThemeMode provides ThemeMode(),
+        ) {
             DeviceDetailPage(
                 address = "00:00:00:00:00:00",
                 connectionState = DeviceConnectionState.CONNECTED,
@@ -439,8 +425,13 @@ private fun DeviceDetailPagePreview_I5_GameMode() {
 @Preview(showBackground = true, name = "i5 - Disconnected")
 @Composable
 private fun DeviceDetailPagePreview_I5_Disconnected() {
+    val context = LocalContext.current
+    val imageStore = remember { DeviceImageStore(context) }
     HyperRoseTheme {
-        CompositionLocalProvider(LocalThemeMode provides ThemeMode()) {
+        CompositionLocalProvider(
+            LocalDeviceImageStore provides imageStore,
+            LocalThemeMode provides ThemeMode(),
+        ) {
             DeviceDetailPage(
                 address = "00:00:00:00:00:00",
                 connectionState = DeviceConnectionState.DISCONNECTED,
@@ -476,8 +467,13 @@ private fun DeviceDetailPagePreview_I5_Disconnected() {
 @Preview(showBackground = true, name = "MK2 - Connected")
 @Composable
 private fun DeviceDetailPagePreview_Mk2_Connected() {
+    val context = LocalContext.current
+    val imageStore = remember { DeviceImageStore(context) }
     HyperRoseTheme {
-        CompositionLocalProvider(LocalThemeMode provides ThemeMode()) {
+        CompositionLocalProvider(
+            LocalDeviceImageStore provides imageStore,
+            LocalThemeMode provides ThemeMode(),
+        ) {
             DeviceDetailPage(
                 address = "00:00:00:00:00:00",
                 connectionState = DeviceConnectionState.CONNECTED,
@@ -515,8 +511,13 @@ private fun DeviceDetailPagePreview_Mk2_Connected() {
 @Preview(showBackground = true, name = "MK2 - Disconnected")
 @Composable
 private fun DeviceDetailPagePreview_Mk2_Disconnected() {
+    val context = LocalContext.current
+    val imageStore = remember { DeviceImageStore(context) }
     HyperRoseTheme {
-        CompositionLocalProvider(LocalThemeMode provides ThemeMode()) {
+        CompositionLocalProvider(
+            LocalDeviceImageStore provides imageStore,
+            LocalThemeMode provides ThemeMode(),
+        ) {
             DeviceDetailPage(
                 address = "00:00:00:00:00:00",
                 connectionState = DeviceConnectionState.DISCONNECTED,

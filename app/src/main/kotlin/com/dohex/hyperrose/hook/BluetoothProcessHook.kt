@@ -23,6 +23,7 @@ import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 object BluetoothProcessHook {
 
     @SuppressLint("StaticFieldLeak")
+    @Volatile
     private var session: DeviceSession? = null
     private var bleLogEnabled = false
     internal fun isBleLogEnabled(): Boolean = bleLogEnabled

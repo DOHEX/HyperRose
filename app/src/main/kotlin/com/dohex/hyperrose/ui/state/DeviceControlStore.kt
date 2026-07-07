@@ -24,13 +24,16 @@ import com.dohex.hyperrose.service.StandaloneGattClient
 import com.dohex.hyperrose.service.StandaloneRfcommClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
 enum class DeviceConnectionState {
@@ -60,6 +63,12 @@ class DeviceControlStore(
     )
     private var directRfcommClient: StandaloneRfcommClient? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    private var bridgeFallbackJob: Job? = null
+
+    companion object {
+        private const val BRIDGE_TIMEOUT_MS = 5_000L
+    }
 
     private val _hasBluetoothPermission = MutableStateFlow(false)
     val hasBluetoothPermission: StateFlow<Boolean> = _hasBluetoothPermission.asStateFlow()
@@ -113,23 +122,32 @@ class DeviceControlStore(
         ) {
             when (intent.action) {
                 HyperRoseAction.DEVICE_CONNECTED -> {
+                    bridgeFallbackJob?.cancel()
+
+                    // Bridge always takes priority over standalone.
+                    // Disconnect any active direct client so we don't keep
+                    // two connections to the same device.
+                    if (_transport.value == ConnectionTransport.DIRECT_BLE) {
+                        directGattClient.disconnect()
+                    } else if (_transport.value == ConnectionTransport.DIRECT_RFCOMM) {
+                        directRfcommClient?.disconnect()
+                        directRfcommClient = null
+                    }
+
+                    _transport.value = ConnectionTransport.HOOK_BRIDGE
+                    _connectionState.value = DeviceConnectionState.CONNECTED
+
                     val device = intent.getParcelableExtra(
                         HyperRoseAction.EXTRA_DEVICE,
                         android.bluetooth.BluetoothDevice::class.java,
                     )
-                    val needsHookBridge =
-                        (_transport.value != ConnectionTransport.DIRECT_BLE && _transport.value != ConnectionTransport.DIRECT_RFCOMM) || _connectionState.value != DeviceConnectionState.CONNECTED
-                    if (needsHookBridge) {
-                        _transport.value = ConnectionTransport.HOOK_BRIDGE
-                        _connectionState.value = DeviceConnectionState.CONNECTED
-                        _deviceName.value = device?.name ?: _deviceName.value
-                                ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName
-                        val profileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
-                        if (profileId != null) {
-                            _capabilities.value =
-                                com.dohex.hyperrose.profile.DeviceProfileRegistry.findById(profileId)?.capabilities
-                                    ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
-                        }
+                    _deviceName.value = device?.name ?: _deviceName.value
+                            ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName
+                    val profileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
+                    if (profileId != null) {
+                        _capabilities.value =
+                            com.dohex.hyperrose.profile.DeviceProfileRegistry.findById(profileId)?.capabilities
+                                ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
                     }
                 }
 
@@ -237,7 +255,33 @@ class DeviceControlStore(
             bonded.name ?: ""
         )
         _deviceName.value = bonded.name ?: address
+        if (profile != null) {
+            _capabilities.value = profile.capabilities
+        }
 
+        // Prefer hook bridge: optimistically assume LSPosed hooks are running.
+        // If the device is already A2DP-connected, the hook process broadcasts
+        // DEVICE_CONNECTED and BridgeReceiver cancels the fallback.
+        // Falls back to standalone client after timeout.
+        bridgeFallbackJob?.cancel()
+        _transport.value = ConnectionTransport.HOOK_BRIDGE
+        _connectionState.value = DeviceConnectionState.CONNECTING
+
+        bridgeFallbackJob = scope.launch {
+            delay(BRIDGE_TIMEOUT_MS)
+            if (_transport.value == ConnectionTransport.HOOK_BRIDGE &&
+                _connectionState.value == DeviceConnectionState.CONNECTING
+            ) {
+                connectStandalone(bonded, profile)
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun connectStandalone(
+        bonded: android.bluetooth.BluetoothDevice,
+        profile: com.dohex.hyperrose.profile.DeviceProfile?,
+    ) {
         when (profile?.transport) {
             is TransportSpec.Rfcomm -> {
                 directRfcommClient?.disconnect()
@@ -351,6 +395,7 @@ class DeviceControlStore(
     }
 
     fun disconnect() {
+        bridgeFallbackJob?.cancel()
         directRfcommClient?.disconnect()
         directGattClient.disconnect()
         BluetoothCommandDispatcher.disconnectGatt(appContext)
@@ -373,6 +418,7 @@ class DeviceControlStore(
     }
 
     fun release() {
+        bridgeFallbackJob?.cancel()
         if (receiverRegistered) {
             runCatching { appContext.unregisterReceiver(bridgeReceiver) }
             receiverRegistered = false
@@ -429,6 +475,9 @@ class DeviceControlStore(
         directGattClient.eqMode.onEach { if (it != null) _eqMode.value = it }.launchIn(scope)
 
         directGattClient.gameMode.onEach { if (it != null) _gameMode.value = it }.launchIn(scope)
+
+        directGattClient.lowLatency.onEach { if (it != null) _lowLatency.value = it }
+            .launchIn(scope)
     }
 
     private fun observeDirectRfcomm(client: StandaloneRfcommClient) {

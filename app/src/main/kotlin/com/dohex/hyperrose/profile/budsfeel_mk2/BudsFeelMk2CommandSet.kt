@@ -16,11 +16,9 @@ object BudsFeelMk2CommandSet {
         },
     )
 
-    fun lowLatencyCommand(enabled: Boolean): ByteArray =
-        buildSetFrame(0x0E, if (enabled) 0x01 else 0x00)
-
+    /** Game mode (also functions as low-latency mode). Type 0x0E, values 0x01/0x00. */
     fun gameModeCommand(enabled: Boolean): ByteArray =
-        buildSetFrame(0x2F, if (enabled) 0x04 else 0x00)
+        buildSetFrame(0x0E, if (enabled) 0x01 else 0x00)
 
     val QUERY_PAYLOAD: ByteArray = byteArrayOf(
         0xFA.toByte(), 0x01,

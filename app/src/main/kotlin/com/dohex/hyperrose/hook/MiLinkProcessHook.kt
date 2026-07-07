@@ -501,10 +501,15 @@ object MiLinkProcessHook {
         return com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name) != null
     }
 
+    private val knownAddresses = mutableSetOf<String>()
+
     private fun isRoseAddress(address: String): Boolean {
-        // 1. 检查当前缓存的设备地址
+        val normalized = address.uppercase()
+        // 1. 检查已知地址集合（由名称匹配或白名单历史填充）
+        if (normalized in knownAddresses) return true
+        // 2. 检查当前缓存的设备地址
         if (currentAddress != null && address.equals(currentAddress, ignoreCase = true)) return true
-        // 2. 兜底：尝试从蓝牙适配器获取远程设备名称
+        // 3. 兜底：尝试从蓝牙适配器获取远程设备名称
         if (runCatching {
                 val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
                 val device = bt?.getRemoteDevice(address)
@@ -512,11 +517,13 @@ object MiLinkProcessHook {
                 name?.let { com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it) != null } == true
             }.getOrElse { false }
         ) {
+            knownAddresses.add(normalized)
             currentAddress = address
             return true
         }
-        // 3. 检查用户白名单
+        // 4. 检查用户白名单
         if (com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)) {
+            knownAddresses.add(normalized)
             currentAddress = address
             return true
         }

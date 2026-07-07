@@ -56,7 +56,7 @@ interface DeviceProtocol {
     val statusQuerySequence: List<ByteArray>
 
     // --- response parsing ---
-    fun parseResponse(data: ByteArray): DeviceResponse
+    fun parseResponse(data: ByteArray): List<DeviceResponse>
 }
 
 private fun unsupported(): Nothing =

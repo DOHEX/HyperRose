@@ -7,6 +7,7 @@ import android.content.Intent
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import android.os.Binder
 import com.dohex.hyperrose.data.AuthorizedDeviceStore
 import com.dohex.hyperrose.ipc.AuthorizedDeviceProvider.Companion.AUTHORITY
 import com.dohex.hyperrose.ipc.AuthorizedDeviceProvider.Companion.COLUMN_ADDRESS
@@ -52,9 +53,18 @@ class AuthorizedDeviceProvider : ContentProvider() {
         selectionArgs: Array<out String>?,
         sortOrder: String?,
     ): Cursor {
+        if (!isCallerAuthorized()) return MatrixCursor(arrayOf(COLUMN_ADDRESS))
+
         val cursor = MatrixCursor(arrayOf(COLUMN_ADDRESS))
         cachedAddresses.forEach { cursor.addRow(arrayOf(it)) }
         return cursor
+    }
+
+    private fun isCallerAuthorized(): Boolean {
+        val callerUid = Binder.getCallingUid()
+        if (callerUid == android.os.Process.myUid()) return true
+        val packages = context?.packageManager?.getPackagesForUid(callerUid) ?: return false
+        return packages.any { it in HyperRoseIpc.SCOPE_PACKAGES || it == HyperRoseIpc.PACKAGE_APP }
     }
 
     override fun getType(uri: Uri): String = "vnd.android.cursor.dir/vnd.$AUTHORITY.address"

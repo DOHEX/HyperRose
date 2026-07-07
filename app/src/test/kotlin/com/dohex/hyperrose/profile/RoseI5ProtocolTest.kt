@@ -19,29 +19,32 @@ class RoseI5ProtocolTest {
             0x09, 0xFF.toByte(), 0x00, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x00, 0x01,
             0x64, 0x64, 0x00, 0x00, 0x64, 0x49
         )
-        val result = protocol.parseResponse(batteryFrame)
-        assertTrue("Expected Battery, got $result", result is DeviceResponse.Battery)
-        val battery = result as DeviceResponse.Battery
+        val results = protocol.parseResponse(batteryFrame)
+        assertEquals(1, results.size)
+        assertTrue("Expected Battery, got ${results[0]}", results[0] is DeviceResponse.Battery)
+        val battery = results[0] as DeviceResponse.Battery
         assertEquals(100, battery.info.left?.level)
     }
 
     @Test
     fun `parseResponse returns Anc for known ANC frame`() {
-        // ANC response: header 8B 09 FF 00 00 01 06 02 0E, data[9]=1 for noise cancel
+        // ANC response: header 8B 09 FF 00 00 01 06 02 0E, data[9]=1 for noise cancel, checksum=0x20
         val ancFrame = byteArrayOf(
             0x09, 0xFF.toByte(), 0x00, 0x00, 0x01, 0x06, 0x02, 0x0E,
-            0x00, 0x01, 0x00, 0x00, 0x00, 0xFF.toByte()
+            0x00, 0x01, 0x00, 0x00, 0x00, 0x20
         )
-        val result = protocol.parseResponse(ancFrame)
-        assertTrue("Expected Anc, got $result", result is DeviceResponse.Anc)
-        assertEquals(AncMode.NOISE_CANCEL, (result as DeviceResponse.Anc).mode)
+        val results = protocol.parseResponse(ancFrame)
+        assertEquals(1, results.size)
+        assertTrue("Expected Anc, got ${results[0]}", results[0] is DeviceResponse.Anc)
+        assertEquals(AncMode.NOISE_CANCEL, (results[0] as DeviceResponse.Anc).mode)
     }
 
     @Test
     fun `parseResponse returns Unknown for garbage data`() {
         val garbage = byteArrayOf(0x00, 0x01, 0x02, 0x03)
-        val result = protocol.parseResponse(garbage)
-        assertTrue("Expected Unknown, got $result", result is DeviceResponse.Unknown)
+        val results = protocol.parseResponse(garbage)
+        assertEquals(1, results.size)
+        assertTrue("Expected Unknown, got ${results[0]}", results[0] is DeviceResponse.Unknown)
     }
 
     @Test

@@ -15,8 +15,7 @@ object QuickControlLaunchValidator {
         caller: ComponentName?,
         referrer: Uri? = null,
     ): Boolean {
-        if (caller == null) return true
-        if (caller.packageName in trustedPackages) return true
+        if (caller != null && caller.packageName in trustedPackages) return true
         // Notification PendingIntent launches may carry the creating package as referrer
         val referrerPackage = referrer?.host
         if (referrerPackage != null && referrerPackage in trustedPackages) return true

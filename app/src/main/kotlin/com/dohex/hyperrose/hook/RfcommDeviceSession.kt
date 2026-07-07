@@ -85,9 +85,9 @@ class RfcommDeviceSession(
                     if (n < 0) break
                     frameBuf += buf.copyOf(n)
 
-                    while (frameBuf.size >= 4) {
+                    while (frameBuf.size >= 5) {
                         val aaIdx = frameBuf.indexOf(0xAA.toByte())
-                        if (aaIdx < 2) {
+                        if (aaIdx < 4) {
                             if (aaIdx == -1) break
                             frameBuf = frameBuf.copyOfRange(aaIdx + 1, frameBuf.size)
                             continue

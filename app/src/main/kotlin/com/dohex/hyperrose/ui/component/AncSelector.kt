@@ -62,9 +62,9 @@ fun AncSelector(
             }
         }
 
-        if (showAncDepth && ancMode == AncMode.NOISE_CANCEL) {
+        if (showAncDepth && ancMode == AncMode.NOISE_CANCEL && ancDepth != null) {
             val depthOptions = AncDepth.entries.map { it.label }
-            val depthSelectedIndex = AncDepth.entries.indexOf(ancDepth).coerceAtLeast(0)
+            val depthSelectedIndex = AncDepth.entries.indexOf(ancDepth)
 
             TabRowWithContour(
                 tabs = depthOptions,
@@ -80,9 +80,9 @@ fun AncSelector(
             )
         }
 
-        if (showTransLevel && ancMode == AncMode.TRANSPARENT) {
+        if (showTransLevel && ancMode == AncMode.TRANSPARENT && transLevel != null) {
             val transOptions = TransparencyLevel.entries.map { it.label }
-            val transSelectedIndex = TransparencyLevel.entries.indexOf(transLevel).coerceAtLeast(0)
+            val transSelectedIndex = TransparencyLevel.entries.indexOf(transLevel)
 
             TabRowWithContour(
                 tabs = transOptions,
@@ -149,7 +149,7 @@ private fun AncModeIcon(
                 tint = iconTint,
                 modifier = Modifier
                     .size(54.dp)
-                    .padding(start = 10.dp, top = 4.dp, end = 10.dp, bottom = 10.dp),
+                    .padding(start = 10.dp, top = 6.dp, end = 10.dp, bottom = 10.dp),
             )
         }
         Text(

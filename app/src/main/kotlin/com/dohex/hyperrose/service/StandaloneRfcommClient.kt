@@ -82,19 +82,26 @@ class StandaloneRfcommClient(
 
     @Volatile
     private var running = false
-    private val handler = Handler(Looper.getMainLooper())
 
-    // ==================== Public methods ====================
+    @Volatile
+    private var connectCancelled = false
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun connect(device: BluetoothDevice) {
         _deviceName.value = device.name
         _connectionState.value = ConnectionState.CONNECTING
         Log.i(TAG, "Connecting to ${device.address} via RFCOMM")
+        connectCancelled = false
 
         Thread {
             try {
                 val socket = device.createRfcommSocketToServiceRecord(rfcommSpec.dataChannelUuid)
                 socket.connect()
+                if (connectCancelled) {
+                    Log.i(TAG, "RFCOMM connect cancelled after socket opened")
+                    runCatching { socket.close() }
+                    return@Thread
+                }
                 dataSocket = socket
                 handler.post {
                     _connectionState.value = ConnectionState.CONNECTED
@@ -116,6 +123,7 @@ class StandaloneRfcommClient(
     }
 
     override fun disconnect() {
+        connectCancelled = true
         running = false
         readerThread?.interrupt()
         readerThread = null
@@ -204,9 +212,9 @@ class StandaloneRfcommClient(
                     if (n < 0) break
                     frameBuf += buf.copyOf(n)
 
-                    while (frameBuf.size >= 4) {
+                    while (frameBuf.size >= 5) {
                         val aaIdx = frameBuf.indexOf(0xAA.toByte())
-                        if (aaIdx < 2) {
+                        if (aaIdx < 4) {
                             if (aaIdx == -1) break
                             frameBuf = frameBuf.copyOfRange(aaIdx + 1, frameBuf.size)
                             continue
@@ -248,46 +256,48 @@ class StandaloneRfcommClient(
 
     private fun handleResponse(data: ByteArray) {
         val hex = data.toHexString()
-        val result = profile.protocol.parseResponse(data)
-        BleLog.log("App", "RX", hex, result.toString(), logTimeFormat.format(Date()))
-        when (result) {
-            is DeviceResponse.Battery -> {
-                Log.d(TAG, "← $hex → $result")
-                _battery.value = result.info.withLastKnownCaseBattery(_battery.value)
-            }
+        val results = profile.protocol.parseResponse(data)
+        BleLog.log("App", "RX", hex, results.toString(), logTimeFormat.format(Date()))
+        for (result in results) {
+            when (result) {
+                is DeviceResponse.Battery -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _battery.value = result.info.withLastKnownCaseBattery(_battery.value)
+                }
 
-            is DeviceResponse.Anc -> {
-                Log.d(TAG, "← $hex → $result")
-                _ancMode.value = result.mode
-            }
+                is DeviceResponse.Anc -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _ancMode.value = result.mode
+                }
 
-            is DeviceResponse.AncDepthChanged -> {
-                Log.d(TAG, "← $hex → $result")
-                _ancDepth.value = result.depth
-            }
+                is DeviceResponse.AncDepthChanged -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _ancDepth.value = result.depth
+                }
 
-            is DeviceResponse.TransparencyChanged -> {
-                Log.d(TAG, "← $hex → $result")
-                _transLevel.value = result.level
-            }
+                is DeviceResponse.TransparencyChanged -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _transLevel.value = result.level
+                }
 
-            is DeviceResponse.Eq -> {
-                Log.d(TAG, "← $hex → $result")
-                _eqMode.value = result.mode
-            }
+                is DeviceResponse.Eq -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _eqMode.value = result.mode
+                }
 
-            is DeviceResponse.GameMode -> {
-                Log.d(TAG, "← $hex → $result")
-                _gameMode.value = result.enabled
-            }
+                is DeviceResponse.GameMode -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _gameMode.value = result.enabled
+                }
 
-            is DeviceResponse.LowLatencyChanged -> {
-                Log.d(TAG, "← $hex → $result")
-                _lowLatency.value = result.enabled
-            }
+                is DeviceResponse.LowLatencyChanged -> {
+                    Log.d(TAG, "← $hex → $result")
+                    _lowLatency.value = result.enabled
+                }
 
-            is DeviceResponse.Unknown -> {
-                Log.d(TAG, "← $hex → Unknown")
+                is DeviceResponse.Unknown -> {
+                    Log.d(TAG, "← $hex → Unknown")
+                }
             }
         }
     }
