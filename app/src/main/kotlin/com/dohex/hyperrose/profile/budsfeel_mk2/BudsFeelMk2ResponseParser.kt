@@ -86,7 +86,7 @@ object BudsFeelMk2ResponseParser {
 
             // Recurse into value bytes — child TLVs may be nested inside
             val valueStart = i + 2
-            val valueEnd = minOf(i + len, end)
+            val valueEnd = minOf(i + len + 1, end)
             if (valueEnd > valueStart) {
                 results.addAll(parseTlvBlock(data, valueStart, valueEnd))
             }
