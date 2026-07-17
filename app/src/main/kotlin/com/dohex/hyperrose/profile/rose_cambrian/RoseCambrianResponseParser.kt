@@ -14,9 +14,6 @@ object RoseCambrianResponseParser {
         val header = data[0].toInt() and 0xFF
         if (header != 0xDD) return listOf(DeviceResponse.Unknown)
 
-        if (data.size < 5) return listOf(DeviceResponse.Unknown)
-        val expectedChecksum = (data.dropLast(2).sumOf { it.toInt() and 0xFF } and 0xFF).toByte()
-        if (data[data.size - 2] != expectedChecksum) return listOf(DeviceResponse.Unknown)
         if (data[data.size - 1] != 0xAA.toByte()) return listOf(DeviceResponse.Unknown)
 
         val responseType = data[2].toInt() and 0xFF
@@ -31,7 +28,7 @@ object RoseCambrianResponseParser {
     }
 
     private fun parseStatusResponse(data: ByteArray): List<DeviceResponse> {
-        val payload = data.copyOfRange(3, data.size - 2)
+        val payload = data.copyOfRange(3, data.size - 1)
         return parseTlvBlock(payload, 0, payload.size)
     }
 
@@ -128,7 +125,7 @@ object RoseCambrianResponseParser {
     }
 
     private fun parseUnsolicitedNotification(data: ByteArray): DeviceResponse {
-        if (data.size < 7) return DeviceResponse.Unknown
+        if (data.size < 6) return DeviceResponse.Unknown
         val ptype = data[3].toInt() and 0xFF
         val value = data[4].toInt() and 0xFF
         return when (ptype) {

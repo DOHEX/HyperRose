@@ -32,6 +32,8 @@ object RoseCambrianProfile : DeviceProfile {
         hasFindEarphone = false,
     )
 
+    override val hasFrameChecksum = false
+
     override val debugHexHint = "HEX 指令 (如 FF 00 02 09 01 12 AA)"
     override val debugQuickCommands = listOf(
         "查询全部状态" to RoseCambrianCommandSet.buildFrame(
