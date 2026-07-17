@@ -63,30 +63,42 @@ object RoseCambrianResponseParser {
                         values.add(data[vi].toInt() and 0xFF)
                         vi++
                     }
-                    results.add(
-                        when (values.size) {
-                            1 -> DeviceResponse.Battery(
+                    val nonZero = values.filter { it > 0 }
+                    if (nonZero.size == 1 && values.size >= 3) {
+                        results.add(
+                            DeviceResponse.Battery(
                                 TwsBatteryState(
-                                    left = EarBatteryState(values[0], false),
+                                    left = EarBatteryState(nonZero[0], false),
                                     right = null, caseBattery = null,
                                 )
                             )
-                            2 -> DeviceResponse.Battery(
-                                TwsBatteryState(
-                                    left = EarBatteryState(values[0], false),
-                                    right = EarBatteryState(values[1], false),
-                                    caseBattery = null,
+                        )
+                    } else {
+                        results.add(
+                            when (values.size) {
+                                1 -> DeviceResponse.Battery(
+                                    TwsBatteryState(
+                                        left = EarBatteryState(values[0], false),
+                                        right = null, caseBattery = null,
+                                    )
                                 )
-                            )
-                            else -> DeviceResponse.Battery(
-                                TwsBatteryState(
-                                    left = EarBatteryState(values[0], false),
-                                    right = EarBatteryState(values[1], false),
-                                    caseBattery = values[2].asBatteryLevelOrNull(),
+                                2 -> DeviceResponse.Battery(
+                                    TwsBatteryState(
+                                        left = EarBatteryState(values[0], false),
+                                        right = EarBatteryState(values[1], false),
+                                        caseBattery = null,
+                                    )
                                 )
-                            )
-                        }
-                    )
+                                else -> DeviceResponse.Battery(
+                                    TwsBatteryState(
+                                        left = EarBatteryState(values[0], false),
+                                        right = EarBatteryState(values[1], false),
+                                        caseBattery = values[2].asBatteryLevelOrNull(),
+                                    )
+                                )
+                            }
+                        )
+                    }
                 }
 
                 0x2A -> {
