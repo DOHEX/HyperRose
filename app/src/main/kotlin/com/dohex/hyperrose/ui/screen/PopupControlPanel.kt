@@ -1,5 +1,6 @@
 package com.dohex.hyperrose.ui.screen
 
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,12 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dohex.hyperrose.model.EqPreset
+import com.dohex.hyperrose.ui.AppEntryActivity
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.AncSelector
+import com.dohex.hyperrose.ui.component.BatteryCard
 import com.dohex.hyperrose.ui.component.SectionCard
 import com.dohex.hyperrose.ui.state.DeviceConnectionState
 import com.dohex.hyperrose.ui.state.DeviceControlStore
@@ -35,6 +40,7 @@ fun PopupControlPanel(
     ) {
     val connectionState by deviceControlStore.connectionState.collectAsState()
     val deviceName by deviceControlStore.deviceName.collectAsState()
+    val battery by deviceControlStore.battery.collectAsState()
     val ancMode by deviceControlStore.ancMode.collectAsState()
     val ancDepth by deviceControlStore.ancDepth.collectAsState()
     val transLevel by deviceControlStore.transLevel.collectAsState()
@@ -119,6 +125,7 @@ fun PopupControlPanel(
                 }
             }
         } else {
+            val context = LocalContext.current
             Column(
                 modifier =
                     Modifier
@@ -127,6 +134,7 @@ fun PopupControlPanel(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 if (connected) {
+                    BatteryCard(battery = battery)
                     AncSelector(
                         ancMode = ancMode,
                         ancDepth = ancDepth,
@@ -172,6 +180,17 @@ fun PopupControlPanel(
                             )
                         }
                     }
+                    ActionButton(
+                        text = "更多",
+                        onClick = {
+                            context.startActivity(
+                                Intent(context, AppEntryActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 } else {
                     SectionCard(
                         title = "耳机未连接",
