@@ -34,6 +34,7 @@ class RfcommDeviceSession(
             registerRefreshReceiver()
             startReader()
             queryAllStatus()
+            broadcastDeviceConnected()
         } catch (e: IOException) {
             module.log(Log.ERROR, TAG, "RfcommDeviceSession: connect failed", e)
             disconnect()

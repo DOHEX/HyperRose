@@ -96,6 +96,7 @@ abstract class DeviceSession(
                             )
                             putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, if (isMono) (battery.left?.level ?: -1) else (battery.caseBattery ?: -1))
                             putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
+                            putExtra(HyperRoseAction.EXTRA_PROFILE_ID, profile.id)
                         },
                     )
                 }
@@ -233,7 +234,13 @@ abstract class DeviceSession(
                                 putExtra(HyperRoseAction.EXTRA_DEVICE, device)
                                 putExtra(HyperRoseAction.EXTRA_PROFILE_ID, profile.id)
                                 currentAnc?.let { putExtra(HyperRoseAction.EXTRA_MODE, it.name) }
+                                currentEq?.let { putExtra(HyperRoseAction.EXTRA_EQ_MODE, it.name) }
                                 currentGameMode?.let { putExtra(HyperRoseAction.EXTRA_ENABLED, it) }
+                                currentBattery?.let { b ->
+                                    putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, b.left?.level ?: -1)
+                                    putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, b.right?.level ?: -1)
+                                    putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, b.caseBattery ?: -1)
+                                }
                                 setPackage(pkg)
                                 addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
                             },
@@ -246,6 +253,33 @@ abstract class DeviceSession(
         )
     }
 
+
+    protected fun broadcastDeviceConnected() {
+        val device = connectedDevice ?: return
+        listOf(
+            HyperRoseAction.PACKAGE_APP,
+            HyperRoseAction.PACKAGE_MI_BLUETOOTH,
+            HyperRoseAction.PACKAGE_MILINK,
+            HyperRoseAction.PACKAGE_BLUETOOTH,
+        ).forEach { pkg ->
+            context.sendBroadcast(
+                Intent(HyperRoseAction.DEVICE_CONNECTED).apply {
+                    putExtra(HyperRoseAction.EXTRA_DEVICE, device)
+                    putExtra(HyperRoseAction.EXTRA_PROFILE_ID, profile.id)
+                    currentAnc?.let { putExtra(HyperRoseAction.EXTRA_MODE, it.name) }
+                    currentEq?.let { putExtra(HyperRoseAction.EXTRA_EQ_MODE, it.name) }
+                    currentGameMode?.let { putExtra(HyperRoseAction.EXTRA_ENABLED, it) }
+                    currentBattery?.let { b ->
+                        putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, b.left?.level ?: -1)
+                        putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, b.right?.level ?: -1)
+                        putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, b.caseBattery ?: -1)
+                    }
+                    setPackage(pkg)
+                    addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                },
+            )
+        }
+    }
 
     protected fun ByteArray.toHexString(): String = joinToString(" ") { "%02X".format(it) }
 }

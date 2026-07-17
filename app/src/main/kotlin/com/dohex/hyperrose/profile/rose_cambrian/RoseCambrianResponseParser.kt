@@ -68,8 +68,8 @@ object RoseCambrianResponseParser {
                         results.add(
                             DeviceResponse.Battery(
                                 TwsBatteryState(
-                                    left = EarBatteryState(nonZero[0], false),
-                                    right = null, caseBattery = null,
+                                    left = null, right = null,
+                                    caseBattery = nonZero[0],
                                 )
                             )
                         )
@@ -78,8 +78,8 @@ object RoseCambrianResponseParser {
                             when (values.size) {
                                 1 -> DeviceResponse.Battery(
                                     TwsBatteryState(
-                                        left = EarBatteryState(values[0], false),
-                                        right = null, caseBattery = null,
+                                        left = null, right = null,
+                                        caseBattery = values[0],
                                     )
                                 )
                                 2 -> DeviceResponse.Battery(

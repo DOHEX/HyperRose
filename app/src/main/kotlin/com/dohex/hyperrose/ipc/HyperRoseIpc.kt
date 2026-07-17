@@ -63,6 +63,7 @@ object HyperRoseIpc {
     const val EXTRA_DEPTH = "$EXTRA_PREFIX.depth"
     const val EXTRA_LEVEL = "$EXTRA_PREFIX.level"
     const val EXTRA_ENABLED = "$EXTRA_PREFIX.enabled"
+    const val EXTRA_EQ_MODE = "$EXTRA_PREFIX.eq_mode"
     const val EXTRA_SIDE = "$EXTRA_PREFIX.side"
     const val EXTRA_LEFT_LEVEL = "$EXTRA_PREFIX.left_level"
     const val EXTRA_RIGHT_LEVEL = "$EXTRA_PREFIX.right_level"

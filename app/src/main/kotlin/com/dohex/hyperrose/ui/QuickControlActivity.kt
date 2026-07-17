@@ -49,6 +49,7 @@ class QuickControlActivity : ComponentActivity() {
         val presetLeftLevel = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
         val presetRightLevel = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
         val presetCaseLevel = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
+        val presetProfileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
         val forceConnected = intent.getBooleanExtra(EXTRA_FORCE_CONNECTED, false)
 
         setContent {
@@ -72,6 +73,7 @@ class QuickControlActivity : ComponentActivity() {
                     deviceControlStore.setTemporaryConnectionState(
                         name = presetDeviceName ?: DEFAULT_DEVICE_NAME,
                         battery = buildPresetBattery(presetLeftLevel, presetRightLevel, presetCaseLevel),
+                        profileId = presetProfileId,
                     )
                 }
             }
@@ -124,11 +126,17 @@ class QuickControlActivity : ComponentActivity() {
         if (nonZeroCount == 1) {
             val realLevel = allLevels.first { it > 0 }
             return TwsBatteryState(
-                left = EarBatteryState(realLevel, false),
-                right = null, caseBattery = null,
+                left = null, right = null,
+                caseBattery = realLevel,
             )
         }
         val monoLevel = normalizedLeftLevel ?: normalizedCaseLevel
+        if (normalizedLeftLevel == null && monoLevel != null) {
+            return TwsBatteryState(
+                left = null, right = null,
+                caseBattery = monoLevel,
+            )
+        }
         return TwsBatteryState(
             left = monoLevel?.let { EarBatteryState(it, false) },
             right = normalizedRightLevel?.let { EarBatteryState(it, false) },

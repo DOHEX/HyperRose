@@ -161,9 +161,19 @@ class DeviceControlStore(
 
                     intent.enumExtra<AncMode>(HyperRoseAction.EXTRA_MODE)
                         ?.let { _ancMode.value = it }
+                    intent.enumExtra<EqPreset>(HyperRoseAction.EXTRA_EQ_MODE)
+                        ?.let { _eqMode.value = it }
                     if (intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) {
                         _gameMode.value =
                             intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
+                    }
+                    val presetLeft = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
+                    val presetRight = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
+                    val presetCase = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
+                    if (presetLeft >= 0 || presetRight >= 0 || presetCase >= 0) {
+                        parseBattery(intent)?.let {
+                            _battery.value = if (it.right == null) it else it.withLastKnownCaseBattery(_battery.value)
+                        }
                     }
                 }
 
@@ -440,6 +450,7 @@ class DeviceControlStore(
     fun setTemporaryConnectionState(
         name: String,
         battery: TwsBatteryState?,
+        profileId: String? = null,
     ) {
         if (_connectionState.value == DeviceConnectionState.CONNECTED) return
         _transport.value = ConnectionTransport.HOOK_BRIDGE
@@ -447,6 +458,12 @@ class DeviceControlStore(
         _deviceName.value = name
         if (battery != null) {
             _battery.value = battery
+        }
+        val id = profileId ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name)?.id
+        if (id != null) {
+            _capabilities.value =
+                com.dohex.hyperrose.profile.DeviceProfileRegistry.findById(id)?.capabilities
+                    ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
         }
     }
 
@@ -603,9 +620,8 @@ class DeviceControlStore(
         if (nonZeroCount == 1) {
             val realLevel = levels.first { it > 0 }
             return TwsBatteryState(
-                left = EarBatteryState(realLevel, false),
-                right = null,
-                caseBattery = null,
+                left = null, right = null,
+                caseBattery = realLevel,
             )
         }
         return TwsBatteryState(
