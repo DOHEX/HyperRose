@@ -4,20 +4,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
+import com.dohex.hyperrose.HyperRoseApp
 import com.dohex.hyperrose.ipc.QuickControlLaunchValidator
 import com.dohex.hyperrose.model.EarBatteryState
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.ui.screen.PopupControlPanel
-import com.dohex.hyperrose.ui.state.DeviceControlStore
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import com.dohex.hyperrose.ui.theme.LocalCanUpdateThemeMode
 import com.dohex.hyperrose.ui.theme.LocalThemeMode
@@ -53,18 +51,16 @@ class QuickControlActivity : ComponentActivity() {
         val forceConnected = intent.getBooleanExtra(EXTRA_FORCE_CONNECTED, false)
 
         setContent {
-            val context = LocalContext.current
-            val deviceControlStore = remember(context) { DeviceControlStore(context) }
-            val themeStore = remember(context) { ThemeSettingsStore(context) }
+            val deviceControlStore = HyperRoseApp.deviceControlStore
+            val themeStore = remember { ThemeSettingsStore(this) }
             val themeMode by themeStore.themeModeFlow.collectAsState(initial = ThemeMode())
             var showDialog by remember { mutableStateOf(true) }
 
-            DisposableEffect(deviceControlStore) {
+            LaunchedEffect(Unit) {
                 deviceControlStore.refreshStatus()
-                onDispose { deviceControlStore.release() }
             }
 
-            LaunchedEffect(deviceControlStore) {
+            LaunchedEffect(Unit) {
                 val currentName = deviceControlStore.deviceName.value
                 val hasPresetBattery = presetLeftLevel >= 0 || presetRightLevel >= 0 || presetCaseLevel >= 0
                 val shouldApplyFallback =
@@ -126,19 +122,12 @@ class QuickControlActivity : ComponentActivity() {
         if (nonZeroCount == 1) {
             val realLevel = allLevels.first { it > 0 }
             return TwsBatteryState(
-                left = null, right = null,
-                caseBattery = realLevel,
-            )
-        }
-        val monoLevel = normalizedLeftLevel ?: normalizedCaseLevel
-        if (normalizedLeftLevel == null && monoLevel != null) {
-            return TwsBatteryState(
-                left = null, right = null,
-                caseBattery = monoLevel,
+                left = EarBatteryState(realLevel, false),
+                right = null, caseBattery = null,
             )
         }
         return TwsBatteryState(
-            left = monoLevel?.let { EarBatteryState(it, false) },
+            left = normalizedLeftLevel?.let { EarBatteryState(it, false) },
             right = normalizedRightLevel?.let { EarBatteryState(it, false) },
             caseBattery = if (normalizedLeftLevel != null) normalizedCaseLevel else null,
         )

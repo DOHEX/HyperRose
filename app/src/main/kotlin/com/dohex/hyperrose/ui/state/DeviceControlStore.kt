@@ -133,18 +133,17 @@ class DeviceControlStore(
                 HyperRoseAction.DEVICE_CONNECTED -> {
                     bridgeFallbackJob?.cancel()
 
-                    // Bridge always takes priority over standalone.
-                    // Disconnect any active direct client so we don't keep
-                    // two connections to the same device.
-                    if (_transport.value == ConnectionTransport.DIRECT_BLE) {
-                        directGattClient.disconnect()
-                    } else if (_transport.value == ConnectionTransport.DIRECT_RFCOMM) {
-                        directRfcommClient?.disconnect()
-                        directRfcommClient = null
+                    if (_transport.value == ConnectionTransport.DIRECT_RFCOMM &&
+                        _connectionState.value == DeviceConnectionState.CONNECTED
+                    ) {
+                        // Already connected via direct RFCOMM, keep it
+                    } else {
+                        if (_transport.value == ConnectionTransport.DIRECT_BLE) {
+                            directGattClient.disconnect()
+                        }
+                        _transport.value = ConnectionTransport.HOOK_BRIDGE
+                        _connectionState.value = DeviceConnectionState.CONNECTED
                     }
-
-                    _transport.value = ConnectionTransport.HOOK_BRIDGE
-                    _connectionState.value = DeviceConnectionState.CONNECTED
 
                     val device = intent.getParcelableExtra(
                         HyperRoseAction.EXTRA_DEVICE,
@@ -233,6 +232,22 @@ class DeviceControlStore(
         observeDirectGatt()
         registerBridgeReceiver()
         refreshPermissionState()
+        scope.launch { autoConnectPreferredDevice() }
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun autoConnectPreferredDevice() {
+        delay(500)
+        if (!_hasBluetoothPermission.value) {
+            refreshPermissionState()
+            if (!_hasBluetoothPermission.value) return
+        }
+        val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
+        val preferred = adapter.bondedDevices.firstOrNull { device ->
+            val name = device.name ?: return@firstOrNull false
+            com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name) != null
+        } ?: return
+        connectDirectRfcomm(preferred.address)
     }
 
     fun refreshPermissionState() {
@@ -277,33 +292,13 @@ class DeviceControlStore(
         if (!_hasBluetoothPermission.value) return
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
         val bonded = adapter.bondedDevices.firstOrNull { it.address == address } ?: return
-
         com.dohex.hyperrose.data.AuthorizedDeviceStore.add(appContext, address)
-
-        val profile = com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(
-            bonded.name ?: ""
-        )
+        val profile = com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(bonded.name ?: "")
         _deviceName.value = bonded.name ?: address
-        if (profile != null) {
-            _capabilities.value = profile.capabilities
-        }
-
-        // Prefer hook bridge: optimistically assume LSPosed hooks are running.
-        // If the device is already A2DP-connected, the hook process broadcasts
-        // DEVICE_CONNECTED and BridgeReceiver cancels the fallback.
-        // Falls back to standalone client after timeout.
+        _capabilities.value = profile?.capabilities
+            ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
         bridgeFallbackJob?.cancel()
-        _transport.value = ConnectionTransport.HOOK_BRIDGE
-        _connectionState.value = DeviceConnectionState.CONNECTING
-
-        bridgeFallbackJob = scope.launch {
-            delay(BRIDGE_TIMEOUT_MS)
-            if (_transport.value == ConnectionTransport.HOOK_BRIDGE &&
-                _connectionState.value == DeviceConnectionState.CONNECTING
-            ) {
-                connectStandalone(bonded, profile)
-            }
-        }
+        connectStandalone(bonded, profile)
     }
 
     @SuppressLint("MissingPermission")
@@ -620,8 +615,8 @@ class DeviceControlStore(
         if (nonZeroCount == 1) {
             val realLevel = levels.first { it > 0 }
             return TwsBatteryState(
-                left = null, right = null,
-                caseBattery = realLevel,
+                left = EarBatteryState(realLevel, false),
+                right = null, caseBattery = null,
             )
         }
         return TwsBatteryState(

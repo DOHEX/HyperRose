@@ -36,15 +36,13 @@ fun BatteryCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            if (b?.left != null) {
-                BatteryCell(
-                    iconRes = if (b.right == null) R.drawable.battery_charge else R.drawable.battery_left,
-                    label = if (b.right == null) "耳机" else "左耳",
-                    value = b.left.level,
-                    charging = b.left.isCharging,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            BatteryCell(
+                iconRes = if (b?.right == null) R.drawable.battery_charge else R.drawable.battery_left,
+                label = if (b?.right == null) "充电盒" else "左耳",
+                value = b?.left?.level,
+                charging = b?.left?.isCharging == true,
+                modifier = Modifier.weight(1f),
+            )
             if (b?.right != null) {
                 BatteryCell(
                     iconRes = R.drawable.battery_right,
