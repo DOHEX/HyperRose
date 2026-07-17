@@ -230,6 +230,7 @@ object MiBluetoothFocusIslandHook {
                 leftCharging = leftCharging,
                 rightCharging = rightCharging,
                 islandTimeoutSeconds = ISLAND_TIMEOUT_SECONDS,
+                deviceName = device?.name ?: "耳机",
             )
 
         val channel =
@@ -288,11 +289,14 @@ object MiBluetoothFocusIslandHook {
         left: Int,
         right: Int,
     ): PendingIntent {
+        val caseLevel = lastKnownCaseLevel ?: -1
         val intent =
             QuickControlIntentFactory.createLaunchIntent(
                 deviceName = device?.name,
+                deviceAddress = device?.address,
                 leftLevel = left,
                 rightLevel = right,
+                caseLevel = caseLevel,
                 forceConnected = true,
             )
 

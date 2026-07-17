@@ -82,8 +82,9 @@ abstract class DeviceSession(
                         Intent(HyperRoseAction.SHOW_ISLAND).apply {
                             setPackage(HyperRoseAction.PACKAGE_MI_BLUETOOTH)
                             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-                            putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, battery.left?.level ?: -1)
-                            putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, battery.right?.level ?: -1)
+                            val isMono = battery.right == null && battery.caseBattery == null
+                            putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, if (isMono) -1 else (battery.left?.level ?: -1))
+                            putExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, if (isMono) -1 else (battery.right?.level ?: -1))
                             putExtra(
                                 HyperRoseAction.EXTRA_LEFT_CHARGING,
                                 battery.left?.isCharging ?: false
@@ -92,7 +93,7 @@ abstract class DeviceSession(
                                 HyperRoseAction.EXTRA_RIGHT_CHARGING,
                                 battery.right?.isCharging ?: false
                             )
-                            putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, battery.caseBattery ?: -1)
+                            putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, if (isMono) (battery.left?.level ?: -1) else (battery.caseBattery ?: -1))
                             putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
                         },
                     )
@@ -217,7 +218,24 @@ abstract class DeviceSession(
         context.registerReceiver(
             object : BroadcastReceiver() {
                 override fun onReceive(ctx: Context?, intent: Intent?) {
-                    if (intent?.action == HyperRoseAction.REFRESH_STATUS) queryAllStatus()
+                    if (intent?.action != HyperRoseAction.REFRESH_STATUS) return
+                    queryAllStatus()
+                    val device = connectedDevice ?: return
+                    listOf(
+                        HyperRoseAction.PACKAGE_APP,
+                        HyperRoseAction.PACKAGE_MI_BLUETOOTH,
+                        HyperRoseAction.PACKAGE_MILINK,
+                        HyperRoseAction.PACKAGE_BLUETOOTH,
+                    ).forEach { pkg ->
+                        context.sendBroadcast(
+                            Intent(HyperRoseAction.DEVICE_CONNECTED).apply {
+                                putExtra(HyperRoseAction.EXTRA_DEVICE, device)
+                                putExtra(HyperRoseAction.EXTRA_PROFILE_ID, profile.id)
+                                setPackage(pkg)
+                                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                            },
+                        )
+                    }
                 }
             },
             filter,

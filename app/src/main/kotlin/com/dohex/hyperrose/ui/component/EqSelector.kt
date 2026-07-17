@@ -11,10 +11,11 @@ fun EqSelector(
     eqMode: EqPreset?,
     onSelect: (EqPreset) -> Unit,
     enabled: Boolean,
+    presets: List<EqPreset> = EqPreset.entries.toList(),
     modifier: Modifier = Modifier,
 ) {
-    val options = EqPreset.entries.map { it.label }
-    val selectedIndex = EqPreset.entries.indexOf(eqMode).coerceAtLeast(0)
+    val options = presets.map { it.label }
+    val selectedIndex = presets.indexOf(eqMode).coerceAtLeast(0)
 
     Card(modifier = modifier) {
         OverlayDropdownPreference(
@@ -23,7 +24,7 @@ fun EqSelector(
             selectedIndex = selectedIndex,
             onSelectedIndexChange = { index ->
                 if (enabled) {
-                    EqPreset.entries.getOrNull(index)?.let(onSelect)
+                    presets.getOrNull(index)?.let(onSelect)
                 }
             },
             enabled = enabled,

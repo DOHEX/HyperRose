@@ -31,31 +31,36 @@ fun BatteryCard(
     val colorScheme = MiuixTheme.colorScheme
 
     SectionCard(title = "电量", modifier = modifier) {
+        val b = battery
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             BatteryCell(
-                iconRes = R.drawable.battery_left,
-                label = "左耳",
-                value = battery?.left?.level,
-                charging = battery?.left?.isCharging == true,
+                iconRes = if (b?.right == null) R.drawable.battery_charge else R.drawable.battery_left,
+                label = if (b?.right == null) "耳机" else "左耳",
+                value = b?.left?.level,
+                charging = b?.left?.isCharging == true,
                 modifier = Modifier.weight(1f),
             )
-            BatteryCell(
-                iconRes = R.drawable.battery_right,
-                label = "右耳",
-                value = battery?.right?.level,
-                charging = battery?.right?.isCharging == true,
-                modifier = Modifier.weight(1f),
-            )
-            BatteryCell(
-                iconRes = R.drawable.battery_charge,
-                label = "充电盒",
-                value = battery?.caseBattery,
-                charging = false,
-                modifier = Modifier.weight(1f),
-            )
+            if (b?.right != null) {
+                BatteryCell(
+                    iconRes = R.drawable.battery_right,
+                    label = "右耳",
+                    value = b.right.level,
+                    charging = b.right.isCharging,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (b?.caseBattery != null) {
+                BatteryCell(
+                    iconRes = R.drawable.battery_charge,
+                    label = "充电盒",
+                    value = b.caseBattery,
+                    charging = false,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }

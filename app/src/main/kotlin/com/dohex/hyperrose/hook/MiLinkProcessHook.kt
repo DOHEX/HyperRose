@@ -635,14 +635,26 @@ object MiLinkProcessHook {
             )
             return
         }
-        val targetPkg = HyperRoseAction.PACKAGE_BLUETOOTH
         val modeName = roseAnc?.name ?: "NULL"
-        mlog(Log.WARN, ">>> sendAncToBluetooth: sending ANC_SELECT mode=$modeName to $targetPkg")
+        mlog(Log.WARN, ">>> sendAncToBluetooth: sending ANC_SELECT mode=$modeName")
+
+        // Send to app first (DIRECT_RFCOMM if available)
         try {
             ctx.sendBroadcast(
                 Intent(HyperRoseAction.ANC_SELECT).apply {
                     putExtra(HyperRoseAction.EXTRA_MODE, modeName)
-                    setPackage(targetPkg)
+                    setPackage(HyperRoseAction.PACKAGE_APP)
+                    addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                },
+            )
+        } catch (_: Exception) {}
+
+        // Fallback: send to Bluetooth process
+        try {
+            ctx.sendBroadcast(
+                Intent(HyperRoseAction.ANC_SELECT).apply {
+                    putExtra(HyperRoseAction.EXTRA_MODE, modeName)
+                    setPackage(HyperRoseAction.PACKAGE_BLUETOOTH)
                     addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
                 },
             )

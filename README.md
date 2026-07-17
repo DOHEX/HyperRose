@@ -4,8 +4,8 @@
 
 **让弱水时砂耳机融入 HyperOS 生态**
 
-[![GitHub Release](https://img.shields.io/github/v/release/DOHEX/HyperRose?style=flat-square&logo=github&color=black)](https://github.com/DOHEX/HyperRose/releases)
-![Downloads](https://img.shields.io/github/downloads/DOHEX/HyperRose/total?style=flat-square)
+[![GitHub Release](https://img.shields.io/github/v/release/stareyeXT/HyperRose?style=flat-square&logo=github&color=black)](https://github.com/stareyeXT/HyperRose/releases)
+![Downloads](https://img.shields.io/github/downloads/stareyeXT/HyperRose/total?style=flat-square)
 [![Platform](https://img.shields.io/badge/Android-15+-green?style=flat-square&logo=android)](https://android.com)
 [![LSPosed](https://img.shields.io/badge/LSPosed-API≥101-blueviolet?style=flat-square)](https://github.com/LSPosed/LSPosed)
 [![HyperOS](https://img.shields.io/badge/HyperOS-澎湃OS-orange?style=flat-square)](https://hyperos.mi.com)
@@ -21,16 +21,16 @@ HyperRose 是一个 Xposed 模块，为小米 HyperOS 设备提供 **弱水时�
 
 ## 设备支持
 
-| 能力                  | ROSESELSA EARFREE i5 | ROSE BudsFeel MK2 |
-|---------------------|:--------------------:|:-----------------:|
-| 连接方式                |       BLE GATT       |  Classic RFCOMM   |
-| 降噪模式 (降噪/风噪/普通/通透)  |          ✓           |         ✓         |
-| 降噪深度 (轻/中/深)        |          ✓           |         —         |
-| 通透强度 (舒适/人声/标准)     |          ✓           |         —         |
-| EQ 调音 (经典/日系/乐器/清新) |          ✓           |         —         |
-| 电量显示 (左耳/右耳/充电盒)    |          ✓           |         ✓         |
-| 游戏模式                |          ✓           |         ✓         |
-| 查找耳机                |          ✓           |         —         |
+| 能力                  | ROSESELSA EARFREE i5 | ROSE BudsFeel MK2 | ROSE CAMBRIAN |
+|---------------------|:--------------------:|:-----------------:|:-------------:|
+| 连接方式                |       BLE GATT       |  Classic RFCOMM   | Classic RFCOMM |
+| 降噪模式 (降噪/风噪/普通/通透)  |          ✓           |         ✓         |       ✓       |
+| 降噪深度 (轻/中/深)        |          ✓           |         —         |       —       |
+| 通透强度 (舒适/人声/标准)     |          ✓           |         —         |       —       |
+| EQ 调音                |    经典/日系/乐器/清新    |        —         |  POP/HiFi/ROCK |
+| 电量显示                |   左耳/右耳/充电盒       |    左耳/右耳/充电盒    |     耳机      |
+| 游戏模式                |          ✓           |         ✓         |       ✓       |
+| 查找耳机                |          ✓           |         —         |       —       |
 
 ---
 
@@ -82,7 +82,7 @@ com.milink.service      ─→  设备身份伪装、音频切换、拦截系统
 | 设备 | 小米设备（运行 HyperOS）                         |
 | 系统 | Android 15+                              |
 | 框架 | LSPosed（API ≥ 101）                       |
-| 耳机 | ROSESELSA EARFREE i5 / ROSE BudsFeel MK2 |
+| 耳机 | ROSESELSA EARFREE i5 / ROSE BudsFeel MK2 / ROSE CAMBRIAN |
 
 ---
 
