@@ -231,6 +231,8 @@ abstract class DeviceSession(
                             Intent(HyperRoseAction.DEVICE_CONNECTED).apply {
                                 putExtra(HyperRoseAction.EXTRA_DEVICE, device)
                                 putExtra(HyperRoseAction.EXTRA_PROFILE_ID, profile.id)
+                                currentAnc?.let { putExtra(HyperRoseAction.EXTRA_MODE, it.name) }
+                                currentGameMode?.let { putExtra(HyperRoseAction.EXTRA_ENABLED, it) }
                                 setPackage(pkg)
                                 addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
                             },

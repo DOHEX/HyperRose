@@ -158,6 +158,13 @@ class DeviceControlStore(
                             com.dohex.hyperrose.profile.DeviceProfileRegistry.findById(profileId)?.capabilities
                                 ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
                     }
+
+                    intent.enumExtra<AncMode>(HyperRoseAction.EXTRA_MODE)
+                        ?.let { _ancMode.value = it }
+                    if (intent.hasExtra(HyperRoseAction.EXTRA_ENABLED)) {
+                        _gameMode.value =
+                            intent.getBooleanExtra(HyperRoseAction.EXTRA_ENABLED, false)
+                    }
                 }
 
                 HyperRoseAction.DEVICE_DISCONNECTED -> {
