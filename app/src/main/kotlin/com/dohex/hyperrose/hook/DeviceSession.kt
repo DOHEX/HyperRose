@@ -62,7 +62,8 @@ abstract class DeviceSession(
         for (result in results) {
             when (result) {
                 is DeviceResponse.Battery -> {
-                    val battery = result.info.withLastKnownCaseBattery(currentBattery)
+                    val battery = if (result.info.right == null) result.info
+                        else result.info.withLastKnownCaseBattery(currentBattery)
                     currentBattery = battery
                     broadcastState(HyperRoseAction.BATTERY_CHANGED) {
                         putExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, battery.left?.level ?: -1)

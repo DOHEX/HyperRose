@@ -177,7 +177,7 @@ class DeviceControlStore(
 
                 HyperRoseAction.BATTERY_CHANGED -> {
                     parseBattery(intent)?.let {
-                        _battery.value = it.withLastKnownCaseBattery(_battery.value)
+                        _battery.value = if (it.right == null) it else it.withLastKnownCaseBattery(_battery.value)
                     }
                 }
 
@@ -598,9 +598,12 @@ class DeviceControlStore(
             )
         }
 
-        if (left == null && caseLevel != null) {
+        val levels = listOfNotNull(left?.level, right?.level, caseLevel)
+        val nonZeroCount = levels.count { it > 0 }
+        if (nonZeroCount == 1) {
+            val realLevel = levels.first { it > 0 }
             return TwsBatteryState(
-                left = EarBatteryState(caseLevel, false),
+                left = EarBatteryState(realLevel, false),
                 right = null,
                 caseBattery = null,
             )

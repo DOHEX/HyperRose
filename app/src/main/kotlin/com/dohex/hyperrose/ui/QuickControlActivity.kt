@@ -119,6 +119,15 @@ class QuickControlActivity : ComponentActivity() {
         val normalizedRightLevel = rightLevel.asBatteryLevelOrNull()
         val normalizedCaseLevel = caseLevel.asBatteryLevelOrNull()
         if (normalizedLeftLevel == null && normalizedRightLevel == null && normalizedCaseLevel == null) return null
+        val allLevels = listOfNotNull(normalizedLeftLevel, normalizedRightLevel, normalizedCaseLevel)
+        val nonZeroCount = allLevels.count { it > 0 }
+        if (nonZeroCount == 1) {
+            val realLevel = allLevels.first { it > 0 }
+            return TwsBatteryState(
+                left = EarBatteryState(realLevel, false),
+                right = null, caseBattery = null,
+            )
+        }
         val monoLevel = normalizedLeftLevel ?: normalizedCaseLevel
         return TwsBatteryState(
             left = monoLevel?.let { EarBatteryState(it, false) },
