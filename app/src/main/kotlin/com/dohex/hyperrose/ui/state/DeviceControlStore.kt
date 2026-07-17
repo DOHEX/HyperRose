@@ -54,7 +54,7 @@ data class RoseDeviceItem(
  * - 直接模式：StandaloneGattClient
  * - 桥接模式：接收 Hook 广播 + BluetoothCommandDispatcher 下发控制命令
  */
-class DeviceControlStore(
+class DeviceControlStore private constructor(
     context: Context,
 ) {
     private val appContext = context.applicationContext
@@ -68,6 +68,15 @@ class DeviceControlStore(
 
     companion object {
         private const val BRIDGE_TIMEOUT_MS = 5_000L
+
+        @Volatile
+        private var instance: DeviceControlStore? = null
+
+        fun getInstance(context: Context): DeviceControlStore {
+            return instance ?: synchronized(this) {
+                instance ?: DeviceControlStore(context).also { instance = it }
+            }
+        }
     }
 
     private val _hasBluetoothPermission = MutableStateFlow(false)
@@ -121,6 +130,15 @@ class DeviceControlStore(
             intent: Intent,
         ) {
             when (intent.action) {
+                HyperRoseAction.ANC_SELECT -> {
+                    val modeName = intent.getStringExtra(HyperRoseAction.EXTRA_MODE) ?: return@onReceive
+                    val mode = runCatching { AncMode.valueOf(modeName) }.getOrNull() ?: return@onReceive
+                    val client = activeDirectClient()
+                    if (client != null) {
+                        client.setAnc(mode)
+                    }
+                }
+
                 HyperRoseAction.DEVICE_CONNECTED -> {
                     bridgeFallbackJob?.cancel()
 
@@ -275,6 +293,20 @@ class DeviceControlStore(
                 connectStandalone(bonded, profile)
             }
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun connectDirectRfcomm(address: String) {
+        if (!_hasBluetoothPermission.value) return
+        if (_connectionState.value == DeviceConnectionState.CONNECTED) return
+        val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
+        val bonded = adapter.bondedDevices.firstOrNull { it.address == address } ?: return
+        val profile = com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(bonded.name ?: "")
+        _deviceName.value = bonded.name ?: address
+        _capabilities.value = profile?.capabilities
+            ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
+        com.dohex.hyperrose.data.AuthorizedDeviceStore.add(appContext, address)
+        connectStandalone(bonded, profile)
     }
 
     @SuppressLint("MissingPermission")
@@ -487,7 +519,6 @@ class DeviceControlStore(
                     if (_transport.value == ConnectionTransport.DIRECT_RFCOMM) {
                         _connectionState.value = DeviceConnectionState.DISCONNECTED
                         _transport.value = ConnectionTransport.NONE
-                        clearState()
                     }
                 }
 
@@ -520,7 +551,10 @@ class DeviceControlStore(
     private fun registerBridgeReceiver() {
         if (receiverRegistered) return
         val filter =
-            IntentFilter().apply { HyperRoseAction.BRIDGE_STATE_ACTIONS.forEach(::addAction) }
+            IntentFilter().apply {
+                HyperRoseAction.BRIDGE_STATE_ACTIONS.forEach(::addAction)
+                addAction(HyperRoseAction.ANC_SELECT)
+            }
         appContext.registerReceiver(bridgeReceiver, filter, Context.RECEIVER_EXPORTED)
         receiverRegistered = true
     }

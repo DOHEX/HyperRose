@@ -14,22 +14,27 @@ object FocusIslandBridge {
         leftCharging: Boolean,
         rightCharging: Boolean,
         islandTimeoutSeconds: Int,
+        deviceName: String = "ROSE CAMBRIAN",
     ): Bundle {
         val normalizedLeftLevel = leftLevel.asBatteryLevelOrNull()
         val normalizedRightLevel = rightLevel.asBatteryLevelOrNull()
         val normalizedCaseLevel = caseLevel.asBatteryLevelOrNull()
-        val leftText = normalizedLeftLevel?.toString() ?: "-"
-        val rightText = normalizedRightLevel?.toString() ?: "-"
+
+        val isMonoCase = normalizedLeftLevel == null && normalizedRightLevel == null && normalizedCaseLevel != null
+        val leftText = if (isMonoCase) normalizedCaseLevel.toString() else (normalizedLeftLevel?.toString() ?: "-")
+        val rightText = if (isMonoCase) "" else (normalizedRightLevel?.toString() ?: "-")
         val baseContent =
             buildBaseContent(
-                leftLevel = normalizedLeftLevel,
+                leftLevel = if (isMonoCase) normalizedCaseLevel else normalizedLeftLevel,
                 rightLevel = normalizedRightLevel,
-                caseLevel = normalizedCaseLevel,
+                caseLevel = if (isMonoCase) null else normalizedCaseLevel,
                 leftCharging = leftCharging,
                 rightCharging = rightCharging,
             )
         val aodTitle =
-            buildString {
+            if (isMonoCase) "$normalizedCaseLevel%"
+            else if (normalizedRightLevel == null) "$leftText%${if (leftCharging) "⚡" else ""}"
+            else buildString {
                 append("L$leftText%")
                 if (leftCharging) append("⚡")
                 append(" R$rightText%")
@@ -41,7 +46,6 @@ object FocusIslandBridge {
             ticker = TICKER_TEXT
             updatable = true
             isShowNotification = true
-            // aodPic = "miui.focus.pic_aod"
             this.aodTitle = aodTitle
             island {
                 islandProperty = 1
@@ -54,17 +58,19 @@ object FocusIslandBridge {
                             content = "%"
                         }
                     }
-                    imageTextInfoRight {
-                        type = 2
-                        textInfo {
-                            title = rightText
-                            content = "%"
+                    if (rightText.isNotEmpty()) {
+                        imageTextInfoRight {
+                            type = 2
+                            textInfo {
+                                title = rightText
+                                content = "%"
+                            }
                         }
                     }
                 }
                 baseInfo {
                     type = 2
-                    title = "ROSESELSA EARFEEL i5"
+                    title = deviceName
                     content = baseContent
                 }
             }

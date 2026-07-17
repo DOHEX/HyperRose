@@ -36,4 +36,7 @@ enum class EqPreset(
     JAPANESE("日系柔情"),
     INSTRUMENT("乐器大师"),
     FRESH("清新空灵"),
+    POP("POP"),
+    HIFI("HiFi"),
+    ROCK("ROCK"),
 }

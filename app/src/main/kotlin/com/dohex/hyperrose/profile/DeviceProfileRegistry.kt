@@ -1,12 +1,16 @@
 package com.dohex.hyperrose.profile
 
+import com.dohex.hyperrose.profile.budsfeel_lite.BudsFeelLiteProfile
 import com.dohex.hyperrose.profile.budsfeel_mk2.BudsFeelMk2Profile
+import com.dohex.hyperrose.profile.rose_cambrian.RoseCambrianProfile
 
 object DeviceProfileRegistry {
     /** All known device profiles, ordered by priority (first match wins). */
     val profiles: List<DeviceProfile> = listOf(
         EarfreeI5Profile,
         BudsFeelMk2Profile,
+        BudsFeelLiteProfile,
+        RoseCambrianProfile,
     )
 
     /** Default profile to display when no device is connected. */

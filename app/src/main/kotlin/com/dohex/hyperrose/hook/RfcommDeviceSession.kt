@@ -115,6 +115,7 @@ class RfcommDeviceSession(
 
     private fun verifyChecksum(frame: ByteArray): Boolean {
         if (frame.size < 4) return false
+        if (!profile.hasFrameChecksum) return frame[frame.size - 1] == 0xAA.toByte()
         val ckPos = frame.size - 2
         val expectedCk = (frame.copyOfRange(0, ckPos).sum() and 0xFF).toByte()
         return frame[ckPos] == expectedCk

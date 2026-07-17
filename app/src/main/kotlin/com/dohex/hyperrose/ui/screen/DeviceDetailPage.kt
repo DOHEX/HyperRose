@@ -229,6 +229,7 @@ fun DeviceDetailPage(
                             eqMode = eqMode,
                             onSelect = onEqModeChange,
                             enabled = true,
+                            presets = capabilities.supportedEqPresets.toList(),
                         )
                     }
                 }

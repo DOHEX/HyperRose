@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,33 +44,38 @@ class QuickControlActivity : ComponentActivity() {
         runCatching { setFinishOnTouchOutside(true) }
 
         val presetDeviceName = intent.getStringExtra(EXTRA_DEVICE_NAME)
+        val presetDeviceAddress = intent.getStringExtra(HyperRoseAction.EXTRA_DEVICE_ADDRESS)
         val presetLeftLevel = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
         val presetRightLevel = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
+        val presetCaseLevel = intent.getIntExtra(HyperRoseAction.EXTRA_CASE_LEVEL, -1)
         val forceConnected = intent.getBooleanExtra(EXTRA_FORCE_CONNECTED, false)
 
         setContent {
             val context = LocalContext.current
-            val deviceControlStore = remember(context) { DeviceControlStore(context) }
+            val deviceControlStore = remember { DeviceControlStore.getInstance(context) }
             val themeStore = remember(context) { ThemeSettingsStore(context) }
             val themeMode by themeStore.themeModeFlow.collectAsState(initial = ThemeMode())
             var showDialog by remember { mutableStateOf(true) }
+            val hasAddress = presetDeviceAddress != null
 
-            DisposableEffect(deviceControlStore) {
-                deviceControlStore.refreshStatus()
-                onDispose { deviceControlStore.release() }
+            LaunchedEffect(Unit) {
+                if (!hasAddress) {
+                    deviceControlStore.refreshStatus()
+                }
             }
 
 
             LaunchedEffect(deviceControlStore) {
-                val currentName = deviceControlStore.deviceName.value
-                val hasPresetBattery = presetLeftLevel >= 0 || presetRightLevel >= 0
-                val shouldApplyFallback =
-                    forceConnected || !presetDeviceName.isNullOrBlank() || hasPresetBattery
-                if (currentName.isNullOrBlank() && shouldApplyFallback) {
-                    deviceControlStore.setTemporaryConnectionState(
-                        name = presetDeviceName ?: DEFAULT_DEVICE_NAME,
-                        battery = buildPresetBattery(presetLeftLevel, presetRightLevel),
-                    )
+                if (presetDeviceAddress != null) {
+                    deviceControlStore.connectDirectRfcomm(presetDeviceAddress)
+                } else if (deviceControlStore.deviceName.value.isNullOrBlank()) {
+                    val hasPresetBattery = presetLeftLevel >= 0 || presetRightLevel >= 0 || presetCaseLevel >= 0
+                    if (forceConnected || hasPresetBattery) {
+                        deviceControlStore.setTemporaryConnectionState(
+                            name = DEFAULT_DEVICE_NAME,
+                            battery = buildPresetBattery(presetLeftLevel, presetRightLevel, presetCaseLevel),
+                        )
+                    }
                 }
             }
 
@@ -112,14 +116,16 @@ class QuickControlActivity : ComponentActivity() {
     private fun buildPresetBattery(
         leftLevel: Int,
         rightLevel: Int,
+        caseLevel: Int = -1,
     ): TwsBatteryState? {
         val normalizedLeftLevel = leftLevel.asBatteryLevelOrNull()
         val normalizedRightLevel = rightLevel.asBatteryLevelOrNull()
-        if (normalizedLeftLevel == null && normalizedRightLevel == null) return null
+        val normalizedCaseLevel = caseLevel.asBatteryLevelOrNull()
+        if (normalizedLeftLevel == null && normalizedRightLevel == null && normalizedCaseLevel == null) return null
         return TwsBatteryState(
             left = normalizedLeftLevel?.let { EarBatteryState(it, false) },
             right = normalizedRightLevel?.let { EarBatteryState(it, false) },
-            caseBattery = null,
+            caseBattery = normalizedCaseLevel,
         )
     }
 }

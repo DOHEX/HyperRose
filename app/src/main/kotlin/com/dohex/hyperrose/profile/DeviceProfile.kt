@@ -103,6 +103,9 @@ interface DeviceProfile {
     /** 仅 GATT 传输时有意义；RFCOMM 返回 null */
     val gattTiming: GattTiming? get() = null
 
+    /** 帧是否包含 CK 校验字节（FF SEQ CMD PAYLOAD CK AA / DD SEQ TYPE PAYLOAD CK AA） */
+    val hasFrameChecksum: Boolean get() = true
+
     /** 调试页 hex 输入框提示文案 */
     val debugHexHint: String get() = "HEX 指令"
 

@@ -83,15 +83,16 @@ fun PopupControlPanel(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     if (capabilities.supportedEqPresets.isNotEmpty()) {
-                        val eqItems = EqPreset.entries.map { it.label }
-                        val eqSelectedIndex = EqPreset.entries.indexOf(eqMode).coerceAtLeast(0)
+                        val eqOptions = capabilities.supportedEqPresets.toList()
+                        val eqItems = eqOptions.map { it.label }
+                        val eqSelectedIndex = eqOptions.indexOf(eqMode).coerceAtLeast(0)
                         Card {
                             WindowDropdownPreference(
                                 title = "音色",
                                 items = eqItems,
                                 selectedIndex = eqSelectedIndex,
                                 onSelectedIndexChange = { index ->
-                                    EqPreset.entries.getOrNull(index)
+                                    eqOptions.getOrNull(index)
                                         ?.let(deviceControlStore::setEq)
                                 },
                             )
@@ -138,15 +139,16 @@ fun PopupControlPanel(
                         showTransLevel = capabilities.supportedTransLevels.isNotEmpty(),
                     )
                     if (capabilities.supportedEqPresets.isNotEmpty()) {
-                        val eqItems = EqPreset.entries.map { it.label }
-                        val eqSelectedIndex = EqPreset.entries.indexOf(eqMode).coerceAtLeast(0)
+                        val eqOptions = capabilities.supportedEqPresets.toList()
+                        val eqItems = eqOptions.map { it.label }
+                        val eqSelectedIndex = eqOptions.indexOf(eqMode).coerceAtLeast(0)
                         Card {
                             WindowDropdownPreference(
                                 title = "音色",
                                 items = eqItems,
                                 selectedIndex = eqSelectedIndex,
                                 onSelectedIndexChange = { index ->
-                                    EqPreset.entries.getOrNull(index)
+                                    eqOptions.getOrNull(index)
                                         ?.let(deviceControlStore::setEq)
                                 },
                             )

@@ -1,58 +1,14 @@
-# Android / Gradle
-**/build/
-.kotlin/
-
-
-
-# IDE (Android Studio / IntelliJ)
-.idea/*
-!.idea/codeStyles/
-!.idea/inspectionProfiles/
-!.idea/runConfigurations/
-
-# OS files
+*.py
+BT_HCI_*
+Screenshot_*.jpg
+抓包分析结果.md
+/build/
+/app/build/
+.idea/
+*.iml
+.gradle/
+local.properties
+*.log
+*.hprof
 .DS_Store
 Thumbs.db
-
-
-
-# Gradle files
-.gradle/
-build/
-
-# Local configuration file (sdk path, etc)
-local.properties
-
-# Log/OS Files
-*.log
-
-# Android Studio generated files and folders
-captures/
-.externalNativeBuild/
-.cxx/
-*.aab
-*.apk
-app/release/
-output-metadata.json
-
-# IntelliJ
-*.iml
-.idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
-
-# Keystore files
-*.jks
-*.keystore
-
-# Google Services (e.g. APIs or Firebase)
-google-services.json
-
-# Android Profiling
-*.hprof
-
-
-.agent/
-docs/
-AGENTS.md

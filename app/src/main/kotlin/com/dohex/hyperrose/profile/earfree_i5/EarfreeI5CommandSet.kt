@@ -57,6 +57,9 @@ object EarfreeI5CommandSet {
         EqPreset.JAPANESE -> EQ_JAPANESE
         EqPreset.INSTRUMENT -> EQ_INSTRUMENT
         EqPreset.FRESH -> EQ_FRESH
+        EqPreset.POP -> EQ_CLASSIC
+        EqPreset.HIFI -> EQ_JAPANESE
+        EqPreset.ROCK -> EQ_INSTRUMENT
     }
 
     // ==================== 游戏模式 ====================
