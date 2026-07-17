@@ -8,6 +8,7 @@ import com.dohex.hyperrose.profile.DeviceProtocol
 import com.dohex.hyperrose.profile.DeviceResponse
 import com.dohex.hyperrose.profile.TransportSpec
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 object RoseCambrianProfile : DeviceProfile {
     override val id = "rose-cambrian"
@@ -31,35 +32,38 @@ object RoseCambrianProfile : DeviceProfile {
         hasFindEarphone = false,
     )
 
-    override val hasFrameChecksum = false
-
     override val debugHexHint = "HEX 指令 (如 FF 00 02 09 01 12 AA)"
     override val debugQuickCommands = listOf(
-        "查询全部状态" to RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD),
+        "查询全部状态" to RoseCambrianCommandSet.buildFrame(
+            0x1E, RoseCambrianCommandSet.QUERY_PAYLOAD
+        ),
         "ANC 降噪" to RoseCambrianCommandSet.ancCommand(AncMode.NOISE_CANCEL),
         "ANC 普通" to RoseCambrianCommandSet.ancCommand(AncMode.NORMAL),
         "ANC 通透" to RoseCambrianCommandSet.ancCommand(AncMode.TRANSPARENT),
         "ANC 风噪" to RoseCambrianCommandSet.ancCommand(AncMode.WIND_NOISE),
-        "游戏模式开" to RoseCambrianCommandSet.gameModeCommand(true),
-        "游戏模式关" to RoseCambrianCommandSet.gameModeCommand(false),
-        "EQ POP" to RoseCambrianCommandSet.eqCommand(EqPreset.POP),
-        "EQ HiFi" to RoseCambrianCommandSet.eqCommand(EqPreset.HIFI),
-        "EQ ROCK" to RoseCambrianCommandSet.eqCommand(EqPreset.ROCK),
+        "游戏模式" to RoseCambrianCommandSet.gameModeCommand(true),
     )
 }
 
 private object CambrianProtocol : DeviceProtocol {
-    override fun ancCommand(mode: AncMode): ByteArray =
-        RoseCambrianCommandSet.ancCommand(mode)
+    private val seq = AtomicInteger(0)
 
-    override fun gameModeCommand(enabled: Boolean): ByteArray =
-        RoseCambrianCommandSet.gameModeCommand(enabled)
+    override fun ancCommand(mode: AncMode): ByteArray {
+        val payload = RoseCambrianCommandSet.ancCommand(mode).copyOfRange(3, 5)
+        return RoseCambrianCommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
+    }
 
-    override fun lowLatencyCommand(enabled: Boolean): ByteArray =
-        gameModeCommand(enabled)
+    override fun gameModeCommand(enabled: Boolean): ByteArray {
+        val payload = RoseCambrianCommandSet.gameModeCommand(enabled).copyOfRange(3, 5)
+        return RoseCambrianCommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
+    }
 
-    override fun eqCommand(mode: EqPreset): ByteArray =
-        RoseCambrianCommandSet.eqCommand(mode)
+    override fun lowLatencyCommand(enabled: Boolean): ByteArray = gameModeCommand(enabled)
+
+    override fun eqCommand(mode: EqPreset): ByteArray {
+        val payload = RoseCambrianCommandSet.eqCommand(mode).copyOfRange(3, 5)
+        return RoseCambrianCommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
+    }
 
     override val queryBattery get() = nextSeqQuery()
     override val queryAnc get() = nextSeqQuery()
@@ -68,14 +72,17 @@ private object CambrianProtocol : DeviceProtocol {
     override val queryLowLatency get() = nextSeqQuery()
 
     override val statusQuerySequence: List<ByteArray>
-        get() = listOf(
-            RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD),
-            RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD),
-        )
+        get() = (0..3).map { s ->
+            RoseCambrianCommandSet.buildFrame(0x1E, RoseCambrianCommandSet.QUERY_PAYLOAD, s)
+        }
 
     override fun parseResponse(data: ByteArray): List<DeviceResponse> =
         RoseCambrianResponseParser.parse(data)
 
     private fun nextSeqQuery(): ByteArray =
-        RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD)
+        RoseCambrianCommandSet.buildFrame(
+            0x1E,
+            RoseCambrianCommandSet.QUERY_PAYLOAD,
+            seq.getAndIncrement()
+        )
 }

@@ -2,38 +2,50 @@ package com.dohex.hyperrose.profile.rose_cambrian
 
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.EqPreset
-import java.util.concurrent.atomic.AtomicInteger
 
 object RoseCambrianCommandSet {
-    private val seq = AtomicInteger(0)
+    private const val HEADER_CMD: Byte = 0xFF.toByte()
 
-    val QUERY_PAYLOAD = byteArrayOf(0x01, 0x00)
-
-    fun ancCommand(mode: AncMode): ByteArray = when (mode) {
-        AncMode.NOISE_CANCEL -> buildFrame(0x02, byteArrayOf(0x09, 0x01))
-        AncMode.NORMAL -> buildFrame(0x02, byteArrayOf(0x09, 0x02))
-        AncMode.TRANSPARENT -> buildFrame(0x02, byteArrayOf(0x09, 0x03))
-        AncMode.WIND_NOISE -> buildFrame(0x02, byteArrayOf(0x09, 0x04))
-    }
+    fun ancCommand(mode: AncMode): ByteArray = buildSetFrame(
+        0x09,
+        when (mode) {
+            AncMode.NOISE_CANCEL -> 0x01
+            AncMode.NORMAL -> 0x02
+            AncMode.TRANSPARENT -> 0x03
+            AncMode.WIND_NOISE -> 0x04
+        },
+    )
 
     fun gameModeCommand(enabled: Boolean): ByteArray =
-        buildFrame(0x02, byteArrayOf(0x0E, if (enabled) 0x01 else 0x00))
+        buildSetFrame(0x0E, if (enabled) 0x01 else 0x00)
 
-    fun eqCommand(mode: EqPreset): ByteArray = when (mode) {
-        EqPreset.HIFI -> buildFrame(0x02, byteArrayOf(0x2A, 0x00))
-        EqPreset.POP -> buildFrame(0x02, byteArrayOf(0x2A, 0x01))
-        EqPreset.ROCK -> buildFrame(0x02, byteArrayOf(0x2A, 0x02))
-        else -> buildFrame(0x02, byteArrayOf(0x2A, 0x00))
-    }
+    fun eqCommand(mode: EqPreset): ByteArray = buildSetFrame(
+        0x2A,
+        when (mode) {
+            EqPreset.HIFI -> 0x00
+            EqPreset.POP -> 0x01
+            EqPreset.ROCK -> 0x02
+            else -> 0x00
+        },
+    )
 
-    fun buildFrame(cmd: Int, payload: ByteArray, sequence: Int = seq.getAndIncrement()): ByteArray {
-        val seqByte = (sequence and 0xFF).toByte()
-        val header = byteArrayOf(
-            0xDD.toByte(), 0x00, cmd.toByte(), 0x00, 0x00, seqByte,
-        )
-        val length = (payload.size + 3).toByte()
-        header[1] = length
-        val full = header + payload + byteArrayOf(0xAA.toByte())
-        return full
+    val QUERY_PAYLOAD: ByteArray = byteArrayOf(
+        0xFA.toByte(), 0x01,
+        0x07, 0x08, 0x09, 0x0C, 0x0D, 0x0E, 0x12,
+        0x2A.toByte(), 0x2B.toByte(), 0x2C.toByte(), 0x2D.toByte(),
+        0x2E.toByte(), 0x2F.toByte(),
+        0x31, 0x32, 0x33,
+        0x36, 0x37, 0x38, 0x39, 0x3A.toByte(), 0x3B.toByte(),
+        0x3C.toByte(), 0x3D.toByte(), 0x3F.toByte(),
+        0x45, 0x46, 0x49,
+    )
+
+    fun buildSetFrame(type: Int, value: Int): ByteArray =
+        buildFrame(0x02, byteArrayOf(type.toByte(), value.toByte()))
+
+    fun buildFrame(cmd: Int, payload: ByteArray, seq: Int = 0): ByteArray {
+        val head = byteArrayOf(HEADER_CMD, seq.toByte(), cmd.toByte()) + payload
+        val ck = (head.sum() and 0xFF).toByte()
+        return head + byteArrayOf(ck, 0xAA.toByte())
     }
 }

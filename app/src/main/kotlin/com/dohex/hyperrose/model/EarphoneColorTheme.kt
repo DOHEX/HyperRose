@@ -73,6 +73,26 @@ enum class DeviceColorProfile(
             ),
         ),
     ),
+    CAMBRIAN(
+        "rose-cambrian",
+        mapOf(
+            EarphoneColor.GRAY to DeviceColorImages(
+                R.drawable.earphone_i5_gray_case,
+                R.drawable.earphone_i5_gray_left,
+                R.drawable.earphone_i5_gray_right,
+            ),
+            EarphoneColor.BLUE to DeviceColorImages(
+                R.drawable.earphone_i5_blue_case,
+                R.drawable.earphone_i5_blue_left,
+                R.drawable.earphone_i5_blue_right,
+            ),
+            EarphoneColor.BLACK to DeviceColorImages(
+                R.drawable.earphone_mk2_black_case,
+                R.drawable.earphone_mk2_black_left,
+                R.drawable.earphone_mk2_black_right,
+            ),
+        ),
+    ),
     BUDSFEEL_MK2(
         "rose-budsfeel-mk2",
         mapOf(

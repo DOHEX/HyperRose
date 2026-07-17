@@ -4,90 +4,101 @@ import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.EarBatteryState
 import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TwsBatteryState
+import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.profile.DeviceResponse
 
 object RoseCambrianResponseParser {
     fun parse(data: ByteArray): List<DeviceResponse> {
+        if (data.size < 4) return listOf(DeviceResponse.Unknown)
+
+        val header = data[0].toInt() and 0xFF
+        if (header != 0xDD) return listOf(DeviceResponse.Unknown)
+
         if (data.size < 5) return listOf(DeviceResponse.Unknown)
-        if ((data[0].toInt() and 0xFF) != 0xDD) return listOf(DeviceResponse.Unknown)
+        val expectedChecksum = (data.dropLast(2).sumOf { it.toInt() and 0xFF } and 0xFF).toByte()
+        if (data[data.size - 2] != expectedChecksum) return listOf(DeviceResponse.Unknown)
         if (data[data.size - 1] != 0xAA.toByte()) return listOf(DeviceResponse.Unknown)
 
         val responseType = data[2].toInt() and 0xFF
+
         return when (responseType) {
             0x01 -> listOf(DeviceResponse.Unknown)
             0x15 -> parseStatusResponse(data)
-            0x02 -> listOf(parseNotification(data))
-            0x04 -> listOf(parseType4Response(data))
+            0x02 -> listOf(parseUnsolicitedNotification(data))
             else -> listOf(DeviceResponse.Unknown)
         }
     }
 
     private fun parseStatusResponse(data: ByteArray): List<DeviceResponse> {
-        val tlv = data.copyOfRange(3, data.size - 1)
-        val results = mutableListOf<DeviceResponse>()
-        parseTlv(tlv, 0, tlv.size, results)
-        if (results.isEmpty()) return listOf(DeviceResponse.Unknown)
-        return results
+        val payload = data.copyOfRange(3, data.size - 2)
+        return parseTlvBlock(payload, 0, payload.size)
     }
 
-    private fun parseTlv(
-        data: ByteArray, start: Int, end: Int, out: MutableList<DeviceResponse>,
-    ) {
+    private fun parseTlvBlock(data: ByteArray, start: Int, end: Int): List<DeviceResponse> {
+        val results = mutableListOf<DeviceResponse>()
         var i = start
         while (i < end - 1) {
             val len = data[i].toInt() and 0xFF
-            if (len < 2 || i + len > end) { i++; continue }
+            if (len < 2 || i + len > end) {
+                i++
+                continue
+            }
+
             val ptype = data[i + 1].toInt() and 0xFF
+
             when (ptype) {
                 0x09 -> {
                     val value = data[i + 2].toInt() and 0xFF
-                    out.add(parseAncValue(value))
+                    results.add(parseAncValue(value))
                 }
-                0x0E -> out.add(DeviceResponse.GameMode(data[i + 2].toInt() == 0x01))
+
+                0x0E -> {
+                    val value = data[i + 2].toInt() and 0xFF
+                    results.add(DeviceResponse.GameMode(value == 0x01))
+                }
+
                 0x0C -> {
-                    val level = data[i + len].toInt() and 0xFF
-                    out.add(DeviceResponse.Battery(
-                        TwsBatteryState(
-                            left = EarBatteryState(level, false), right = null, caseBattery = null,
+                    if (i + 4 < end) {
+                        val leftRaw = data[i + 2].toInt() and 0xFF
+                        val rightRaw = data[i + 3].toInt() and 0xFF
+                        val caseRaw = data[i + 4].toInt() and 0xFF
+                        results.add(
+                            DeviceResponse.Battery(
+                                TwsBatteryState(
+                                    left = EarBatteryState(leftRaw, false),
+                                    right = EarBatteryState(rightRaw, false),
+                                    caseBattery = caseRaw.asBatteryLevelOrNull(),
+                                )
+                            )
                         )
-                    ))
+                    }
                 }
+
                 0x2A -> {
                     val value = data[i + 2].toInt() and 0xFF
-                    out.add(parseEqValue(value))
+                    results.add(parseEqValue(value))
                 }
             }
-            val innerStart = i + 2
-            val innerEnd = minOf(i + len + 1, end)
-            if (innerEnd > innerStart) parseTlv(data, innerStart, innerEnd, out)
+
+            val valueStart = i + 2
+            val valueEnd = minOf(i + len + 1, end)
+            if (valueEnd > valueStart) {
+                results.addAll(parseTlvBlock(data, valueStart, valueEnd))
+            }
+
             i += len + 1
         }
+        return results
     }
 
-    private fun parseNotification(data: ByteArray): DeviceResponse {
-        if (data.size < 6) return DeviceResponse.Unknown
-        val subType = data[3].toInt() and 0xFF
+    private fun parseUnsolicitedNotification(data: ByteArray): DeviceResponse {
+        if (data.size < 7) return DeviceResponse.Unknown
+        val ptype = data[3].toInt() and 0xFF
         val value = data[4].toInt() and 0xFF
-        return when (subType) {
+        return when (ptype) {
             0x09 -> parseAncValue(value)
             0x0E -> DeviceResponse.GameMode(value == 0x01)
             0x2A -> parseEqValue(value)
-            else -> DeviceResponse.Unknown
-        }
-    }
-
-    private fun parseType4Response(data: ByteArray): DeviceResponse {
-        if (data.size < 6) return DeviceResponse.Unknown
-        val subType = data[3].toInt() and 0xFF
-        return when (subType) {
-            0x0C -> {
-                val level = data[data.size - 2].toInt() and 0xFF
-                DeviceResponse.Battery(
-                    TwsBatteryState(
-                        left = EarBatteryState(level, false), right = null, caseBattery = null,
-                    )
-                )
-            }
             else -> DeviceResponse.Unknown
         }
     }
