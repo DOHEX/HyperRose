@@ -931,7 +931,9 @@ object HeadsetServiceBinderHook {
         val values = MutableList(16) { "" }
         if (battery?.right == null) {
             values[0] = "255"
-            values[2] = miuiBatteryValue(battery?.left?.level, battery?.left?.isCharging)
+            val monoLevel = battery?.left?.level ?: battery?.caseBattery
+            val monoCharging = battery?.left?.isCharging
+            values[2] = miuiBatteryValue(monoLevel, monoCharging)
         } else {
             values[0] = miuiBatteryValue(battery?.left?.level, battery?.left?.isCharging)
             values[1] = miuiBatteryValue(battery?.right?.level, battery?.right?.isCharging)
