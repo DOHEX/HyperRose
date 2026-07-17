@@ -245,7 +245,8 @@ class DeviceControlStore(
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
         val preferred = adapter.bondedDevices.firstOrNull { device ->
             val name = device.name ?: return@firstOrNull false
-            com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name) != null
+            val profile = com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name) ?: return@firstOrNull false
+            profile.transport is TransportSpec.Rfcomm
         } ?: return
         connectDirectRfcomm(preferred.address)
     }
@@ -298,7 +299,20 @@ class DeviceControlStore(
         _capabilities.value = profile?.capabilities
             ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
         bridgeFallbackJob?.cancel()
-        connectStandalone(bonded, profile)
+        if (profile?.transport is TransportSpec.Rfcomm) {
+            connectStandalone(bonded, profile)
+        } else {
+            _transport.value = ConnectionTransport.HOOK_BRIDGE
+            _connectionState.value = DeviceConnectionState.CONNECTING
+            bridgeFallbackJob = scope.launch {
+                delay(5_000L)
+                if (_transport.value == ConnectionTransport.HOOK_BRIDGE &&
+                    _connectionState.value == DeviceConnectionState.CONNECTING
+                ) {
+                    connectStandalone(bonded, profile)
+                }
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")

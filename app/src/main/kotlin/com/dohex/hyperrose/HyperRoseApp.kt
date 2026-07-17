@@ -8,13 +8,13 @@ class HyperRoseApp : Application() {
         lateinit var instance: HyperRoseApp
             private set
 
-        val deviceControlStore: DeviceControlStore by lazy {
-            DeviceControlStore(instance)
-        }
+        lateinit var deviceControlStore: DeviceControlStore
+            private set
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
+        deviceControlStore = DeviceControlStore(this)
     }
 }
