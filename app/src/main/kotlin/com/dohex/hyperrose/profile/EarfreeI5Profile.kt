@@ -34,7 +34,10 @@ object EarfreeI5Profile : DeviceProfile {
         supportedAncModes = AncMode.entries.toSet(),
         supportedAncDepths = AncDepth.entries.toSet(),
         supportedTransLevels = TransparencyLevel.entries.toSet(),
-        supportedEqPresets = EqPreset.entries.toSet(),
+        supportedEqPresets = setOf(
+            EqPreset.CLASSIC, EqPreset.JAPANESE,
+            EqPreset.INSTRUMENT, EqPreset.FRESH,
+        ),
         hasGameMode = true,
         hasLowLatency = false,
         hasFindEarphone = true,
