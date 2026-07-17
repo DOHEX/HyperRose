@@ -8,7 +8,6 @@ import com.dohex.hyperrose.profile.DeviceProtocol
 import com.dohex.hyperrose.profile.DeviceResponse
 import com.dohex.hyperrose.profile.TransportSpec
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 
 object RoseCambrianProfile : DeviceProfile {
     override val id = "rose-cambrian"
@@ -50,25 +49,17 @@ object RoseCambrianProfile : DeviceProfile {
 }
 
 private object CambrianProtocol : DeviceProtocol {
-    private val seq = AtomicInteger(0)
+    override fun ancCommand(mode: AncMode): ByteArray =
+        RoseCambrianCommandSet.ancCommand(mode)
 
-    override fun ancCommand(mode: AncMode): ByteArray {
-        val payload = RoseCambrianCommandSet.ancCommand(mode).copyOfRange(5, 7)
-        return RoseCambrianCommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
-    }
-
-    override fun gameModeCommand(enabled: Boolean): ByteArray {
-        val payload = RoseCambrianCommandSet.gameModeCommand(enabled).copyOfRange(5, 7)
-        return RoseCambrianCommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
-    }
+    override fun gameModeCommand(enabled: Boolean): ByteArray =
+        RoseCambrianCommandSet.gameModeCommand(enabled)
 
     override fun lowLatencyCommand(enabled: Boolean): ByteArray =
         gameModeCommand(enabled)
 
-    override fun eqCommand(mode: EqPreset): ByteArray {
-        val payload = RoseCambrianCommandSet.eqCommand(mode).copyOfRange(5, 7)
-        return RoseCambrianCommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
-    }
+    override fun eqCommand(mode: EqPreset): ByteArray =
+        RoseCambrianCommandSet.eqCommand(mode)
 
     override val queryBattery get() = nextSeqQuery()
     override val queryAnc get() = nextSeqQuery()
@@ -78,13 +69,13 @@ private object CambrianProtocol : DeviceProtocol {
 
     override val statusQuerySequence: List<ByteArray>
         get() = listOf(
-            RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD, seq.getAndIncrement()),
-            RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD, seq.getAndIncrement()),
+            RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD),
+            RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD),
         )
 
     override fun parseResponse(data: ByteArray): List<DeviceResponse> =
         RoseCambrianResponseParser.parse(data)
 
     private fun nextSeqQuery(): ByteArray =
-        RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD, seq.getAndIncrement())
+        RoseCambrianCommandSet.buildFrame(0x0F, RoseCambrianCommandSet.QUERY_PAYLOAD)
 }
