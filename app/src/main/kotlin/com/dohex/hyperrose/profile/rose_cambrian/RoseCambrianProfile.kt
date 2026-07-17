@@ -53,12 +53,12 @@ private object CambrianProtocol : DeviceProtocol {
     private val seq = AtomicInteger(0)
 
     override fun ancCommand(mode: AncMode): ByteArray {
-        val payload = RoseCambrianCommandSet.ancCommand(mode).copyOfRange(3, 5)
+        val payload = RoseCambrianCommandSet.ancCommand(mode).copyOfRange(5, 7)
         return RoseCambrianCommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
     }
 
     override fun gameModeCommand(enabled: Boolean): ByteArray {
-        val payload = RoseCambrianCommandSet.gameModeCommand(enabled).copyOfRange(3, 5)
+        val payload = RoseCambrianCommandSet.gameModeCommand(enabled).copyOfRange(5, 7)
         return RoseCambrianCommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
     }
 
@@ -66,7 +66,7 @@ private object CambrianProtocol : DeviceProtocol {
         gameModeCommand(enabled)
 
     override fun eqCommand(mode: EqPreset): ByteArray {
-        val payload = RoseCambrianCommandSet.eqCommand(mode).copyOfRange(3, 5)
+        val payload = RoseCambrianCommandSet.eqCommand(mode).copyOfRange(5, 7)
         return RoseCambrianCommandSet.buildFrame(0x02, payload, seq.getAndIncrement())
     }
 

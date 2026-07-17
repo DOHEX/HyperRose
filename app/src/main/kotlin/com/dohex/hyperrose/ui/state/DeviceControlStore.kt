@@ -253,10 +253,13 @@ class DeviceControlStore private constructor(
 
         _pairedDevices.value = adapter.bondedDevices.mapNotNull { device ->
             val name = device.name ?: device.alias ?: return@mapNotNull null
+            if (com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name) == null) return@mapNotNull null
             RoseDeviceItem(name = name, address = device.address)
         }.sortedWith(
-            compareByDescending<RoseDeviceItem> {
-                com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it.name) != null
+            compareBy<RoseDeviceItem> {
+                com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it.name)?.let { profile ->
+                    com.dohex.hyperrose.profile.DeviceProfileRegistry.profiles.indexOf(profile)
+                } ?: Int.MAX_VALUE
             }.thenBy { it.name.lowercase() }.thenBy { it.address },
         )
     }

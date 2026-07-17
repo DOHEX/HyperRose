@@ -26,6 +26,7 @@ android {
         versionName = "0.1.5"
     }
     signingConfigs {
+        val debugKeystore = file(System.getProperty("user.home") + "/.android/debug.keystore")
         if (hasReleaseSigningConfig) {
             create("release") {
                 storeFile = file(releaseKeystoreFile!!)
@@ -33,11 +34,18 @@ android {
                 keyAlias = releaseKeyAlias
                 keyPassword = releaseKeyPassword
             }
+        } else if (debugKeystore.exists()) {
+            create("release") {
+                storeFile = debugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
         }
     }
     buildTypes {
         release {
-            if (hasReleaseSigningConfig) {
+            if (signingConfigs.findByName("release") != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
             isMinifyEnabled = true
