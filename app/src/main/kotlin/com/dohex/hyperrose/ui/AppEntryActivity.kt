@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -31,11 +32,13 @@ class AppEntryActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val context = LocalContext.current
-            val deviceControlStore = DeviceControlStore.getInstance(context)
+            val deviceControlStore = remember(context) { DeviceControlStore(context) }
             val themeStore = remember(context) { ThemeSettingsStore(context) }
             val deviceImageStore = remember(context) { DeviceImageStore(context) }
             val scope = rememberCoroutineScope()
             val themeMode by themeStore.themeModeFlow.collectAsState(initial = ThemeMode())
+
+            DisposableEffect(deviceControlStore) { onDispose { deviceControlStore.release() } }
 
             val isDarkMode =
                 when (themeMode.colorMode) {

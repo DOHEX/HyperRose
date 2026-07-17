@@ -54,7 +54,7 @@ data class RoseDeviceItem(
  * - 直接模式：StandaloneGattClient
  * - 桥接模式：接收 Hook 广播 + BluetoothCommandDispatcher 下发控制命令
  */
-class DeviceControlStore private constructor(
+class DeviceControlStore(
     context: Context,
 ) {
     private val appContext = context.applicationContext
@@ -68,15 +68,6 @@ class DeviceControlStore private constructor(
 
     companion object {
         private const val BRIDGE_TIMEOUT_MS = 5_000L
-
-        @Volatile
-        private var instance: DeviceControlStore? = null
-
-        fun getInstance(context: Context): DeviceControlStore {
-            return instance ?: synchronized(this) {
-                instance ?: DeviceControlStore(context).also { instance = it }
-            }
-        }
     }
 
     private val _hasBluetoothPermission = MutableStateFlow(false)

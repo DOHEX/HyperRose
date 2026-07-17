@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,30 +53,26 @@ class QuickControlActivity : ComponentActivity() {
 
         setContent {
             val context = LocalContext.current
-            val deviceControlStore = remember { DeviceControlStore.getInstance(context) }
+            val deviceControlStore = remember(context) { DeviceControlStore(context) }
             val themeStore = remember(context) { ThemeSettingsStore(context) }
             val themeMode by themeStore.themeModeFlow.collectAsState(initial = ThemeMode())
             var showDialog by remember { mutableStateOf(true) }
-            val hasAddress = presetDeviceAddress != null
 
-            LaunchedEffect(Unit) {
-                if (!hasAddress) {
-                    deviceControlStore.refreshStatus()
-                }
+            DisposableEffect(deviceControlStore) {
+                deviceControlStore.refreshStatus()
+                onDispose { deviceControlStore.release() }
             }
 
-
             LaunchedEffect(deviceControlStore) {
-                if (presetDeviceAddress != null) {
-                    deviceControlStore.connectDirectRfcomm(presetDeviceAddress)
-                } else if (deviceControlStore.deviceName.value.isNullOrBlank()) {
-                    val hasPresetBattery = presetLeftLevel >= 0 || presetRightLevel >= 0 || presetCaseLevel >= 0
-                    if (forceConnected || hasPresetBattery) {
-                        deviceControlStore.setTemporaryConnectionState(
-                            name = DEFAULT_DEVICE_NAME,
-                            battery = buildPresetBattery(presetLeftLevel, presetRightLevel, presetCaseLevel),
-                        )
-                    }
+                val currentName = deviceControlStore.deviceName.value
+                val hasPresetBattery = presetLeftLevel >= 0 || presetRightLevel >= 0 || presetCaseLevel >= 0
+                val shouldApplyFallback =
+                    forceConnected || !presetDeviceName.isNullOrBlank() || hasPresetBattery
+                if (currentName.isNullOrBlank() && shouldApplyFallback) {
+                    deviceControlStore.setTemporaryConnectionState(
+                        name = presetDeviceName ?: DEFAULT_DEVICE_NAME,
+                        battery = buildPresetBattery(presetLeftLevel, presetRightLevel, presetCaseLevel),
+                    )
                 }
             }
 
