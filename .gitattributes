@@ -1,0 +1,11 @@
+# Keep repository text consistent across Linux, macOS, and Windows checkouts.
+* text=auto eol=lf
+
+# Windows wrapper must retain CRLF for cmd.exe.
+*.bat text eol=crlf
+
+# Treat packaged and image assets as binary.
+*.jar binary
+*.png binary
+*.jks binary
+*.keystore binary
