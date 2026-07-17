@@ -123,12 +123,19 @@ object RoseCambrianResponseParser {
         val subType = data[3].toInt() and 0xFF
         return when (subType) {
             0x0C -> {
-                val level = data[4].toInt() and 0xFF
+                val values = mutableListOf<Int>()
+                var vi = 4
+                while (vi < data.size - 1) {
+                    values.add(data[vi].toInt() and 0xFF)
+                    vi++
+                }
+                val nonZero = values.filter { it > 0 }
+                val level = if (nonZero.size == 1 && values.size >= 3) nonZero[0]
+                    else values.firstOrNull() ?: 0
                 DeviceResponse.Battery(
                     TwsBatteryState(
                         left = EarBatteryState(level, false),
-                        right = null,
-                        caseBattery = null,
+                        right = null, caseBattery = null,
                     )
                 )
             }
