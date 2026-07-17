@@ -25,6 +25,7 @@ object RoseCambrianResponseParser {
             0x01 -> listOf(DeviceResponse.Unknown)
             0x15 -> parseStatusResponse(data)
             0x02 -> listOf(parseUnsolicitedNotification(data))
+            0x04 -> listOf(parseType4Response(data))
             else -> listOf(DeviceResponse.Unknown)
         }
     }
@@ -58,20 +59,37 @@ object RoseCambrianResponseParser {
                 }
 
                 0x0C -> {
-                    if (i + 4 < end) {
-                        val leftRaw = data[i + 2].toInt() and 0xFF
-                        val rightRaw = data[i + 3].toInt() and 0xFF
-                        val caseRaw = data[i + 4].toInt() and 0xFF
-                        results.add(
-                            DeviceResponse.Battery(
+                    val values = mutableListOf<Int>()
+                    var vi = i + 2
+                    val vEnd = minOf(i + len + 1, end)
+                    while (vi < vEnd) {
+                        values.add(data[vi].toInt() and 0xFF)
+                        vi++
+                    }
+                    results.add(
+                        when (values.size) {
+                            1 -> DeviceResponse.Battery(
                                 TwsBatteryState(
-                                    left = EarBatteryState(leftRaw, false),
-                                    right = EarBatteryState(rightRaw, false),
-                                    caseBattery = caseRaw.asBatteryLevelOrNull(),
+                                    left = EarBatteryState(values[0], false),
+                                    right = null, caseBattery = null,
                                 )
                             )
-                        )
-                    }
+                            2 -> DeviceResponse.Battery(
+                                TwsBatteryState(
+                                    left = EarBatteryState(values[0], false),
+                                    right = EarBatteryState(values[1], false),
+                                    caseBattery = null,
+                                )
+                            )
+                            else -> DeviceResponse.Battery(
+                                TwsBatteryState(
+                                    left = EarBatteryState(values[0], false),
+                                    right = EarBatteryState(values[1], false),
+                                    caseBattery = values[2].asBatteryLevelOrNull(),
+                                )
+                            )
+                        }
+                    )
                 }
 
                 0x2A -> {
@@ -89,6 +107,24 @@ object RoseCambrianResponseParser {
             i += len + 1
         }
         return results
+    }
+
+    private fun parseType4Response(data: ByteArray): DeviceResponse {
+        if (data.size < 6) return DeviceResponse.Unknown
+        val subType = data[3].toInt() and 0xFF
+        return when (subType) {
+            0x0C -> {
+                val level = data[4].toInt() and 0xFF
+                DeviceResponse.Battery(
+                    TwsBatteryState(
+                        left = EarBatteryState(level, false),
+                        right = null,
+                        caseBattery = null,
+                    )
+                )
+            }
+            else -> DeviceResponse.Unknown
+        }
     }
 
     private fun parseUnsolicitedNotification(data: ByteArray): DeviceResponse {

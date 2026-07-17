@@ -598,6 +598,13 @@ class DeviceControlStore(
             )
         }
 
+        if (left == null && caseLevel != null) {
+            return TwsBatteryState(
+                left = EarBatteryState(caseLevel, false),
+                right = null,
+                caseBattery = null,
+            )
+        }
         return TwsBatteryState(
             left = left,
             right = right,
