@@ -57,7 +57,7 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 @Composable
 fun EarphoneColorSettingsPage(
     address: String,
-    deviceId: String?,
+    deviceId: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -68,10 +68,9 @@ fun EarphoneColorSettingsPage(
     val scrollBehavior = MiuixScrollBehavior()
     val scope = rememberCoroutineScope()
 
-    val colorProfile = DeviceColorProfile.forDevice(deviceId)
-    val colors = colorProfile?.availableColors?.toList() ?: emptyList()
-    val defaultTheme =
-        colorProfile?.defaultTheme() ?: DeviceColorProfile.DEFAULT_PROFILE.defaultTheme()
+    val colorProfile = requireNotNull(DeviceColorProfile.forDevice(deviceId))
+    val colors = colorProfile.availableColors.toList()
+    val defaultTheme = colorProfile.defaultTheme()
     val currentTheme by deviceImageStore.colorThemeFlow(address, colorProfile)
         .collectAsState(initial = defaultTheme)
 
@@ -133,7 +132,7 @@ fun EarphoneColorSettingsPage(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             for (color in colors) {
-                                val theme = colorProfile!!.themeFor(color) ?: continue
+                                val theme = colorProfile.themeFor(color) ?: continue
                                 val isSelected = color == currentTheme.color
                                 val chipColor = color.displayColor
                                 val borderMod = if (isSelected) {

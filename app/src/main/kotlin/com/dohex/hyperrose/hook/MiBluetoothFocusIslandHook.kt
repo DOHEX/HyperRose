@@ -145,11 +145,13 @@ object MiBluetoothFocusIslandHook {
                                     HyperRoseAction.EXTRA_DEVICE,
                                     BluetoothDevice::class.java,
                                 )
+                            val profileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
 
                             runCatching {
                                 showIsland(
                                     context = ctx,
                                     device = device,
+                                    profileId = profileId,
                                     left = left,
                                     right = right,
                                     caseLevel = caseLevel,
@@ -205,6 +207,7 @@ object MiBluetoothFocusIslandHook {
     private fun showIsland(
         context: Context,
         device: BluetoothDevice?,
+        profileId: String?,
         left: Int,
         right: Int,
         caseLevel: Int,
@@ -213,6 +216,10 @@ object MiBluetoothFocusIslandHook {
     ) {
         val nm =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        val profileDisplayName = profileId?.let {
+            com.dohex.hyperrose.profile.DeviceProfileRegistry.findById(it)?.displayName
+        }
+        val deviceTitle = FocusIslandBridge.resolveDeviceTitle(device?.name, profileDisplayName)
         val content =
             buildBatteryText(
                 left = left,
@@ -224,6 +231,7 @@ object MiBluetoothFocusIslandHook {
 
         val extras =
             FocusIslandBridge.buildBatteryIslandExtras(
+                deviceTitle = deviceTitle,
                 leftLevel = left,
                 rightLevel = right,
                 caseLevel = caseLevel,
@@ -247,11 +255,11 @@ object MiBluetoothFocusIslandHook {
             Notification
                 .Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
-                .setContentTitle(device?.name ?: "HyperRose")
+                .setContentTitle(deviceTitle)
                 .setContentText(content)
                 .setStyle(Notification.BigTextStyle().bigText(content))
                 .setOnlyAlertOnce(true)
-                .setContentIntent(buildQuickControlPendingIntent(context, device, left, right))
+                .setContentIntent(buildQuickControlPendingIntent(context, device, profileId, left, right))
         builder.addExtras(extras)
 
         nm.notify(ISLAND_NOTIFICATION_ID, builder.build())
@@ -285,12 +293,14 @@ object MiBluetoothFocusIslandHook {
     private fun buildQuickControlPendingIntent(
         context: Context,
         device: BluetoothDevice?,
+        profileId: String?,
         left: Int,
         right: Int,
     ): PendingIntent {
         val intent =
             QuickControlIntentFactory.createLaunchIntent(
                 deviceName = device?.name,
+                profileId = profileId,
                 leftLevel = left,
                 rightLevel = right,
                 forceConnected = true,

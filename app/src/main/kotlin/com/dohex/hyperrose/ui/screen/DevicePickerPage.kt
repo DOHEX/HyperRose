@@ -164,8 +164,19 @@ fun DevicePickerPage(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Light,
                                 )
+                                if (!device.isSupported) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "暂不支持",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF5B6776),
+                                    )
+                                }
                             }
-                            IconButton(onClick = { onConnect(device.address) }) {
+                            IconButton(
+                                enabled = device.isSupported,
+                                onClick = { onConnect(device.address) },
+                            ) {
                                 Icon(
                                     imageVector = MiuixIcons.Link, contentDescription = "连接"
                                 )

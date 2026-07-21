@@ -201,7 +201,12 @@ object MiLinkProcessHook {
 
                     val ctx = resolveContext(chain.thisObject) ?: return@intercept chain.proceed()
                     val intent =
-                        QuickControlIntentFactory.createLaunchIntent(deviceName = device.name)
+                        QuickControlIntentFactory.createLaunchIntent(
+                            deviceName = device.name,
+                            profileId = device.name?.let {
+                                com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it)?.id
+                            },
+                        )
                     runCatching { ctx.startActivity(intent) }
 
                     module.log(Log.INFO, LOG_TAG, "switchToHeadsetActivity redirected to HyperRose")

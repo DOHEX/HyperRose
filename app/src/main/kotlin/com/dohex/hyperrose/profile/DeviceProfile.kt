@@ -30,7 +30,19 @@ data class DeviceCapabilities(
     val hasGameMode: Boolean,
     val hasLowLatency: Boolean,
     val hasFindEarphone: Boolean,
-)
+) {
+    companion object {
+        val NONE = DeviceCapabilities(
+            supportedAncModes = emptySet(),
+            supportedAncDepths = emptySet(),
+            supportedTransLevels = emptySet(),
+            supportedEqPresets = emptySet(),
+            hasGameMode = false,
+            hasLowLatency = false,
+            hasFindEarphone = false,
+        )
+    }
+}
 
 /** Protocol layer: command encoding + response decoding for one device model. */
 interface DeviceProtocol {

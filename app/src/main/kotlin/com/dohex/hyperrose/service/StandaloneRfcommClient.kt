@@ -31,17 +31,11 @@ import java.util.Locale
  *  All state exposed via StateFlow for Compose UI consumption. */
 class StandaloneRfcommClient(
     private val context: Context,
-    val profile: DeviceProfile,
+    override val profile: DeviceProfile,
 ) : StandaloneClient {
     companion object {
         private const val TAG = "HyperRose.StandaloneRfcommClient"
         private val logTimeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
-    }
-
-    enum class ConnectionState {
-        DISCONNECTED,
-        CONNECTING,
-        CONNECTED,
     }
 
     // Transport spec (non-null after init; profile must have TransportSpec.Rfcomm)
@@ -49,32 +43,32 @@ class StandaloneRfcommClient(
         get() = profile.transport as TransportSpec.Rfcomm
 
     // StateFlows
-    private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
-    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+    private val _connectionState = MutableStateFlow(StandaloneConnectionState.DISCONNECTED)
+    override val connectionState: StateFlow<StandaloneConnectionState> = _connectionState.asStateFlow()
 
     private val _battery = MutableStateFlow<TwsBatteryState?>(null)
-    val battery: StateFlow<TwsBatteryState?> = _battery.asStateFlow()
+    override val battery: StateFlow<TwsBatteryState?> = _battery.asStateFlow()
 
     private val _ancMode = MutableStateFlow<AncMode?>(null)
-    val ancMode: StateFlow<AncMode?> = _ancMode.asStateFlow()
+    override val ancMode: StateFlow<AncMode?> = _ancMode.asStateFlow()
 
     private val _ancDepth = MutableStateFlow<AncDepth?>(null)
-    val ancDepth: StateFlow<AncDepth?> = _ancDepth.asStateFlow()
+    override val ancDepth: StateFlow<AncDepth?> = _ancDepth.asStateFlow()
 
     private val _transLevel = MutableStateFlow<TransparencyLevel?>(null)
-    val transLevel: StateFlow<TransparencyLevel?> = _transLevel.asStateFlow()
+    override val transLevel: StateFlow<TransparencyLevel?> = _transLevel.asStateFlow()
 
     private val _eqMode = MutableStateFlow<EqPreset?>(null)
-    val eqMode: StateFlow<EqPreset?> = _eqMode.asStateFlow()
+    override val eqMode: StateFlow<EqPreset?> = _eqMode.asStateFlow()
 
     private val _gameMode = MutableStateFlow<Boolean?>(null)
-    val gameMode: StateFlow<Boolean?> = _gameMode.asStateFlow()
+    override val gameMode: StateFlow<Boolean?> = _gameMode.asStateFlow()
 
     private val _lowLatency = MutableStateFlow<Boolean?>(null)
-    val lowLatency: StateFlow<Boolean?> = _lowLatency.asStateFlow()
+    override val lowLatency: StateFlow<Boolean?> = _lowLatency.asStateFlow()
 
     private val _deviceName = MutableStateFlow<String?>(null)
-    val deviceName: StateFlow<String?> = _deviceName.asStateFlow()
+    override val deviceName: StateFlow<String?> = _deviceName.asStateFlow()
 
     // Internal state
     private var dataSocket: BluetoothSocket? = null
@@ -89,7 +83,7 @@ class StandaloneRfcommClient(
 
     override fun connect(device: BluetoothDevice) {
         _deviceName.value = device.name
-        _connectionState.value = ConnectionState.CONNECTING
+        _connectionState.value = StandaloneConnectionState.CONNECTING
         Log.i(TAG, "Connecting to ${device.address} via RFCOMM")
         connectCancelled = false
 
@@ -104,7 +98,7 @@ class StandaloneRfcommClient(
                 }
                 dataSocket = socket
                 handler.post {
-                    _connectionState.value = ConnectionState.CONNECTED
+                    _connectionState.value = StandaloneConnectionState.CONNECTED
                     Log.i(TAG, "RFCOMM connected")
                     startReader()
                     queryAllStatus()
@@ -112,7 +106,7 @@ class StandaloneRfcommClient(
             } catch (e: IOException) {
                 Log.e(TAG, "RFCOMM connect failed", e)
                 handler.post {
-                    _connectionState.value = ConnectionState.DISCONNECTED
+                    _connectionState.value = StandaloneConnectionState.DISCONNECTED
                 }
             }
         }.apply {
@@ -130,7 +124,7 @@ class StandaloneRfcommClient(
         runCatching { dataSocket?.close() }
         dataSocket = null
         handler.removeCallbacksAndMessages(null)
-        _connectionState.value = ConnectionState.DISCONNECTED
+        _connectionState.value = StandaloneConnectionState.DISCONNECTED
         _battery.value = null
         _ancMode.value = null
         _ancDepth.value = null
@@ -153,7 +147,7 @@ class StandaloneRfcommClient(
     }
 
     override fun refreshStatus() {
-        if (_connectionState.value != ConnectionState.CONNECTED) return
+        if (_connectionState.value != StandaloneConnectionState.CONNECTED) return
         queryAllStatus()
     }
 

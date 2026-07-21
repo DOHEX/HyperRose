@@ -35,7 +35,7 @@ import com.dohex.hyperrose.model.EarBatteryState
 import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.model.TwsBatteryState
-import com.dohex.hyperrose.profile.DeviceProfileRegistry
+import com.dohex.hyperrose.profile.DeviceProfile
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.AncSelector
 import com.dohex.hyperrose.ui.component.BatteryCard
@@ -71,6 +71,7 @@ fun DeviceDetailPage(
     connectionState: DeviceConnectionState,
     transport: ConnectionTransport,
     deviceName: String?,
+    deviceProfile: DeviceProfile? = null,
     battery: TwsBatteryState?,
     ancMode: AncMode?,
     ancDepth: AncDepth?,
@@ -104,29 +105,25 @@ fun DeviceDetailPage(
     val listState = rememberLazyListState()
     var showFindDialog by remember { mutableStateOf(false) }
     val deviceImageStore = LocalDeviceImageStore.current
-    val deviceProfile = deviceName?.let { DeviceProfileRegistry.findByName(it) }
     val deviceId = deviceProfile?.id
     val colorProfile = DeviceColorProfile.forDevice(deviceId)
-    val defaultTheme =
-        colorProfile?.defaultTheme() ?: DeviceColorProfile.DEFAULT_PROFILE.defaultTheme()
-    val colorTheme by deviceImageStore.colorThemeFlow(address, colorProfile)
-        .collectAsState(initial = defaultTheme)
 
     Scaffold(
         modifier = modifier,
         topBar = {
             BlurredBar(backdrop = backdrop, blurEnabled = blurActive) {
                 TopAppBar(
-                    title = deviceName
-                        ?: DeviceProfileRegistry.defaultProfile.displayName,
+                    title = deviceName ?: deviceProfile?.displayName ?: "HyperRose",
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(MiuixIcons.ChevronBackward, contentDescription = "返回")
                         }
                     },
                     actions = {
-                        IconButton(onClick = onOpenBleDebug) {
-                            Icon(MiuixIcons.Info, contentDescription = "BLE 调试")
+                        if (deviceProfile != null) {
+                            IconButton(onClick = onOpenBleDebug) {
+                                Icon(MiuixIcons.Info, contentDescription = "BLE 调试")
+                            }
                         }
                     },
                     scrollBehavior = scrollBehavior,
@@ -154,23 +151,26 @@ fun DeviceDetailPage(
                     end = 10.dp,
                 ),
             ) {
-                item {
-                    Image(
-                        painter = painterResource(colorTheme.caseRes),
-                        contentDescription = deviceName
-                            ?: DeviceProfileRegistry.defaultProfile.displayName,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .graphicsLayer {
-                                if (listState.firstVisibleItemIndex == 0) {
-                                    val scrollOffset =
-                                        listState.firstVisibleItemScrollOffset.toFloat()
-                                    translationY = scrollOffset * 0.5f
-                                    alpha = 1f - (scrollOffset / 600f).coerceIn(0f, 1f)
-                                }
-                            })
+                if (colorProfile != null) {
+                    item {
+                        val colorTheme by deviceImageStore.colorThemeFlow(address, colorProfile)
+                            .collectAsState(initial = colorProfile.defaultTheme())
+                        Image(
+                            painter = painterResource(colorTheme.caseRes),
+                            contentDescription = deviceName ?: deviceProfile?.displayName,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .graphicsLayer {
+                                    if (listState.firstVisibleItemIndex == 0) {
+                                        val scrollOffset = listState.firstVisibleItemScrollOffset.toFloat()
+                                        translationY = scrollOffset * 0.5f
+                                        alpha = 1f - (scrollOffset / 600f).coerceIn(0f, 1f)
+                                    }
+                                },
+                        )
+                    }
                 }
 
                 item {
@@ -204,7 +204,7 @@ fun DeviceDetailPage(
                     }
                 }
 
-                if (!connected) return@LazyColumn
+                if (!connected || deviceProfile == null) return@LazyColumn
 
                 item { BatteryCard(battery = battery) }
 
@@ -261,13 +261,17 @@ fun DeviceDetailPage(
                     }
                 }
 
-                item {
-                    Card {
-                        ArrowPreference(
-                            title = "耳机颜色",
-                            summary = colorTheme.label,
-                            onClick = onOpenColorSettings,
-                        )
+                if (colorProfile != null) {
+                    item {
+                        val colorTheme by deviceImageStore.colorThemeFlow(address, colorProfile)
+                            .collectAsState(initial = colorProfile.defaultTheme())
+                        Card {
+                            ArrowPreference(
+                                title = "耳机颜色",
+                                summary = colorTheme.label,
+                                onClick = onOpenColorSettings,
+                            )
+                        }
                     }
                 }
             }

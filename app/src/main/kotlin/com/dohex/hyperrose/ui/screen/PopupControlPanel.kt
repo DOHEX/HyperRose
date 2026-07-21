@@ -42,12 +42,12 @@ fun PopupControlPanel(
     val gameMode by deviceControlStore.gameMode.collectAsState()
     val lowLatency by deviceControlStore.lowLatency.collectAsState()
     val capabilities by deviceControlStore.capabilities.collectAsState()
+    val profile by deviceControlStore.profile.collectAsState()
     val connected = connectionState == DeviceConnectionState.CONNECTED
 
     WindowDialog(
         show = show,
-        title = deviceName
-            ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName,
+        title = deviceName ?: "HyperRose",
         summary = if (connected) null else "未连接",
         onDismissRequest = onDismissRequest,
         onDismissFinished = onDismissFinish,
@@ -55,7 +55,7 @@ fun PopupControlPanel(
         val isLandscape =
             LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-        if (isLandscape && connected) {
+        if (isLandscape && connected && profile != null) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,7 +125,7 @@ fun PopupControlPanel(
                         .padding(top = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                if (connected) {
+                if (connected && profile != null) {
                     AncSelector(
                         ancMode = ancMode,
                         ancDepth = ancDepth,

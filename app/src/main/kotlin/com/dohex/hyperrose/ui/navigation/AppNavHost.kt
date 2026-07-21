@@ -15,7 +15,6 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.ui.NavDisplay
-import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import com.dohex.hyperrose.ui.screen.BleDebugPage
 import com.dohex.hyperrose.ui.screen.DeviceDetailPage
 import com.dohex.hyperrose.ui.screen.DevicePickerPage
@@ -40,7 +39,7 @@ sealed interface AppDestination : NavKey {
     data object BleDebug : AppDestination
 
     @Serializable
-    data class EarphoneColorSettings(val address: String, val deviceId: String?) : AppDestination
+    data class EarphoneColorSettings(val address: String, val deviceId: String) : AppDestination
 }
 
 @Composable
@@ -52,6 +51,7 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
     val connectionState by deviceControlStore.connectionState.collectAsState()
     val transport by deviceControlStore.transport.collectAsState()
     val deviceName by deviceControlStore.deviceName.collectAsState()
+    val profile by deviceControlStore.profile.collectAsState()
     val battery by deviceControlStore.battery.collectAsState()
     val ancMode by deviceControlStore.ancMode.collectAsState()
     val ancDepth by deviceControlStore.ancDepth.collectAsState()
@@ -91,7 +91,7 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
 
     val entryProvider = remember(
         hasPermission, pairedDevices, connectionState, transport, deviceName,
-        battery, ancMode, ancDepth, transLevel, eqMode, gameMode, lowLatency, capabilities,
+        battery, ancMode, ancDepth, transLevel, eqMode, gameMode, lowLatency, capabilities, profile,
     ) {
         entryProvider<NavKey> {
             entry<AppDestination.DeviceList> {
@@ -103,15 +103,17 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
                     onRefresh = deviceControlStore::refreshBondedDevices,
                     onConnect = { address ->
                         val selected = pairedDevices.firstOrNull { it.address == address }
-                        if (connectionState != DeviceConnectionState.CONNECTED) {
+                        if (selected?.isSupported == true && connectionState != DeviceConnectionState.CONNECTED) {
                             deviceControlStore.connectDirect(address)
                         }
-                        backStack.add(
-                            AppDestination.DeviceDetail(
-                                address = address,
-                                name = selected?.name ?: address,
+                        if (selected?.isSupported == true) {
+                            backStack.add(
+                                AppDestination.DeviceDetail(
+                                    address = address,
+                                    name = selected.name,
+                                )
                             )
-                        )
+                        }
                     },
                     onOpenSettings = { backStack.add(AppDestination.Settings) },
                     modifier = Modifier.fillMaxSize(),
@@ -124,6 +126,7 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
                     connectionState = connectionState,
                     transport = transport,
                     deviceName = deviceName ?: it.name,
+                    deviceProfile = profile,
                     battery = battery,
                     ancMode = ancMode,
                     ancDepth = ancDepth,
@@ -146,13 +149,16 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
                     onConnect = { deviceControlStore.connectDirect(it.address) },
                     onOpenBleDebug = { backStack.add(AppDestination.BleDebug) },
                     onOpenColorSettings = {
-                        val deviceId = deviceName?.let { DeviceProfileRegistry.findByName(it)?.id }
-                        backStack.add(
-                            AppDestination.EarphoneColorSettings(
-                                address = it.address,
-                                deviceId = deviceId
-                            )
-                        )
+                        profile?.let { currentProfile ->
+                            if (com.dohex.hyperrose.model.DeviceColorProfile.forDevice(currentProfile.id) != null) {
+                                backStack.add(
+                                    AppDestination.EarphoneColorSettings(
+                                        address = it.address,
+                                        deviceId = currentProfile.id,
+                                    )
+                                )
+                            }
+                        }
                     },
                     onBack = { if (backStack.size > 1) backStack.removeLast() },
                     modifier = Modifier.fillMaxSize(),
@@ -167,15 +173,14 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
             }
 
             entry<AppDestination.BleDebug> {
-                val debugProfile = deviceName?.let {
-                    DeviceProfileRegistry.findByName(it)
-                } ?: DeviceProfileRegistry.defaultProfile
-                BleDebugPage(
-                    deviceControlStore = deviceControlStore,
-                    profile = debugProfile,
-                    onBack = { if (backStack.size > 1) backStack.removeLast() },
-                    modifier = Modifier.fillMaxSize(),
-                )
+                profile?.let { debugProfile ->
+                    BleDebugPage(
+                        deviceControlStore = deviceControlStore,
+                        profile = debugProfile,
+                        onBack = { if (backStack.size > 1) backStack.removeLast() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
 
             entry<AppDestination.EarphoneColorSettings> {

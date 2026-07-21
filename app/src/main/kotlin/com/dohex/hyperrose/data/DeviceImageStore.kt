@@ -52,9 +52,8 @@ class DeviceImageStore(context: Context) {
      */
     fun colorThemeFlow(
         address: String,
-        profile: DeviceColorProfile?,
+        profile: DeviceColorProfile,
     ): Flow<DeviceColorTheme> {
-        val resolvedProfile = profile ?: DeviceColorProfile.DEFAULT_PROFILE
         return appContext.deviceImageDataStore.data
             .catch { throwable ->
                 if (throwable !is IOException) throw throwable
@@ -66,13 +65,12 @@ class DeviceImageStore(context: Context) {
                     val migratedName = legacyColorNameMap[name] ?: name
                     val color = runCatching { EarphoneColor.valueOf(migratedName) }.getOrNull()
                     if (color != null) {
-                        resolvedProfile.themeFor(color)
-                            ?: resolvedProfile.defaultTheme()
+                        profile.themeFor(color) ?: profile.defaultTheme()
                     } else {
-                        resolvedProfile.defaultTheme()
+                        profile.defaultTheme()
                     }
                 } else {
-                    resolvedProfile.defaultTheme()
+                    profile.defaultTheme()
                 }
             }
             .distinctUntilChanged()

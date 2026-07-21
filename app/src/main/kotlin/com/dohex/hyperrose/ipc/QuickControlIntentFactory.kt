@@ -13,12 +13,14 @@ object QuickControlIntentFactory {
 
     fun createLaunchIntent(
         deviceName: String?,
+        profileId: String? = null,
         leftLevel: Int? = null,
         rightLevel: Int? = null,
         forceConnected: Boolean = true,
     ): Intent = Intent().apply {
         setClassName(HyperRoseIpc.PACKAGE_APP, HyperRoseIpc.QUICK_CONTROL_ACTIVITY)
         putExtra(HyperRoseIpc.EXTRA_DEVICE_NAME, deviceName)
+        profileId?.let { putExtra(HyperRoseIpc.EXTRA_PROFILE_ID, it) }
         leftLevel?.asBatteryLevelOrNull()?.let { putExtra(HyperRoseIpc.EXTRA_LEFT_LEVEL, it) }
         rightLevel?.asBatteryLevelOrNull()?.let { putExtra(HyperRoseIpc.EXTRA_RIGHT_LEVEL, it) }
         putExtra(HyperRoseIpc.EXTRA_FORCE_CONNECTED, forceConnected)

@@ -16,6 +16,7 @@ import com.dohex.hyperrose.ipc.QuickControlLaunchValidator
 import com.dohex.hyperrose.model.EarBatteryState
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
+import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import com.dohex.hyperrose.ui.screen.PopupControlPanel
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
@@ -30,8 +31,6 @@ class QuickControlActivity : ComponentActivity() {
     companion object {
         const val EXTRA_DEVICE_NAME = HyperRoseAction.EXTRA_DEVICE_NAME
         const val EXTRA_FORCE_CONNECTED = HyperRoseAction.EXTRA_FORCE_CONNECTED
-        private val DEFAULT_DEVICE_NAME =
-            com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +44,7 @@ class QuickControlActivity : ComponentActivity() {
         runCatching { setFinishOnTouchOutside(true) }
 
         val presetDeviceName = intent.getStringExtra(EXTRA_DEVICE_NAME)
+        val presetProfileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
         val presetLeftLevel = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
         val presetRightLevel = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
         val forceConnected = intent.getBooleanExtra(EXTRA_FORCE_CONNECTED, false)
@@ -68,10 +68,15 @@ class QuickControlActivity : ComponentActivity() {
                 val shouldApplyFallback =
                     forceConnected || !presetDeviceName.isNullOrBlank() || hasPresetBattery
                 if (currentName.isNullOrBlank() && shouldApplyFallback) {
-                    deviceControlStore.setTemporaryConnectionState(
-                        name = presetDeviceName ?: DEFAULT_DEVICE_NAME,
-                        battery = buildPresetBattery(presetLeftLevel, presetRightLevel),
-                    )
+                    val profile = presetProfileId?.let(DeviceProfileRegistry::findById)
+                        ?: presetDeviceName?.let(DeviceProfileRegistry::findByName)
+                    profile?.let {
+                        deviceControlStore.setTemporaryConnectionState(
+                            profile = it,
+                            name = presetDeviceName,
+                            battery = buildPresetBattery(presetLeftLevel, presetRightLevel),
+                        )
+                    }
                 }
             }
 

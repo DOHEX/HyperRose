@@ -33,7 +33,7 @@ import java.util.Locale
 /** 独立 App 用的 BLE GATT 通信管理器。 所有状态通过 StateFlow 暴露给 Compose UI。 */
 class StandaloneGattClient(
     private val context: Context,
-    val profile: DeviceProfile,
+    override val profile: DeviceProfile,
 ) : StandaloneClient {
     companion object {
         private const val TAG = "HyperRose.StandaloneGattClient"
@@ -41,42 +41,36 @@ class StandaloneGattClient(
         private val logTimeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
     }
 
-    enum class ConnectionState {
-        DISCONNECTED,
-        CONNECTING,
-        CONNECTED,
-    }
-
     private val gattSpec: TransportSpec.Gatt
         get() = profile.transport as TransportSpec.Gatt
 
     // 状态 Flow
-    private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
-    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+    private val _connectionState = MutableStateFlow(StandaloneConnectionState.DISCONNECTED)
+    override val connectionState: StateFlow<StandaloneConnectionState> = _connectionState.asStateFlow()
 
     private val _battery = MutableStateFlow<TwsBatteryState?>(null)
-    val battery: StateFlow<TwsBatteryState?> = _battery.asStateFlow()
+    override val battery: StateFlow<TwsBatteryState?> = _battery.asStateFlow()
 
     private val _ancMode = MutableStateFlow<AncMode?>(null)
-    val ancMode: StateFlow<AncMode?> = _ancMode.asStateFlow()
+    override val ancMode: StateFlow<AncMode?> = _ancMode.asStateFlow()
 
     private val _ancDepth = MutableStateFlow<AncDepth?>(null)
-    val ancDepth: StateFlow<AncDepth?> = _ancDepth.asStateFlow()
+    override val ancDepth: StateFlow<AncDepth?> = _ancDepth.asStateFlow()
 
     private val _transLevel = MutableStateFlow<TransparencyLevel?>(null)
-    val transLevel: StateFlow<TransparencyLevel?> = _transLevel.asStateFlow()
+    override val transLevel: StateFlow<TransparencyLevel?> = _transLevel.asStateFlow()
 
     private val _eqMode = MutableStateFlow<EqPreset?>(null)
-    val eqMode: StateFlow<EqPreset?> = _eqMode.asStateFlow()
+    override val eqMode: StateFlow<EqPreset?> = _eqMode.asStateFlow()
 
     private val _gameMode = MutableStateFlow<Boolean?>(null)
-    val gameMode: StateFlow<Boolean?> = _gameMode.asStateFlow()
+    override val gameMode: StateFlow<Boolean?> = _gameMode.asStateFlow()
 
     private val _lowLatency = MutableStateFlow<Boolean?>(null)
-    val lowLatency: StateFlow<Boolean?> = _lowLatency.asStateFlow()
+    override val lowLatency: StateFlow<Boolean?> = _lowLatency.asStateFlow()
 
     private val _deviceName = MutableStateFlow<String?>(null)
-    val deviceName: StateFlow<String?> = _deviceName.asStateFlow()
+    override val deviceName: StateFlow<String?> = _deviceName.asStateFlow()
 
     private var gatt: BluetoothGatt? = null
     private var writeChar: BluetoothGattCharacteristic? = null
@@ -90,7 +84,7 @@ class StandaloneGattClient(
             old.disconnect()
             old.close()
         }
-        _connectionState.value = ConnectionState.CONNECTING
+        _connectionState.value = StandaloneConnectionState.CONNECTING
         _deviceName.value = device.name
         Log.i(TAG, "Connecting to ${device.address}")
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
@@ -102,7 +96,7 @@ class StandaloneGattClient(
         gatt?.close()
         gatt = null
         writeChar = null
-        _connectionState.value = ConnectionState.DISCONNECTED
+        _connectionState.value = StandaloneConnectionState.DISCONNECTED
         _battery.value = null
         _ancMode.value = null
         _ancDepth.value = null
@@ -134,7 +128,7 @@ class StandaloneGattClient(
     }
 
     override fun refreshStatus() {
-        if (_connectionState.value != ConnectionState.CONNECTED) return
+        if (_connectionState.value != StandaloneConnectionState.CONNECTED) return
         queryAllStatus()
     }
 
@@ -205,7 +199,7 @@ class StandaloneGattClient(
 
                     BluetoothProfile.STATE_DISCONNECTED -> {
                         Log.i(TAG, "GATT disconnected")
-                        _connectionState.value = ConnectionState.DISCONNECTED
+                        _connectionState.value = StandaloneConnectionState.DISCONNECTED
                         handler.removeCallbacksAndMessages(null)
                         gatt.close()
                     }
@@ -219,14 +213,14 @@ class StandaloneGattClient(
                 handler.removeCallbacksAndMessages(null)
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     Log.e(TAG, "Service discovery failed: $status")
-                    _connectionState.value = ConnectionState.DISCONNECTED
+                    _connectionState.value = StandaloneConnectionState.DISCONNECTED
                     return
                 }
 
                 val service = gatt.getService(gattSpec.serviceUuid)
                 if (service == null) {
                     Log.e(TAG, "Service not found")
-                    _connectionState.value = ConnectionState.DISCONNECTED
+                    _connectionState.value = StandaloneConnectionState.DISCONNECTED
                     return
                 }
                 writeChar = service.getCharacteristic(gattSpec.writeCharUuid)
@@ -234,7 +228,7 @@ class StandaloneGattClient(
 
                 if (writeChar == null || notifyChar == null) {
                     Log.e(TAG, "Characteristics not found")
-                    _connectionState.value = ConnectionState.DISCONNECTED
+                    _connectionState.value = StandaloneConnectionState.DISCONNECTED
                     return
                 }
 
@@ -249,7 +243,7 @@ class StandaloneGattClient(
                     gatt.writeDescriptor(descriptor)
                 }
 
-                _connectionState.value = ConnectionState.CONNECTED
+                _connectionState.value = StandaloneConnectionState.CONNECTED
                 Log.i(TAG, "GATT ready")
 
                 // 查询全部状态
@@ -272,7 +266,7 @@ class StandaloneGattClient(
         Log.w(TAG, "Service discovery timed out, disconnecting")
         gatt.disconnect()
         gatt.close()
-        _connectionState.value = ConnectionState.DISCONNECTED
+        _connectionState.value = StandaloneConnectionState.DISCONNECTED
     }
 
     // ==================== 回包处理 ====================

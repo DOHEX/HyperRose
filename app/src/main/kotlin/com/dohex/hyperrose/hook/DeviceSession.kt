@@ -94,6 +94,7 @@ abstract class DeviceSession(
                             )
                             putExtra(HyperRoseAction.EXTRA_CASE_LEVEL, battery.caseBattery ?: -1)
                             putExtra(HyperRoseAction.EXTRA_DEVICE, connectedDevice)
+                            putExtra(HyperRoseAction.EXTRA_PROFILE_ID, profile.id)
                         },
                     )
                 }

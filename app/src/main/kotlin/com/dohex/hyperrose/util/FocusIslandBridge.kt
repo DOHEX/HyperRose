@@ -7,7 +7,13 @@ import com.xzakota.hyper.notification.focus.FocusNotification
 object FocusIslandBridge {
     private const val TICKER_TEXT = "HyperRose"
 
+    fun resolveDeviceTitle(
+        deviceName: String?,
+        profileDisplayName: String?,
+    ): String = deviceName ?: profileDisplayName ?: TICKER_TEXT
+
     fun buildBatteryIslandExtras(
+        deviceTitle: String,
         leftLevel: Int,
         rightLevel: Int,
         caseLevel: Int,
@@ -64,7 +70,7 @@ object FocusIslandBridge {
                 }
                 baseInfo {
                     type = 2
-                    title = "ROSESELSA EARFEEL i5"
+                    title = deviceTitle
                     content = baseContent
                 }
             }

@@ -104,8 +104,6 @@ enum class DeviceColorProfile(
         themeFor(availableColors.first())!!
 
     companion object {
-        val DEFAULT_PROFILE: DeviceColorProfile = EARFREE_I5
-
         fun forDevice(deviceId: String?): DeviceColorProfile? =
             entries.find { it.deviceId == deviceId }
     }

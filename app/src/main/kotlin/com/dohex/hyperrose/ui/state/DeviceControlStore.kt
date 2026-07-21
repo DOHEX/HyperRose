@@ -18,8 +18,12 @@ import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.model.withLastKnownCaseBattery
+import com.dohex.hyperrose.profile.DeviceCapabilities
+import com.dohex.hyperrose.profile.DeviceProfile
+import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import com.dohex.hyperrose.profile.TransportSpec
 import com.dohex.hyperrose.service.StandaloneClient
+import com.dohex.hyperrose.service.StandaloneConnectionState
 import com.dohex.hyperrose.service.StandaloneGattClient
 import com.dohex.hyperrose.service.StandaloneRfcommClient
 import kotlinx.coroutines.CoroutineScope
@@ -47,7 +51,10 @@ enum class ConnectionTransport {
 data class RoseDeviceItem(
     val name: String,
     val address: String,
-)
+    val profileId: String? = null,
+) {
+    val isSupported: Boolean get() = profileId != null
+}
 
 /**
  * App 侧统一状态与控制入口。
@@ -58,10 +65,8 @@ class DeviceControlStore(
     context: Context,
 ) {
     private val appContext = context.applicationContext
-    private val directGattClient = StandaloneGattClient(
-        appContext, com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile
-    )
-    private var directRfcommClient: StandaloneRfcommClient? = null
+    private var directClient: StandaloneClient? = null
+    private var directClientObserverJob: Job? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var bridgeFallbackJob: Job? = null
@@ -106,11 +111,11 @@ class DeviceControlStore(
     private val _lowLatency = MutableStateFlow(false)
     val lowLatency: StateFlow<Boolean> = _lowLatency.asStateFlow()
 
-    private val _capabilities = MutableStateFlow(
-        com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
-    )
-    val capabilities: StateFlow<com.dohex.hyperrose.profile.DeviceCapabilities> =
-        _capabilities.asStateFlow()
+    private val _profile = MutableStateFlow<DeviceProfile?>(null)
+    val profile: StateFlow<DeviceProfile?> = _profile.asStateFlow()
+
+    private val _capabilities = MutableStateFlow(DeviceCapabilities.NONE)
+    val capabilities: StateFlow<DeviceCapabilities> = _capabilities.asStateFlow()
 
     private var receiverRegistered = false
 
@@ -127,12 +132,7 @@ class DeviceControlStore(
                     // Bridge always takes priority over standalone.
                     // Disconnect any active direct client so we don't keep
                     // two connections to the same device.
-                    if (_transport.value == ConnectionTransport.DIRECT_BLE) {
-                        directGattClient.disconnect()
-                    } else if (_transport.value == ConnectionTransport.DIRECT_RFCOMM) {
-                        directRfcommClient?.disconnect()
-                        directRfcommClient = null
-                    }
+                    clearDirectClient()
 
                     _transport.value = ConnectionTransport.HOOK_BRIDGE
                     _connectionState.value = DeviceConnectionState.CONNECTED
@@ -141,14 +141,12 @@ class DeviceControlStore(
                         HyperRoseAction.EXTRA_DEVICE,
                         android.bluetooth.BluetoothDevice::class.java,
                     )
-                    _deviceName.value = device?.name ?: _deviceName.value
-                            ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.displayName
                     val profileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
-                    if (profileId != null) {
-                        _capabilities.value =
-                            com.dohex.hyperrose.profile.DeviceProfileRegistry.findById(profileId)?.capabilities
-                                ?: com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
-                    }
+                    val resolvedProfile = profileId?.let(DeviceProfileRegistry::findById)
+                        ?: device?.name?.let(DeviceProfileRegistry::findByName)
+                    _profile.value = resolvedProfile
+                    _capabilities.value = resolvedProfile?.capabilities ?: DeviceCapabilities.NONE
+                    _deviceName.value = device?.name ?: resolvedProfile?.displayName ?: _deviceName.value
                 }
 
                 HyperRoseAction.DEVICE_DISCONNECTED -> {
@@ -204,7 +202,6 @@ class DeviceControlStore(
     }
 
     init {
-        observeDirectGatt()
         registerBridgeReceiver()
         refreshPermissionState()
     }
@@ -235,10 +232,14 @@ class DeviceControlStore(
 
         _pairedDevices.value = adapter.bondedDevices.mapNotNull { device ->
             val name = device.name ?: device.alias ?: return@mapNotNull null
-            RoseDeviceItem(name = name, address = device.address)
+            RoseDeviceItem(
+                name = name,
+                address = device.address,
+                profileId = DeviceProfileRegistry.findByName(name)?.id,
+            )
         }.sortedWith(
             compareByDescending<RoseDeviceItem> {
-                com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it.name) != null
+                it.isSupported
             }.thenBy { it.name.lowercase() }.thenBy { it.address },
         )
     }
@@ -249,15 +250,12 @@ class DeviceControlStore(
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
         val bonded = adapter.bondedDevices.firstOrNull { it.address == address } ?: return
 
+        val profile = DeviceProfileRegistry.findByName(bonded.name ?: "") ?: return
         com.dohex.hyperrose.data.AuthorizedDeviceStore.add(appContext, address)
 
-        val profile = com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(
-            bonded.name ?: ""
-        )
         _deviceName.value = bonded.name ?: address
-        if (profile != null) {
-            _capabilities.value = profile.capabilities
-        }
+        _profile.value = profile
+        _capabilities.value = profile.capabilities
 
         // Prefer hook bridge: optimistically assume LSPosed hooks are running.
         // If the device is already A2DP-connected, the hook process broadcasts
@@ -280,26 +278,24 @@ class DeviceControlStore(
     @SuppressLint("MissingPermission")
     private fun connectStandalone(
         bonded: android.bluetooth.BluetoothDevice,
-        profile: com.dohex.hyperrose.profile.DeviceProfile?,
+        profile: DeviceProfile,
     ) {
-        when (profile?.transport) {
+        clearDirectClient()
+        val client = when (profile.transport) {
             is TransportSpec.Rfcomm -> {
-                directRfcommClient?.disconnect()
-                val client = StandaloneRfcommClient(appContext, profile)
-                directRfcommClient = client
-                observeDirectRfcomm(client)
-                _capabilities.value = profile.capabilities
-                _transport.value = ConnectionTransport.DIRECT_RFCOMM
-                _connectionState.value = DeviceConnectionState.CONNECTING
-                client.connect(bonded)
+                StandaloneRfcommClient(appContext, profile)
             }
 
-            else -> {
-                _transport.value = ConnectionTransport.DIRECT_BLE
-                _connectionState.value = DeviceConnectionState.CONNECTING
-                directGattClient.connect(bonded)
-            }
+            is TransportSpec.Gatt -> StandaloneGattClient(appContext, profile)
         }
+        directClient = client
+        _transport.value = when (profile.transport) {
+            is TransportSpec.Gatt -> ConnectionTransport.DIRECT_BLE
+            is TransportSpec.Rfcomm -> ConnectionTransport.DIRECT_RFCOMM
+        }
+        _connectionState.value = DeviceConnectionState.CONNECTING
+        client.connect(bonded)
+        observeDirectClient(client)
     }
 
     fun setAnc(mode: AncMode) {
@@ -396,8 +392,7 @@ class DeviceControlStore(
 
     fun disconnect() {
         bridgeFallbackJob?.cancel()
-        directRfcommClient?.disconnect()
-        directGattClient.disconnect()
+        clearDirectClient()
         BluetoothCommandDispatcher.disconnectGatt(appContext)
         _connectionState.value = DeviceConnectionState.DISCONNECTED
         _transport.value = ConnectionTransport.NONE
@@ -405,13 +400,16 @@ class DeviceControlStore(
     }
 
     fun setTemporaryConnectionState(
-        name: String,
+        profile: DeviceProfile,
+        name: String?,
         battery: TwsBatteryState?,
     ) {
         if (_connectionState.value == DeviceConnectionState.CONNECTED) return
         _transport.value = ConnectionTransport.HOOK_BRIDGE
         _connectionState.value = DeviceConnectionState.CONNECTED
-        _deviceName.value = name
+        _profile.value = profile
+        _capabilities.value = profile.capabilities
+        _deviceName.value = name ?: profile.displayName
         if (battery != null) {
             _battery.value = battery
         }
@@ -423,98 +421,63 @@ class DeviceControlStore(
             runCatching { appContext.unregisterReceiver(bridgeReceiver) }
             receiverRegistered = false
         }
-        directRfcommClient?.disconnect()
-        directRfcommClient = null
-        directGattClient.disconnect()
+        clearDirectClient()
         scope.coroutineContext.cancel()
     }
 
-    private fun observeDirectGatt() {
-        directGattClient.connectionState.onEach { state ->
-            if (_transport.value != ConnectionTransport.DIRECT_BLE && state == StandaloneGattClient.ConnectionState.CONNECTED) {
-                _transport.value = ConnectionTransport.DIRECT_BLE
-            }
-            when (state) {
-                StandaloneGattClient.ConnectionState.DISCONNECTED -> {
-                    if (_transport.value == ConnectionTransport.DIRECT_BLE) {
+    private fun observeDirectClient(client: StandaloneClient) {
+        directClientObserverJob?.cancel()
+        directClientObserverJob = scope.launch {
+            client.connectionState.onEach { state ->
+                if (client !== directClient) return@onEach
+                when (state) {
+                    StandaloneConnectionState.DISCONNECTED -> {
                         _connectionState.value = DeviceConnectionState.DISCONNECTED
                         _transport.value = ConnectionTransport.NONE
                         clearState()
                     }
+
+                    StandaloneConnectionState.CONNECTING -> {
+                        _connectionState.value = DeviceConnectionState.CONNECTING
+                    }
+
+                    StandaloneConnectionState.CONNECTED -> {
+                        _connectionState.value = DeviceConnectionState.CONNECTED
+                    }
                 }
-
-                StandaloneGattClient.ConnectionState.CONNECTING -> {
-                    _connectionState.value = DeviceConnectionState.CONNECTING
-                    _transport.value = ConnectionTransport.DIRECT_BLE
-                }
-
-                StandaloneGattClient.ConnectionState.CONNECTED -> {
-                    _connectionState.value = DeviceConnectionState.CONNECTED
-                    _transport.value = ConnectionTransport.DIRECT_BLE
-                }
-            }
-        }.launchIn(scope)
-
-        directGattClient.deviceName.onEach { name ->
-            if (!name.isNullOrBlank()) {
-                _deviceName.value = name
-            }
-        }.launchIn(scope)
-
-        directGattClient.battery.onEach {
-            _battery.value = it?.withLastKnownCaseBattery(_battery.value)
-        }.launchIn(scope)
-
-        directGattClient.ancMode.onEach { if (it != null) _ancMode.value = it }.launchIn(scope)
-
-        directGattClient.ancDepth.onEach { if (it != null) _ancDepth.value = it }.launchIn(scope)
-
-        directGattClient.transLevel.onEach { if (it != null) _transLevel.value = it }
-            .launchIn(scope)
-
-        directGattClient.eqMode.onEach { if (it != null) _eqMode.value = it }.launchIn(scope)
-
-        directGattClient.gameMode.onEach { if (it != null) _gameMode.value = it }.launchIn(scope)
-
-        directGattClient.lowLatency.onEach { if (it != null) _lowLatency.value = it }
-            .launchIn(scope)
+            }.launchIn(this)
+            client.deviceName.onEach { name ->
+                if (client === directClient && !name.isNullOrBlank()) _deviceName.value = name
+            }.launchIn(this)
+            client.battery.onEach { battery ->
+                if (client === directClient) _battery.value = battery?.withLastKnownCaseBattery(_battery.value)
+            }.launchIn(this)
+            client.ancMode.onEach { value ->
+                if (client === directClient && value != null) _ancMode.value = value
+            }.launchIn(this)
+            client.ancDepth.onEach { value ->
+                if (client === directClient && value != null) _ancDepth.value = value
+            }.launchIn(this)
+            client.transLevel.onEach { value ->
+                if (client === directClient && value != null) _transLevel.value = value
+            }.launchIn(this)
+            client.eqMode.onEach { value ->
+                if (client === directClient && value != null) _eqMode.value = value
+            }.launchIn(this)
+            client.gameMode.onEach { value ->
+                if (client === directClient && value != null) _gameMode.value = value
+            }.launchIn(this)
+            client.lowLatency.onEach { value ->
+                if (client === directClient && value != null) _lowLatency.value = value
+            }.launchIn(this)
+        }
     }
 
-    private fun observeDirectRfcomm(client: StandaloneRfcommClient) {
-        client.connectionState.onEach { state ->
-            when (state) {
-                StandaloneRfcommClient.ConnectionState.DISCONNECTED -> {
-                    if (_transport.value == ConnectionTransport.DIRECT_RFCOMM) {
-                        _connectionState.value = DeviceConnectionState.DISCONNECTED
-                        _transport.value = ConnectionTransport.NONE
-                        clearState()
-                    }
-                }
-
-                StandaloneRfcommClient.ConnectionState.CONNECTING -> {
-                    _connectionState.value = DeviceConnectionState.CONNECTING
-                }
-
-                StandaloneRfcommClient.ConnectionState.CONNECTED -> {
-                    _connectionState.value = DeviceConnectionState.CONNECTED
-                }
-            }
-        }.launchIn(scope)
-
-        client.deviceName.onEach { name ->
-            if (!name.isNullOrBlank()) _deviceName.value = name
-        }.launchIn(scope)
-
-        client.battery.onEach {
-            _battery.value = it?.withLastKnownCaseBattery(_battery.value)
-        }.launchIn(scope)
-
-        client.ancMode.onEach { if (it != null) _ancMode.value = it }.launchIn(scope)
-        client.ancDepth.onEach { if (it != null) _ancDepth.value = it }.launchIn(scope)
-        client.transLevel.onEach { if (it != null) _transLevel.value = it }.launchIn(scope)
-        client.eqMode.onEach { if (it != null) _eqMode.value = it }.launchIn(scope)
-        client.gameMode.onEach { if (it != null) _gameMode.value = it }.launchIn(scope)
-        client.lowLatency.onEach { if (it != null) _lowLatency.value = it }.launchIn(scope)
+    private fun clearDirectClient() {
+        directClientObserverJob?.cancel()
+        directClientObserverJob = null
+        directClient?.disconnect()
+        directClient = null
     }
 
     private fun registerBridgeReceiver() {
@@ -526,8 +489,10 @@ class DeviceControlStore(
     }
 
     private fun activeDirectClient(): StandaloneClient? = when (_transport.value) {
-        ConnectionTransport.DIRECT_BLE -> directGattClient
-        ConnectionTransport.DIRECT_RFCOMM -> directRfcommClient
+        ConnectionTransport.DIRECT_BLE,
+        ConnectionTransport.DIRECT_RFCOMM,
+        -> directClient
+
         else -> null
     }
 
@@ -572,6 +537,7 @@ class DeviceControlStore(
 
     private fun clearState() {
         _deviceName.value = null
+        _profile.value = null
         _battery.value = null
         _ancMode.value = null
         _ancDepth.value = null
@@ -579,7 +545,6 @@ class DeviceControlStore(
         _eqMode.value = null
         _gameMode.value = false
         _lowLatency.value = false
-        _capabilities.value =
-            com.dohex.hyperrose.profile.DeviceProfileRegistry.defaultProfile.capabilities
+        _capabilities.value = DeviceCapabilities.NONE
     }
 }
