@@ -54,5 +54,5 @@ google-services.json
 
 
 .agent/
-docs/
+.local/
 AGENTS.md
