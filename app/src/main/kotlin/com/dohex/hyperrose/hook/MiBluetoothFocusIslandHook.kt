@@ -217,7 +217,7 @@ object MiBluetoothFocusIslandHook {
         val nm =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         val profileDisplayName = profileId?.let {
-            com.dohex.hyperrose.profile.DeviceProfileRegistry.findById(it)?.displayName
+            com.dohex.hyperrose.profile.DeviceCatalog.findById(it)?.displayName
         }
         val deviceTitle = FocusIslandBridge.resolveDeviceTitle(device?.name, profileDisplayName)
         val content =

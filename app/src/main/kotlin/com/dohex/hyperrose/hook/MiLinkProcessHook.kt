@@ -204,7 +204,7 @@ object MiLinkProcessHook {
                         QuickControlIntentFactory.createLaunchIntent(
                             deviceName = device.name,
                             profileId = device.name?.let {
-                                com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it)?.id
+                                com.dohex.hyperrose.profile.DeviceCatalog.findByName(it)?.id
                             },
                         )
                     runCatching { ctx.startActivity(intent) }
@@ -503,7 +503,7 @@ object MiLinkProcessHook {
         val address = runCatching { device.address }.getOrNull()
         if (address != null && isRoseAddress(address)) return true
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        return com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name) != null
+        return com.dohex.hyperrose.profile.DeviceCatalog.findByName(name) != null
     }
 
     private val knownAddresses = mutableSetOf<String>()
@@ -519,7 +519,7 @@ object MiLinkProcessHook {
                 val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
                 val device = bt?.getRemoteDevice(address)
                 val name = device?.name ?: device?.alias
-                name?.let { com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it) != null } == true
+                name?.let { com.dohex.hyperrose.profile.DeviceCatalog.findByName(it) != null } == true
             }.getOrElse { false }
         ) {
             knownAddresses.add(normalized)
@@ -552,7 +552,11 @@ object MiLinkProcessHook {
      * 0 = OFF, 1 = 降噪 (NC), 2 = 通透 (Transparency)
      */
     private fun miLinkAncState(): Int = when (currentAncMode) {
-        AncMode.NOISE_CANCEL, AncMode.WIND_NOISE -> 1
+        AncMode.NOISE_CANCEL,
+        AncMode.WIND_NOISE,
+        AncMode.ADAPTIVE_NOISE_CANCEL,
+        AncMode.EXTREME_NOISE_CANCEL,
+            -> 1
         AncMode.TRANSPARENT -> 2
         AncMode.NORMAL, null -> 0
     }

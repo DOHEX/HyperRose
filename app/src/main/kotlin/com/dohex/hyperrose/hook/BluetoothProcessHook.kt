@@ -13,7 +13,7 @@ import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
-import com.dohex.hyperrose.profile.DeviceProfileRegistry
+import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.util.ReflectionHelper
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
@@ -121,7 +121,7 @@ object BluetoothProcessHook {
     @SuppressLint("MissingPermission")
     private fun isSupportedDevice(device: BluetoothDevice): Boolean {
         val name = device.name ?: device.alias
-        if (name != null && DeviceProfileRegistry.findByName(name) != null) return true
+        if (name != null && DeviceCatalog.findByName(name) != null) return true
         val address = device.address ?: return false
         return com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)
     }
@@ -134,7 +134,7 @@ object BluetoothProcessHook {
     ) {
         val context = resolveContext(serviceObj) ?: return
 
-        val profile = (device.name ?: device.alias)?.let { DeviceProfileRegistry.findByName(it) }
+        val profile = (device.name ?: device.alias)?.let { DeviceCatalog.findByName(it)?.profile }
             ?: run {
                 module.log(Log.WARN, TAG, "No profile for ${device.name}")
                 return

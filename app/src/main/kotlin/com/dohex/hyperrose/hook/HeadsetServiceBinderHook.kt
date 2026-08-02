@@ -962,6 +962,9 @@ object HeadsetServiceBinderHook {
 
         AncMode.WIND_NOISE -> "0101"
 
+        // MIUI has no documented values for these ROSE-specific modes; keep NC semantics.
+        AncMode.ADAPTIVE_NOISE_CANCEL, AncMode.EXTREME_NOISE_CANCEL -> "0100"
+
         AncMode.TRANSPARENT -> when (transLevel) {
             TransparencyLevel.VOCAL -> "0201"
             else -> "0200"
@@ -1222,7 +1225,7 @@ object HeadsetServiceBinderHook {
         if (device == null) return false
         val address = runCatching { device.address }.getOrNull()
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        val nameMatch = com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(name) != null
+        val nameMatch = com.dohex.hyperrose.profile.DeviceCatalog.findByName(name) != null
         val addrMatch = address != null && isRoseAddress(address)
         val result = nameMatch || addrMatch
         moduleLog("isRoseEarphone: name='$name' addr=$address nameMatch=$nameMatch addrMatch=$addrMatch known=$knownAddresses → $result")
@@ -1245,7 +1248,7 @@ object HeadsetServiceBinderHook {
                 val bt = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
                 val device = bt?.getRemoteDevice(address)
                 val name = device?.name ?: device?.alias
-                name?.let { com.dohex.hyperrose.profile.DeviceProfileRegistry.findByName(it) != null } == true
+                name?.let { com.dohex.hyperrose.profile.DeviceCatalog.findByName(it) != null } == true
             }.getOrElse { false }
         ) {
             knownAddresses.add(normalized)

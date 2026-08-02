@@ -15,6 +15,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.ui.NavDisplay
+import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.ui.screen.BleDebugPage
 import com.dohex.hyperrose.ui.screen.DeviceDetailPage
 import com.dohex.hyperrose.ui.screen.DevicePickerPage
@@ -150,7 +151,7 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
                     onOpenBleDebug = { backStack.add(AppDestination.BleDebug) },
                     onOpenColorSettings = {
                         profile?.let { currentProfile ->
-                            if (com.dohex.hyperrose.model.DeviceColorProfile.forDevice(currentProfile.id) != null) {
+                            if (DeviceCatalog.findById(currentProfile.id)?.visuals != null) {
                                 backStack.add(
                                     AppDestination.EarphoneColorSettings(
                                         address = it.address,
@@ -184,12 +185,14 @@ fun AppNavHost(deviceControlStore: DeviceControlStore) {
             }
 
             entry<AppDestination.EarphoneColorSettings> {
-                EarphoneColorSettingsPage(
-                    address = it.address,
-                    deviceId = it.deviceId,
-                    onBack = { if (backStack.size > 1) backStack.removeLast() },
-                    modifier = Modifier.fillMaxSize(),
-                )
+                DeviceCatalog.findById(it.deviceId)?.visuals?.let { visuals ->
+                    EarphoneColorSettingsPage(
+                        address = it.address,
+                        visuals = visuals,
+                        onBack = { if (backStack.size > 1) backStack.removeLast() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
     }

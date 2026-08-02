@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.SectionCard
 import com.dohex.hyperrose.ui.state.DeviceConnectionState
@@ -238,18 +239,24 @@ private fun DevicePickerPagePreview_Empty() {
 @Preview(showBackground = true)
 @Composable
 private fun DevicePickerPagePreview_Devices() {
+    val devices = DeviceCatalog.devices.mapIndexed { index, descriptor ->
+        RoseDeviceItem(
+            name = descriptor.displayName,
+            address = "00:11:22:44:55:${60 + index}",
+            profileId = descriptor.id,
+        )
+    } + RoseDeviceItem(
+        name = "Redmi Buds 5 Pro",
+        address = "AA:BB:CC:DD:EE:FF",
+    )
+
     HyperRoseTheme {
         androidx.compose.runtime.CompositionLocalProvider(
             LocalThemeMode provides ThemeMode(),
         ) {
             DevicePickerPage(
                 hasPermission = true,
-                devices = listOf(
-                    RoseDeviceItem(
-                        name = "ROSESELSA EARFREE i5", address = "00:11:22:33:44:55"
-                    ),
-                    RoseDeviceItem(name = "Redmi Buds 5 Pro", address = "AA:BB:CC:DD:EE:FF"),
-                ),
+                devices = devices,
                 connectionState = DeviceConnectionState.DISCONNECTED,
                 onRequestPermission = {},
                 onRefresh = {},
@@ -271,7 +278,7 @@ private fun DevicePickerPagePreview_Connecting() {
                 hasPermission = true,
                 devices = listOf(
                     RoseDeviceItem(
-                        name = "ROSESELSA EARFREE i5", address = "00:11:22:33:44:55"
+                        name = "EarFeel i5", address = "00:11:22:33:44:55"
                     ),
                 ),
                 connectionState = DeviceConnectionState.CONNECTING,

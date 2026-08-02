@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -42,8 +43,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dohex.hyperrose.debug.BleLog
 import com.dohex.hyperrose.ipc.HyperRoseIpc
+import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.profile.DeviceProfile
 import com.dohex.hyperrose.ui.state.DeviceControlStore
+import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -66,11 +69,8 @@ fun BleDebugPage(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
     val bleEntries by BleLog.entries.collectAsState()
-    var hexInput by remember { mutableStateOf("") }
     var clearRequest by remember { mutableIntStateOf(0) }
-    val listState = rememberLazyListState()
 
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
@@ -114,8 +114,32 @@ fun BleDebugPage(
         }
     }
 
-    LaunchedEffect(bleEntries.size) {
-        if (bleEntries.isNotEmpty()) {
+
+    BleDebugPageContent(
+        profile = profile,
+        entries = bleEntries,
+        onBack = onBack,
+        onClear = { clearRequest++ },
+        onSendRaw = deviceControlStore::sendRawCommand,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun BleDebugPageContent(
+    profile: DeviceProfile,
+    entries: List<BleLog.Entry>,
+    onBack: () -> Unit,
+    onClear: () -> Unit,
+    onSendRaw: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val clipboardManager = LocalClipboardManager.current
+    var hexInput by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(entries.size) {
+        if (entries.isNotEmpty()) {
             listState.animateScrollBy(50_000f, tween(280))
         }
     }
@@ -131,10 +155,10 @@ fun BleDebugPage(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { clearRequest++ }) {
+                    IconButton(onClick = onClear) {
                         Icon(MiuixIcons.Clear, contentDescription = "清空日志")
                     }
-                }
+                },
             )
         },
     ) { paddingValues ->
@@ -149,21 +173,19 @@ fun BleDebugPage(
                 ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Quick commands
             if (profile.debugQuickCommands.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    profile.debugQuickCommands.forEach { (label, cmd) ->
-                        Button(onClick = { deviceControlStore.sendRawCommand(cmd.toHexStr()) }) {
+                    profile.debugQuickCommands.forEach { (label, command) ->
+                        Button(onClick = { onSendRaw(command.toHexStr()) }) {
                             Text(label)
                         }
                     }
                 }
             }
 
-            // Log list
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -171,7 +193,7 @@ fun BleDebugPage(
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                if (bleEntries.isEmpty()) {
+                if (entries.isEmpty()) {
                     item(key = "empty") {
                         Card {
                             Text(
@@ -185,14 +207,13 @@ fun BleDebugPage(
                         }
                     }
                 }
-                items(bleEntries, key = { "${it.time}_${bleEntries.indexOf(it)}" }) { entry ->
-                    BleLogCard(entry = entry, onCopy = {
+                items(entries, key = { "${it.time}_${entries.indexOf(it)}" }) { entry ->
+                    BleLogCard(entry = entry) {
                         clipboardManager.setText(AnnotatedString(entry.data))
-                    })
+                    }
                 }
             }
 
-            // Hex input
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -208,7 +229,7 @@ fun BleDebugPage(
                     text = "发送",
                     onClick = {
                         if (hexInput.isNotBlank()) {
-                            deviceControlStore.sendRawCommand(hexInput)
+                            onSendRaw(hexInput)
                             hexInput = ""
                         }
                     },
@@ -314,6 +335,44 @@ private fun HexInputField(
             }
         },
     )
+}
+
+@Preview(showBackground = true, name = "BLE Debug - i7 Empty")
+@Composable
+private fun BleDebugPagePreview_I7_Empty() {
+    val profile = requireNotNull(DeviceCatalog.findById("rose-earfeel-i7")?.profile)
+    HyperRoseTheme {
+        BleDebugPageContent(
+            profile = profile,
+            entries = emptyList(),
+            onBack = {},
+            onClear = {},
+            onSendRaw = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "BLE Debug - i7 Log")
+@Composable
+private fun BleDebugPagePreview_I7_Log() {
+    val profile = requireNotNull(DeviceCatalog.findById("rose-earfeel-i7")?.profile)
+    HyperRoseTheme {
+        BleDebugPageContent(
+            profile = profile,
+            entries = listOf(
+                BleLog.Entry(
+                    source = "App",
+                    direction = "TX",
+                    data = "FF 00 02 09 01 11 AA",
+                    parsed = "Set ANC: NOISE_CANCEL",
+                    time = "12:00:00.000",
+                ),
+            ),
+            onBack = {},
+            onClear = {},
+            onSendRaw = {},
+        )
+    }
 }
 
 private fun ByteArray.toHexStr(): String = joinToString(" ") { "%02X".format(it) }

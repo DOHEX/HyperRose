@@ -7,8 +7,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.dohex.hyperrose.model.DeviceColorProfile
 import com.dohex.hyperrose.model.DeviceColorTheme
+import com.dohex.hyperrose.model.DeviceVisuals
 import com.dohex.hyperrose.model.EarphoneColor
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -47,12 +47,12 @@ class DeviceImageStore(context: Context) {
 
     /**
      * Emits the current [DeviceColorTheme] for [address], falling back to
-     * [profile].[defaultTheme][DeviceColorProfile.defaultTheme] when no preference is stored.
-     * [profile] is also used to resolve the stored [EarphoneColor] back to device images.
+     * [visuals.defaultTheme] when no preference is stored.
+     * The supplied [visuals] resolves the stored [EarphoneColor] to device images.
      */
     fun colorThemeFlow(
         address: String,
-        profile: DeviceColorProfile,
+        visuals: DeviceVisuals,
     ): Flow<DeviceColorTheme> {
         return appContext.deviceImageDataStore.data
             .catch { throwable ->
@@ -65,12 +65,12 @@ class DeviceImageStore(context: Context) {
                     val migratedName = legacyColorNameMap[name] ?: name
                     val color = runCatching { EarphoneColor.valueOf(migratedName) }.getOrNull()
                     if (color != null) {
-                        profile.themeFor(color) ?: profile.defaultTheme()
+                        visuals.themeFor(color) ?: visuals.defaultTheme()
                     } else {
-                        profile.defaultTheme()
+                        visuals.defaultTheme()
                     }
                 } else {
-                    profile.defaultTheme()
+                    visuals.defaultTheme()
                 }
             }
             .distinctUntilChanged()

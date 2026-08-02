@@ -35,7 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dohex.hyperrose.data.DeviceImageStore
 import com.dohex.hyperrose.data.LocalDeviceImageStore
-import com.dohex.hyperrose.model.DeviceColorProfile
+import com.dohex.hyperrose.model.DeviceVisuals
 import com.dohex.hyperrose.ui.theme.BlurredBar
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import com.dohex.hyperrose.ui.theme.LocalThemeMode
@@ -57,7 +57,7 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 @Composable
 fun EarphoneColorSettingsPage(
     address: String,
-    deviceId: String,
+    visuals: DeviceVisuals,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -68,10 +68,9 @@ fun EarphoneColorSettingsPage(
     val scrollBehavior = MiuixScrollBehavior()
     val scope = rememberCoroutineScope()
 
-    val colorProfile = requireNotNull(DeviceColorProfile.forDevice(deviceId))
-    val colors = colorProfile.availableColors.toList()
-    val defaultTheme = colorProfile.defaultTheme()
-    val currentTheme by deviceImageStore.colorThemeFlow(address, colorProfile)
+    val colors = visuals.availableColors.toList()
+    val defaultTheme = visuals.defaultTheme()
+    val currentTheme by deviceImageStore.colorThemeFlow(address, visuals)
         .collectAsState(initial = defaultTheme)
 
     Scaffold(
@@ -132,7 +131,7 @@ fun EarphoneColorSettingsPage(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             for (color in colors) {
-                                val theme = colorProfile.themeFor(color) ?: continue
+                                val theme = visuals.themeFor(color) ?: continue
                                 val isSelected = color == currentTheme.color
                                 val chipColor = color.displayColor
                                 val borderMod = if (isSelected) {
@@ -198,7 +197,7 @@ private fun EarphoneColorSettingsPagePreview_I5() {
         ) {
             EarphoneColorSettingsPage(
                 address = "00:00:00:00:00:00",
-                deviceId = "rose-earfree-i5",
+                visuals = DeviceVisuals.EARFEEL_I5,
                 onBack = {},
             )
         }
@@ -217,7 +216,7 @@ private fun EarphoneColorSettingsPagePreview_MK2() {
         ) {
             EarphoneColorSettingsPage(
                 address = "00:00:00:00:00:01",
-                deviceId = "rose-budsfeel-mk2",
+                visuals = DeviceVisuals.BUDSFEEL_MK2,
                 onBack = {},
             )
         }

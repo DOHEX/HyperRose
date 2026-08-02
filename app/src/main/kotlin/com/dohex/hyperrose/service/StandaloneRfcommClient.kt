@@ -289,6 +289,8 @@ class StandaloneRfcommClient(
                     _lowLatency.value = result.enabled
                 }
 
+                is DeviceResponse.PromptToneLanguageChanged,
+                is DeviceResponse.PromptToneLevelChanged -> Log.d(TAG, "← $hex → $result")
                 is DeviceResponse.Unknown -> {
                     Log.d(TAG, "← $hex → Unknown")
                 }

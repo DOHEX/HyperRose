@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.profile.earfree_i5
+package com.dohex.hyperrose.profile.earfeel_i5
 
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
@@ -9,12 +9,12 @@ import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.model.isBatteryLevelOrUnknown
 
-/** ROSESELSA EARFREE i5 回包解析器。 所有回包以 09 FF 开头，通过帧结构匹配分发到具体解析方法。 */
-object EarfreeI5ResponseParser {
+/** EarFeel i5 response parser. Frames use 09 FF prefix and dispatch by payload shape. */
+object EarFeelI5ResponseParser {
     /** 统一解析入口 */
-    fun parse(data: ByteArray): EarfreeI5Response {
+    fun parse(data: ByteArray): EarFeelI5Response {
         if (data.size < 2 || data[0] != 0x09.toByte() || data[1] != 0xFF.toByte()) {
-            return EarfreeI5Response.Unknown
+            return EarFeelI5Response.Unknown
         }
 
         // 电量回包: 09 FF 00 00 01 01 01 11 ... (至少 17 字节)
@@ -47,7 +47,7 @@ object EarfreeI5ResponseParser {
             return parseGameMode(data)
         }
 
-        return EarfreeI5Response.Unknown
+        return EarFeelI5Response.Unknown
     }
 
     // ==================== 回包 Header 模式 ====================
@@ -71,7 +71,7 @@ object EarfreeI5ResponseParser {
      *
      * 优先使用严格校验和校验；若校验失败但字段值合理，使用容错解析， 以降低首包偶发损坏导致的状态丢失。
      */
-    private fun parseBattery(data: ByteArray): EarfreeI5Response {
+    private fun parseBattery(data: ByteArray): EarFeelI5Response {
         val leftLevelRaw = data[11].toInt() and 0xFF
         val rightLevelRaw = data[12].toInt() and 0xFF
         val leftChargingRaw = data[13].toInt() and 0xFF
@@ -92,7 +92,7 @@ object EarfreeI5ResponseParser {
                 caseLevel = caseLevelRaw,
             )
         ) {
-            return EarfreeI5Response.Unknown
+            return EarFeelI5Response.Unknown
         }
 
         val leftLevel = leftLevelRaw.asBatteryLevelOrNull()
@@ -102,10 +102,10 @@ object EarfreeI5ResponseParser {
         val rightCharging = rightChargingRaw == 0x01
 
         if (leftLevel == null && rightLevel == null && caseLevel == null) {
-            return EarfreeI5Response.Unknown
+            return EarFeelI5Response.Unknown
         }
 
-        return EarfreeI5Response.Battery(
+        return EarFeelI5Response.Battery(
             TwsBatteryState(
                 left = leftLevel?.let { EarBatteryState(it, leftCharging) },
                 right = rightLevel?.let { EarBatteryState(it, rightCharging) },
@@ -119,12 +119,12 @@ object EarfreeI5ResponseParser {
      * - [9]=01 → 降噪, [10]=01 → 普通, [11]=01 → 风噪, [12]=01 → 通透
      * 完整模式: 降噪 00 01 00 00 00 / 普通 00 00 01 00 00 / 风噪 00 00 00 01 00 / 通透 00 00 00 00 01
      */
-    private fun parseAnc(data: ByteArray): EarfreeI5Response {
+    private fun parseAnc(data: ByteArray): EarFeelI5Response {
         val checksum = data[data.size - 1].toInt() and 0xFF
         var sum = 0
         for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
         val computed = sum and 0xFF
-        if (checksum != computed) return EarfreeI5Response.Unknown
+        if (checksum != computed) return EarFeelI5Response.Unknown
 
         val noiseCancel = data[9].toInt() and 0xFF
         val normal = data[10].toInt() and 0xFF
@@ -137,57 +137,57 @@ object EarfreeI5ResponseParser {
                 normal == 1 -> AncMode.NORMAL
                 windNoise == 1 -> AncMode.WIND_NOISE
                 transparent == 1 -> AncMode.TRANSPARENT
-                else -> return EarfreeI5Response.Unknown
+                else -> return EarFeelI5Response.Unknown
             }
-        return EarfreeI5Response.Anc(mode)
+        return EarFeelI5Response.Anc(mode)
     }
 
     /** 解析降噪深度回包。 Header: 09 FF 00 00 01 06 07 0B 00 [value] [cs] value: 00=轻度, 01=中度, 02=深度 */
-    private fun parseAncDepth(data: ByteArray): EarfreeI5Response {
+    private fun parseAncDepth(data: ByteArray): EarFeelI5Response {
         val checksum = data[data.size - 1].toInt() and 0xFF
         var sum = 0
         for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
         val computed = sum and 0xFF
-        if (checksum != computed) return EarfreeI5Response.Unknown
+        if (checksum != computed) return EarFeelI5Response.Unknown
 
         val value = data[9].toInt() and 0xFF
         val depth = when (value) {
             0x00 -> AncDepth.LIGHT
             0x01 -> AncDepth.MEDIUM
             0x02 -> AncDepth.DEEP
-            else -> return EarfreeI5Response.Unknown
+            else -> return EarFeelI5Response.Unknown
         }
-        return EarfreeI5Response.AncDepthChanged(depth)
+        return EarFeelI5Response.AncDepthChanged(depth)
     }
 
     /** 解析通透强度回包。 Header: 09 FF 00 00 01 06 04 0B 00 [value] [cs] value: 00=舒适, 01=人声, 02=标准 */
-    private fun parseTransLevel(data: ByteArray): EarfreeI5Response {
+    private fun parseTransLevel(data: ByteArray): EarFeelI5Response {
         val checksum = data[data.size - 1].toInt() and 0xFF
         var sum = 0
         for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
         val computed = sum and 0xFF
-        if (checksum != computed) return EarfreeI5Response.Unknown
+        if (checksum != computed) return EarFeelI5Response.Unknown
 
         val value = data[9].toInt() and 0xFF
         val level = when (value) {
             0x00 -> TransparencyLevel.COMFORTABLE
             0x01 -> TransparencyLevel.VOCAL
             0x02 -> TransparencyLevel.STANDARD
-            else -> return EarfreeI5Response.Unknown
+            else -> return EarFeelI5Response.Unknown
         }
-        return EarfreeI5Response.TransparencyChanged(level)
+        return EarFeelI5Response.TransparencyChanged(level)
     }
 
     /**
      * 解析 EQ 回包。 Header: 09 FF 00 00 01 02 01 0B 00 [value] [cs] value: 00=弱水经典, 01=日系柔情, 02=乐器大师,
      * 03=清新空灵
      */
-    private fun parseEq(data: ByteArray): EarfreeI5Response {
+    private fun parseEq(data: ByteArray): EarFeelI5Response {
         val checksum = data[data.size - 1].toInt() and 0xFF
         var sum = 0
         for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
         val computed = sum and 0xFF
-        if (checksum != computed) return EarfreeI5Response.Unknown
+        if (checksum != computed) return EarFeelI5Response.Unknown
 
         val value = data[9].toInt() and 0xFF
         val mode = when (value) {
@@ -195,26 +195,26 @@ object EarfreeI5ResponseParser {
             0x01 -> EqPreset.JAPANESE
             0x02 -> EqPreset.INSTRUMENT
             0x03 -> EqPreset.FRESH
-            else -> return EarfreeI5Response.Unknown
+            else -> return EarFeelI5Response.Unknown
         }
-        return EarfreeI5Response.Eq(mode)
+        return EarFeelI5Response.Eq(mode)
     }
 
     /** 解析游戏模式回包。 Header: 09 FF 00 00 01 06 03 0B 00 [value] [cs] value: 00=开, 01=关 */
-    private fun parseGameMode(data: ByteArray): EarfreeI5Response {
+    private fun parseGameMode(data: ByteArray): EarFeelI5Response {
         val checksum = data[data.size - 1].toInt() and 0xFF
         var sum = 0
         for (i in 0 until data.size - 1) sum += data[i].toInt() and 0xFF
         val computed = sum and 0xFF
-        if (checksum != computed) return EarfreeI5Response.Unknown
+        if (checksum != computed) return EarFeelI5Response.Unknown
 
         val value = data[9].toInt() and 0xFF
         val enabled = when (value) {
             0x00 -> true
             0x01 -> false
-            else -> return EarfreeI5Response.Unknown
+            else -> return EarFeelI5Response.Unknown
         }
-        return EarfreeI5Response.GameMode(enabled)
+        return EarFeelI5Response.GameMode(enabled)
     }
 
     private fun isPlausibleBatteryFrame(
@@ -247,30 +247,30 @@ object EarfreeI5ResponseParser {
 }
 
 /** 回包解析结果 */
-sealed class EarfreeI5Response {
+sealed class EarFeelI5Response {
     data class Anc(
         val mode: AncMode,
-    ) : EarfreeI5Response()
+    ) : EarFeelI5Response()
 
     data class AncDepthChanged(
         val depth: AncDepth,
-    ) : EarfreeI5Response()
+    ) : EarFeelI5Response()
 
     data class TransparencyChanged(
         val level: TransparencyLevel,
-    ) : EarfreeI5Response()
+    ) : EarFeelI5Response()
 
     data class Eq(
         val mode: EqPreset,
-    ) : EarfreeI5Response()
+    ) : EarFeelI5Response()
 
     data class GameMode(
         val enabled: Boolean,
-    ) : EarfreeI5Response()
+    ) : EarFeelI5Response()
 
     data class Battery(
         val info: TwsBatteryState,
-    ) : EarfreeI5Response()
+    ) : EarFeelI5Response()
 
-    data object Unknown : EarfreeI5Response()
+    data object Unknown : EarFeelI5Response()
 }

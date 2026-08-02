@@ -1,22 +1,19 @@
-package com.dohex.hyperrose.profile.budsfeel_mk2
+package com.dohex.hyperrose.profile
 
 import com.dohex.hyperrose.model.AncMode
-import com.dohex.hyperrose.profile.DeviceCapabilities
-import com.dohex.hyperrose.profile.DeviceProfile
-import com.dohex.hyperrose.profile.DeviceProtocol
-import com.dohex.hyperrose.profile.TransportSpec
 import com.dohex.hyperrose.profile.rfcomm.RoseRfcommCommandSet
 import com.dohex.hyperrose.profile.rfcomm.RoseRfcommProtocol
 import java.util.UUID
 
-object BudsFeelMk2Profile : DeviceProfile {
-    override val id = "rose-budsfeel-mk2"
-    override val displayName = "ROSE BudsFeel MK2"
-    override val nameKeywords = listOf("BudsFeel MK2")
+/** EarFeel i7 profile. Its confirmed RFCOMM wire protocol matches BudsFeel MK2. */
+object EarFeelI7Profile : DeviceProfile {
+    override val id = "rose-earfeel-i7"
+    override val displayName = "EarFeel i7"
+    override val nameKeywords = listOf("EarFeel i7")
 
     override val transport = TransportSpec.Rfcomm(
         dataChannelUuid = UUID.fromString("0cf12d31-fac3-4553-bd80-d6832e7b3931"),
-        sppChannelUuid = null,  // try without auth first
+        sppChannelUuid = null,
     )
 
     override val protocol: DeviceProtocol = RoseRfcommProtocol(supportsAdvancedControls = false)
@@ -36,7 +33,7 @@ object BudsFeelMk2Profile : DeviceProfile {
         hasFindEarphone = false,
     )
 
-    override val debugHexHint = "HEX 指令 (如 FF 00 02 09 01 12 AA)"
+    override val debugHexHint = "HEX 指令 (如 FF 00 02 09 01 ... AA)"
     override val debugQuickCommands = listOf(
         "查询全部状态" to RoseRfcommCommandSet.buildFrame(
             0x1E,

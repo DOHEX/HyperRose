@@ -10,7 +10,7 @@ import org.junit.Test
 
 class RoseI5ProtocolTest {
 
-    private val protocol = EarfreeI5Profile.protocol
+    private val protocol = EarFeelI5Profile.protocol
 
     @Test
     fun `parseResponse returns Battery for known battery frame`() {

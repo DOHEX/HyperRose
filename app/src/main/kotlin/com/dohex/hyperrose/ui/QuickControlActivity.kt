@@ -16,7 +16,7 @@ import com.dohex.hyperrose.ipc.QuickControlLaunchValidator
 import com.dohex.hyperrose.model.EarBatteryState
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
-import com.dohex.hyperrose.profile.DeviceProfileRegistry
+import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.ui.screen.PopupControlPanel
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
@@ -68,8 +68,8 @@ class QuickControlActivity : ComponentActivity() {
                 val shouldApplyFallback =
                     forceConnected || !presetDeviceName.isNullOrBlank() || hasPresetBattery
                 if (currentName.isNullOrBlank() && shouldApplyFallback) {
-                    val profile = presetProfileId?.let(DeviceProfileRegistry::findById)
-                        ?: presetDeviceName?.let(DeviceProfileRegistry::findByName)
+                    val profile = presetProfileId?.let { DeviceCatalog.findById(it)?.profile }
+                        ?: presetDeviceName?.let { DeviceCatalog.findByName(it)?.profile }
                     profile?.let {
                         deviceControlStore.setTemporaryConnectionState(
                             profile = it,

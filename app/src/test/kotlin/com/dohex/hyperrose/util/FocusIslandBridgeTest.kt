@@ -8,7 +8,7 @@ class FocusIslandBridgeTest {
     fun `uses connected device name when available`() {
         assertEquals(
             "ROSE BudsFeel MK2",
-            FocusIslandBridge.resolveDeviceTitle("ROSE BudsFeel MK2", "ROSESELSA EARFREE i5"),
+            FocusIslandBridge.resolveDeviceTitle("ROSE BudsFeel MK2", "EarFeel i5"),
         )
     }
 

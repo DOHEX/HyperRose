@@ -19,8 +19,8 @@ import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.model.withLastKnownCaseBattery
 import com.dohex.hyperrose.profile.DeviceCapabilities
+import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.profile.DeviceProfile
-import com.dohex.hyperrose.profile.DeviceProfileRegistry
 import com.dohex.hyperrose.profile.TransportSpec
 import com.dohex.hyperrose.service.StandaloneClient
 import com.dohex.hyperrose.service.StandaloneConnectionState
@@ -142,8 +142,8 @@ class DeviceControlStore(
                         android.bluetooth.BluetoothDevice::class.java,
                     )
                     val profileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
-                    val resolvedProfile = profileId?.let(DeviceProfileRegistry::findById)
-                        ?: device?.name?.let(DeviceProfileRegistry::findByName)
+                    val resolvedProfile = profileId?.let { DeviceCatalog.findById(it)?.profile }
+                        ?: device?.name?.let { DeviceCatalog.findByName(it)?.profile }
                     _profile.value = resolvedProfile
                     _capabilities.value = resolvedProfile?.capabilities ?: DeviceCapabilities.NONE
                     _deviceName.value = device?.name ?: resolvedProfile?.displayName ?: _deviceName.value
@@ -235,7 +235,7 @@ class DeviceControlStore(
             RoseDeviceItem(
                 name = name,
                 address = device.address,
-                profileId = DeviceProfileRegistry.findByName(name)?.id,
+                profileId = DeviceCatalog.findByName(name)?.id,
             )
         }.sortedWith(
             compareByDescending<RoseDeviceItem> {
@@ -250,7 +250,7 @@ class DeviceControlStore(
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
         val bonded = adapter.bondedDevices.firstOrNull { it.address == address } ?: return
 
-        val profile = DeviceProfileRegistry.findByName(bonded.name ?: "") ?: return
+        val profile = DeviceCatalog.findByName(bonded.name ?: "")?.profile ?: return
         com.dohex.hyperrose.data.AuthorizedDeviceStore.add(appContext, address)
 
         _deviceName.value = bonded.name ?: address

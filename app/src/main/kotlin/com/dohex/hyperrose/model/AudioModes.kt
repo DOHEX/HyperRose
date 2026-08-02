@@ -8,6 +8,8 @@ enum class AncMode(
     WIND_NOISE("风噪"),
     NORMAL("普通"),
     TRANSPARENT("通透"),
+    ADAPTIVE_NOISE_CANCEL("自适应降噪"),
+    EXTREME_NOISE_CANCEL("极限降噪"),
 }
 
 /** 降噪深度（仅 ANC=降噪 时有效） */
@@ -26,6 +28,7 @@ enum class TransparencyLevel(
     COMFORTABLE("舒适通透"),
     VOCAL("人声通透"),
     STANDARD("标准通透"),
+    DEEP("深度通透"),
 }
 
 /** EQ 调音预设 */
@@ -36,4 +39,8 @@ enum class EqPreset(
     JAPANESE("日系柔情"),
     INSTRUMENT("乐器大师"),
     FRESH("清新空灵"),
+    HIFI("HIFI"),
+    POP("POP"),
+    ROCK("ROCK"),
+    ROSE_CLASSIC("经典调音"),
 }

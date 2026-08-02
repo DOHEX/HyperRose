@@ -141,6 +141,10 @@ abstract class DeviceSession(
                     }
                 }
 
+                is DeviceResponse.PromptToneLanguageChanged,
+                is DeviceResponse.PromptToneLevelChanged -> {
+                    module.log(Log.DEBUG, TAG, "DeviceSession: prompt tone state: $result")
+                }
                 is DeviceResponse.Unknown -> {
                     module.log(Log.DEBUG, TAG, "DeviceSession: unknown response: $hex")
                 }

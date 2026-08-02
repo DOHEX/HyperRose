@@ -45,16 +45,16 @@ data class DeviceColorTheme(
 /**
  * Per-device-model registry of available colors mapped to drawable resources.
  *
- * To add a device: append an enum entry with its [deviceId] and a [colorMap] of
+ * To add a device: append its visual entry with a [deviceId] and a [colorMap] of
  * every supported [EarphoneColor] → [DeviceColorImages]. Drawables follow the
  * convention `earphone_{device}_{color}_{case|left|right}`.
  */
-enum class DeviceColorProfile(
-    val deviceId: String,
+enum class DeviceVisuals(
+    val profileId: String,
     private val colorMap: Map<EarphoneColor, DeviceColorImages>,
 ) {
-    EARFREE_I5(
-        "rose-earfree-i5",
+    EARFEEL_I5(
+        "rose-earfeel-i5",
         mapOf(
             EarphoneColor.BLUE to DeviceColorImages(
                 R.drawable.earphone_i5_blue_case,
@@ -103,8 +103,4 @@ enum class DeviceColorProfile(
     fun defaultTheme(): DeviceColorTheme =
         themeFor(availableColors.first())!!
 
-    companion object {
-        fun forDevice(deviceId: String?): DeviceColorProfile? =
-            entries.find { it.deviceId == deviceId }
-    }
 }

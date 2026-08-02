@@ -30,11 +30,11 @@ import com.dohex.hyperrose.data.DeviceImageStore
 import com.dohex.hyperrose.data.LocalDeviceImageStore
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
-import com.dohex.hyperrose.model.DeviceColorProfile
 import com.dohex.hyperrose.model.EarBatteryState
 import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.model.TwsBatteryState
+import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.profile.DeviceProfile
 import com.dohex.hyperrose.ui.component.ActionButton
 import com.dohex.hyperrose.ui.component.AncSelector
@@ -105,8 +105,7 @@ fun DeviceDetailPage(
     val listState = rememberLazyListState()
     var showFindDialog by remember { mutableStateOf(false) }
     val deviceImageStore = LocalDeviceImageStore.current
-    val deviceId = deviceProfile?.id
-    val colorProfile = DeviceColorProfile.forDevice(deviceId)
+    val visuals = deviceProfile?.let { DeviceCatalog.findById(it.id)?.visuals }
 
     Scaffold(
         modifier = modifier,
@@ -151,10 +150,10 @@ fun DeviceDetailPage(
                     end = 10.dp,
                 ),
             ) {
-                if (colorProfile != null) {
+                if (visuals != null) {
                     item {
-                        val colorTheme by deviceImageStore.colorThemeFlow(address, colorProfile)
-                            .collectAsState(initial = colorProfile.defaultTheme())
+                        val colorTheme by deviceImageStore.colorThemeFlow(address, visuals)
+                            .collectAsState(initial = visuals.defaultTheme())
                         Image(
                             painter = painterResource(colorTheme.caseRes),
                             contentDescription = deviceName ?: deviceProfile?.displayName,
@@ -213,6 +212,9 @@ fun DeviceDetailPage(
                         ancMode = ancMode,
                         ancDepth = ancDepth,
                         transLevel = transLevel,
+                        supportedAncModes = capabilities.supportedAncModes,
+                        supportedAncDepths = capabilities.supportedAncDepths,
+                        supportedTransLevels = capabilities.supportedTransLevels,
                         onAncModeChange = onAncModeChange,
                         onAncDepthChange = onAncDepthChange,
                         onTransLevelChange = onTransLevelChange,
@@ -227,6 +229,7 @@ fun DeviceDetailPage(
                             eqMode = eqMode,
                             onSelect = onEqModeChange,
                             enabled = true,
+                            supportedEqPresets = capabilities.supportedEqPresets,
                         )
                     }
                 }
@@ -261,10 +264,10 @@ fun DeviceDetailPage(
                     }
                 }
 
-                if (colorProfile != null) {
+                if (visuals != null) {
                     item {
-                        val colorTheme by deviceImageStore.colorThemeFlow(address, colorProfile)
-                            .collectAsState(initial = colorProfile.defaultTheme())
+                        val colorTheme by deviceImageStore.colorThemeFlow(address, visuals)
+                            .collectAsState(initial = visuals.defaultTheme())
                         Card {
                             ArrowPreference(
                                 title = "耳机颜色",
@@ -335,11 +338,24 @@ private fun stateSubtitle(
 }
 
 
-// ─── i5 Previews ────────────────────────────────────────────────
+private data class DeviceDetailPreviewState(
+    val profile: DeviceProfile,
+    val connectionState: DeviceConnectionState,
+    val transport: ConnectionTransport,
+    val battery: TwsBatteryState?,
+    val ancMode: AncMode?,
+    val ancDepth: AncDepth?,
+    val transLevel: TransparencyLevel?,
+    val eqMode: EqPreset?,
+    val gameMode: Boolean,
+    val lowLatency: Boolean,
+)
 
-@Preview(showBackground = true, name = "i5 - Connected")
+private fun previewProfile(id: String): DeviceProfile =
+    requireNotNull(DeviceCatalog.findById(id)?.profile)
+
 @Composable
-private fun DeviceDetailPagePreview_I5_Connected() {
+private fun DeviceDetailPagePreview(state: DeviceDetailPreviewState) {
     val context = LocalContext.current
     val imageStore = remember { DeviceImageStore(context) }
     HyperRoseTheme {
@@ -349,21 +365,18 @@ private fun DeviceDetailPagePreview_I5_Connected() {
         ) {
             DeviceDetailPage(
                 address = "00:00:00:00:00:00",
-                connectionState = DeviceConnectionState.CONNECTED,
-                transport = ConnectionTransport.DIRECT_BLE,
-                deviceName = com.dohex.hyperrose.profile.EarfreeI5Profile.displayName,
-                battery = TwsBatteryState(
-                    left = EarBatteryState(level = 85, isCharging = false),
-                    right = EarBatteryState(level = 72, isCharging = true),
-                    caseBattery = 90,
-                ),
-                ancMode = AncMode.NOISE_CANCEL,
-                ancDepth = AncDepth.MEDIUM,
-                transLevel = TransparencyLevel.STANDARD,
-                eqMode = EqPreset.CLASSIC,
-                gameMode = false,
-                lowLatency = false,
-                capabilities = com.dohex.hyperrose.profile.EarfreeI5Profile.capabilities,
+                connectionState = state.connectionState,
+                transport = state.transport,
+                deviceName = state.profile.displayName,
+                deviceProfile = state.profile,
+                battery = state.battery,
+                ancMode = state.ancMode,
+                ancDepth = state.ancDepth,
+                transLevel = state.transLevel,
+                eqMode = state.eqMode,
+                gameMode = state.gameMode,
+                lowLatency = state.lowLatency,
+                capabilities = state.profile.capabilities,
                 onAncModeChange = {},
                 onAncDepthChange = {},
                 onTransLevelChange = {},
@@ -379,174 +392,176 @@ private fun DeviceDetailPagePreview_I5_Connected() {
             )
         }
     }
+}
+
+@Preview(showBackground = true, name = "i5 - Connected")
+@Composable
+private fun DeviceDetailPagePreview_I5_Connected() {
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-earfeel-i5"),
+            connectionState = DeviceConnectionState.CONNECTED,
+            transport = ConnectionTransport.DIRECT_BLE,
+            battery = TwsBatteryState(
+                left = EarBatteryState(level = 85, isCharging = false),
+                right = EarBatteryState(level = 72, isCharging = true),
+                caseBattery = 90,
+            ),
+            ancMode = AncMode.NOISE_CANCEL,
+            ancDepth = AncDepth.MEDIUM,
+            transLevel = TransparencyLevel.STANDARD,
+            eqMode = EqPreset.CLASSIC,
+            gameMode = false,
+            lowLatency = false,
+        ),
+    )
 }
 
 @Preview(showBackground = true, name = "i5 - Game Mode + Hook Bridge")
 @Composable
 private fun DeviceDetailPagePreview_I5_GameMode() {
-    val context = LocalContext.current
-    val imageStore = remember { DeviceImageStore(context) }
-    HyperRoseTheme {
-        CompositionLocalProvider(
-            LocalDeviceImageStore provides imageStore,
-            LocalThemeMode provides ThemeMode(),
-        ) {
-            DeviceDetailPage(
-                address = "00:00:00:00:00:00",
-                connectionState = DeviceConnectionState.CONNECTED,
-                transport = ConnectionTransport.HOOK_BRIDGE,
-                deviceName = com.dohex.hyperrose.profile.EarfreeI5Profile.displayName,
-                battery = TwsBatteryState(
-                    left = EarBatteryState(level = 100, isCharging = false),
-                    right = EarBatteryState(level = 100, isCharging = false),
-                    caseBattery = 50,
-                ),
-                ancMode = AncMode.TRANSPARENT,
-                ancDepth = null,
-                transLevel = TransparencyLevel.VOCAL,
-                eqMode = EqPreset.JAPANESE,
-                gameMode = true,
-                lowLatency = false,
-                capabilities = com.dohex.hyperrose.profile.EarfreeI5Profile.capabilities,
-                onAncModeChange = {},
-                onAncDepthChange = {},
-                onTransLevelChange = {},
-                onEqModeChange = {},
-                onGameModeChange = {},
-                onLowLatencyChange = {},
-                onFindLeft = {},
-                onFindRight = {},
-                onStopFind = {},
-                onRefreshStatus = {},
-                onDisconnect = {},
-                onBack = {},
-            )
-        }
-    }
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-earfeel-i5"),
+            connectionState = DeviceConnectionState.CONNECTED,
+            transport = ConnectionTransport.HOOK_BRIDGE,
+            battery = TwsBatteryState(
+                left = EarBatteryState(level = 100, isCharging = false),
+                right = EarBatteryState(level = 100, isCharging = false),
+                caseBattery = 50,
+            ),
+            ancMode = AncMode.TRANSPARENT,
+            ancDepth = null,
+            transLevel = TransparencyLevel.VOCAL,
+            eqMode = EqPreset.JAPANESE,
+            gameMode = true,
+            lowLatency = false,
+        ),
+    )
 }
 
 @Preview(showBackground = true, name = "i5 - Disconnected")
 @Composable
 private fun DeviceDetailPagePreview_I5_Disconnected() {
-    val context = LocalContext.current
-    val imageStore = remember { DeviceImageStore(context) }
-    HyperRoseTheme {
-        CompositionLocalProvider(
-            LocalDeviceImageStore provides imageStore,
-            LocalThemeMode provides ThemeMode(),
-        ) {
-            DeviceDetailPage(
-                address = "00:00:00:00:00:00",
-                connectionState = DeviceConnectionState.DISCONNECTED,
-                transport = ConnectionTransport.NONE,
-                deviceName = com.dohex.hyperrose.profile.EarfreeI5Profile.displayName,
-                battery = null,
-                ancMode = null,
-                ancDepth = null,
-                transLevel = null,
-                eqMode = null,
-                gameMode = false,
-                lowLatency = false,
-                capabilities = com.dohex.hyperrose.profile.EarfreeI5Profile.capabilities,
-                onAncModeChange = {},
-                onAncDepthChange = {},
-                onTransLevelChange = {},
-                onEqModeChange = {},
-                onGameModeChange = {},
-                onLowLatencyChange = {},
-                onFindLeft = {},
-                onFindRight = {},
-                onStopFind = {},
-                onRefreshStatus = {},
-                onDisconnect = {},
-                onBack = {},
-            )
-        }
-    }
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-earfeel-i5"),
+            connectionState = DeviceConnectionState.DISCONNECTED,
+            transport = ConnectionTransport.NONE,
+            battery = null,
+            ancMode = null,
+            ancDepth = null,
+            transLevel = null,
+            eqMode = null,
+            gameMode = false,
+            lowLatency = false,
+        ),
+    )
 }
-
-// ─── MK2 Previews ───────────────────────────────────────────────
 
 @Preview(showBackground = true, name = "MK2 - Connected")
 @Composable
 private fun DeviceDetailPagePreview_Mk2_Connected() {
-    val context = LocalContext.current
-    val imageStore = remember { DeviceImageStore(context) }
-    HyperRoseTheme {
-        CompositionLocalProvider(
-            LocalDeviceImageStore provides imageStore,
-            LocalThemeMode provides ThemeMode(),
-        ) {
-            DeviceDetailPage(
-                address = "00:00:00:00:00:00",
-                connectionState = DeviceConnectionState.CONNECTED,
-                transport = ConnectionTransport.HOOK_BRIDGE,
-                deviceName = com.dohex.hyperrose.profile.budsfeel_mk2.BudsFeelMk2Profile.displayName,
-                battery = TwsBatteryState(
-                    left = EarBatteryState(level = 64, isCharging = false),
-                    right = EarBatteryState(level = 58, isCharging = false),
-                    caseBattery = 75,
-                ),
-                ancMode = AncMode.NOISE_CANCEL,
-                ancDepth = null,
-                transLevel = null,
-                eqMode = null,
-                gameMode = true,
-                lowLatency = true,
-                capabilities = com.dohex.hyperrose.profile.budsfeel_mk2.BudsFeelMk2Profile.capabilities,
-                onAncModeChange = {},
-                onAncDepthChange = {},
-                onTransLevelChange = {},
-                onEqModeChange = {},
-                onGameModeChange = {},
-                onLowLatencyChange = {},
-                onFindLeft = {},
-                onFindRight = {},
-                onStopFind = {},
-                onRefreshStatus = {},
-                onDisconnect = {},
-                onBack = {},
-            )
-        }
-    }
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-budsfeel-mk2"),
+            connectionState = DeviceConnectionState.CONNECTED,
+            transport = ConnectionTransport.HOOK_BRIDGE,
+            battery = TwsBatteryState(
+                left = EarBatteryState(level = 64, isCharging = false),
+                right = EarBatteryState(level = 58, isCharging = false),
+                caseBattery = 75,
+            ),
+            ancMode = AncMode.NOISE_CANCEL,
+            ancDepth = null,
+            transLevel = null,
+            eqMode = null,
+            gameMode = true,
+            lowLatency = true,
+        ),
+    )
 }
 
 @Preview(showBackground = true, name = "MK2 - Disconnected")
 @Composable
 private fun DeviceDetailPagePreview_Mk2_Disconnected() {
-    val context = LocalContext.current
-    val imageStore = remember { DeviceImageStore(context) }
-    HyperRoseTheme {
-        CompositionLocalProvider(
-            LocalDeviceImageStore provides imageStore,
-            LocalThemeMode provides ThemeMode(),
-        ) {
-            DeviceDetailPage(
-                address = "00:00:00:00:00:00",
-                connectionState = DeviceConnectionState.DISCONNECTED,
-                transport = ConnectionTransport.NONE,
-                deviceName = com.dohex.hyperrose.profile.budsfeel_mk2.BudsFeelMk2Profile.displayName,
-                battery = null,
-                ancMode = null,
-                ancDepth = null,
-                transLevel = null,
-                eqMode = null,
-                gameMode = false,
-                lowLatency = false,
-                capabilities = com.dohex.hyperrose.profile.budsfeel_mk2.BudsFeelMk2Profile.capabilities,
-                onAncModeChange = {},
-                onAncDepthChange = {},
-                onTransLevelChange = {},
-                onEqModeChange = {},
-                onGameModeChange = {},
-                onLowLatencyChange = {},
-                onFindLeft = {},
-                onFindRight = {},
-                onStopFind = {},
-                onRefreshStatus = {},
-                onDisconnect = {},
-                onBack = {},
-            )
-        }
-    }
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-budsfeel-mk2"),
+            connectionState = DeviceConnectionState.DISCONNECTED,
+            transport = ConnectionTransport.NONE,
+            battery = null,
+            ancMode = null,
+            ancDepth = null,
+            transLevel = null,
+            eqMode = null,
+            gameMode = false,
+            lowLatency = false,
+        ),
+    )
+}
+
+@Preview(showBackground = true, name = "i7 - Connected")
+@Composable
+private fun DeviceDetailPagePreview_I7_Connected() {
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-earfeel-i7"),
+            connectionState = DeviceConnectionState.CONNECTED,
+            transport = ConnectionTransport.DIRECT_RFCOMM,
+            battery = TwsBatteryState(
+                left = EarBatteryState(level = 92, isCharging = false),
+                right = EarBatteryState(level = 88, isCharging = false),
+                caseBattery = 80,
+            ),
+            ancMode = AncMode.NOISE_CANCEL,
+            ancDepth = null,
+            transLevel = null,
+            eqMode = null,
+            gameMode = false,
+            lowLatency = false,
+        ),
+    )
+}
+
+@Preview(showBackground = true, name = "i7 - Game Mode")
+@Composable
+private fun DeviceDetailPagePreview_I7_GameMode() {
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-earfeel-i7"),
+            connectionState = DeviceConnectionState.CONNECTED,
+            transport = ConnectionTransport.HOOK_BRIDGE,
+            battery = TwsBatteryState(
+                left = EarBatteryState(level = 70, isCharging = false),
+                right = EarBatteryState(level = 68, isCharging = false),
+                caseBattery = 55,
+            ),
+            ancMode = AncMode.WIND_NOISE,
+            ancDepth = null,
+            transLevel = null,
+            eqMode = null,
+            gameMode = true,
+            lowLatency = false,
+        ),
+    )
+}
+
+@Preview(showBackground = true, name = "i7 - Disconnected")
+@Composable
+private fun DeviceDetailPagePreview_I7_Disconnected() {
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-earfeel-i7"),
+            connectionState = DeviceConnectionState.DISCONNECTED,
+            transport = ConnectionTransport.NONE,
+            battery = null,
+            ancMode = null,
+            ancDepth = null,
+            transLevel = null,
+            eqMode = null,
+            gameMode = false,
+            lowLatency = false,
+        ),
+    )
 }

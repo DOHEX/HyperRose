@@ -5,6 +5,7 @@ import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.model.TwsBatteryState
+import java.util.Locale
 import java.util.UUID
 
 /** Per-device-model BLE GATT service & characteristic UUIDs. */
@@ -56,6 +57,11 @@ interface DeviceProtocol {
     val findLeftOn: ByteArray get() = unsupported()
     val findRightOn: ByteArray get() = unsupported()
     val findAllOff: ByteArray get() = unsupported()
+    fun gainCommand(level: Int): ByteArray = unsupported()
+    fun promptToneLanguageCommand(language: Int): ByteArray = unsupported()
+    fun promptToneLevelCommand(level: Int): ByteArray = unsupported()
+    fun touchCommand(key: Int, action: Int): ByteArray = unsupported()
+
 
     // --- queries ---
     val queryBattery: ByteArray
@@ -74,6 +80,11 @@ interface DeviceProtocol {
 private fun unsupported(): Nothing =
     throw UnsupportedOperationException("Not supported by this device profile")
 
+private val DEVICE_NAME_SEPARATOR_REGEX = Regex("[\\s-]+")
+
+internal fun normalizeDeviceName(value: String): String =
+    value.trim().lowercase(Locale.ROOT).replace(DEVICE_NAME_SEPARATOR_REGEX, " ")
+
 /** Parsed response from a device. Device-agnostic — all profiles emit these same subtypes. */
 sealed class DeviceResponse {
     data class Battery(val info: TwsBatteryState) : DeviceResponse()
@@ -82,6 +93,8 @@ sealed class DeviceResponse {
     data class TransparencyChanged(val level: TransparencyLevel) : DeviceResponse()
     data class Eq(val mode: EqPreset) : DeviceResponse()
     data class GameMode(val enabled: Boolean) : DeviceResponse()
+    data class PromptToneLanguageChanged(val value: Int) : DeviceResponse()
+    data class PromptToneLevelChanged(val value: Int) : DeviceResponse()
     data object Unknown : DeviceResponse()
     data class LowLatencyChanged(val enabled: Boolean) : DeviceResponse()
 }
@@ -121,7 +134,9 @@ interface DeviceProfile {
     /** 调试页预设快捷指令 */
     val debugQuickCommands: List<Pair<String, ByteArray>> get() = emptyList()
 
-    /** Case-insensitive substring match against [deviceName]. */
-    fun matchesDeviceName(deviceName: String): Boolean =
-        nameKeywords.any { deviceName.contains(it, ignoreCase = true) }
+    /** Case-insensitive substring match after normalizing spacing and separators. */
+    fun matchesDeviceName(deviceName: String): Boolean {
+        val normalizedName = normalizeDeviceName(deviceName)
+        return nameKeywords.any { normalizedName.contains(normalizeDeviceName(it)) }
+    }
 }

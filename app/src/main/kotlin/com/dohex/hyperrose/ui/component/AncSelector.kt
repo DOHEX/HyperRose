@@ -35,14 +35,20 @@ fun AncSelector(
     ancMode: AncMode?,
     ancDepth: AncDepth?,
     transLevel: TransparencyLevel?,
+    supportedAncModes: Set<AncMode>,
+    supportedAncDepths: Set<AncDepth>,
+    supportedTransLevels: Set<TransparencyLevel>,
     onAncModeChange: (AncMode) -> Unit,
     onAncDepthChange: (AncDepth) -> Unit,
     onTransLevelChange: (TransparencyLevel) -> Unit,
     enabled: Boolean,
     showAncDepth: Boolean = true,
     showTransLevel: Boolean = true,
+) {
+    val modes = AncMode.entries.filter { it in supportedAncModes }
+    val depths = AncDepth.entries.filter { it in supportedAncDepths }
+    val transLevels = TransparencyLevel.entries.filter { it in supportedTransLevels }
 
-    ) {
     SectionCard(
         title = "噪声控制", modifier = modifier
     ) {
@@ -51,7 +57,7 @@ fun AncSelector(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AncMode.entries.forEach { mode ->
+            modes.forEach { mode ->
                 val selected = ancMode == mode
                 AncModeIcon(
                     mode = mode,
@@ -62,17 +68,15 @@ fun AncSelector(
             }
         }
 
-        if (showAncDepth && ancMode == AncMode.NOISE_CANCEL && ancDepth != null) {
-            val depthOptions = AncDepth.entries.map { it.label }
-            val depthSelectedIndex = AncDepth.entries.indexOf(ancDepth)
+        if (showAncDepth && depths.isNotEmpty() && ancMode == AncMode.NOISE_CANCEL && ancDepth != null) {
+            val depthOptions = depths.map { it.label }
+            val depthSelectedIndex = depths.indexOf(ancDepth).coerceAtLeast(0)
 
             TabRowWithContour(
                 tabs = depthOptions,
                 selectedTabIndex = depthSelectedIndex,
                 onTabSelected = { index ->
-                    if (enabled) {
-                        AncDepth.entries.getOrNull(index)?.let(onAncDepthChange)
-                    }
+                    if (enabled) depths.getOrNull(index)?.let(onAncDepthChange)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -80,17 +84,17 @@ fun AncSelector(
             )
         }
 
-        if (showTransLevel && ancMode == AncMode.TRANSPARENT && transLevel != null) {
-            val transOptions = TransparencyLevel.entries.map { it.label }
-            val transSelectedIndex = TransparencyLevel.entries.indexOf(transLevel)
+        if (showTransLevel && transLevels.isNotEmpty() &&
+            ancMode == AncMode.TRANSPARENT && transLevel != null
+        ) {
+            val transOptions = transLevels.map { it.label }
+            val transSelectedIndex = transLevels.indexOf(transLevel).coerceAtLeast(0)
 
             TabRowWithContour(
                 tabs = transOptions,
                 selectedTabIndex = transSelectedIndex,
                 onTabSelected = { index ->
-                    if (enabled) {
-                        TransparencyLevel.entries.getOrNull(index)?.let(onTransLevelChange)
-                    }
+                    if (enabled) transLevels.getOrNull(index)?.let(onTransLevelChange)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -110,7 +114,10 @@ private fun AncModeIcon(
     val colors = MiuixTheme.colorScheme
 
     val iconRes = when (mode) {
-        AncMode.NOISE_CANCEL -> R.drawable.anc_normal
+        AncMode.NOISE_CANCEL,
+        AncMode.ADAPTIVE_NOISE_CANCEL,
+        AncMode.EXTREME_NOISE_CANCEL,
+            -> R.drawable.anc_normal
         AncMode.WIND_NOISE -> R.drawable.anc_wind
         AncMode.NORMAL -> R.drawable.anc_close
         AncMode.TRANSPARENT -> R.drawable.anc_trans
@@ -170,6 +177,9 @@ private fun AncSelectorPreview_NoiseCancel() {
             ancMode = AncMode.NOISE_CANCEL,
             ancDepth = AncDepth.DEEP,
             transLevel = null,
+            supportedAncModes = setOf(AncMode.NOISE_CANCEL, AncMode.NORMAL, AncMode.TRANSPARENT),
+            supportedAncDepths = AncDepth.entries.toSet(),
+            supportedTransLevels = TransparencyLevel.entries.toSet(),
             onAncModeChange = {},
             onAncDepthChange = {},
             onTransLevelChange = {},
@@ -187,6 +197,9 @@ private fun AncSelectorPreview_Transparent() {
             ancMode = AncMode.TRANSPARENT,
             ancDepth = null,
             transLevel = TransparencyLevel.COMFORTABLE,
+            supportedAncModes = setOf(AncMode.NOISE_CANCEL, AncMode.NORMAL, AncMode.TRANSPARENT),
+            supportedAncDepths = AncDepth.entries.toSet(),
+            supportedTransLevels = TransparencyLevel.entries.toSet(),
             onAncModeChange = {},
             onAncDepthChange = {},
             onTransLevelChange = {},
@@ -204,6 +217,9 @@ private fun AncSelectorPreview_Disabled() {
             ancMode = AncMode.NOISE_CANCEL,
             ancDepth = AncDepth.LIGHT,
             transLevel = null,
+            supportedAncModes = setOf(AncMode.NOISE_CANCEL, AncMode.NORMAL),
+            supportedAncDepths = AncDepth.entries.toSet(),
+            supportedTransLevels = TransparencyLevel.entries.toSet(),
             onAncModeChange = {},
             onAncDepthChange = {},
             onTransLevelChange = {},

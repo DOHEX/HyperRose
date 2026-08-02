@@ -1,12 +1,12 @@
-package com.dohex.hyperrose.profile.earfree_i5
+package com.dohex.hyperrose.profile.earfeel_i5
 
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.EqPreset
 import com.dohex.hyperrose.model.TransparencyLevel
 
-/** ROSESELSA EARFREE i5 全部控制/查询命令。 协议帧前缀：请求 08 EE / 回包 09 FF 通信通道：BLE GATT */
-object EarfreeI5CommandSet {
+/** ROSE EarFeel i5 GATT control and query commands. Request prefix 08 EE; response prefix 09 FF. */
+object EarFeelI5CommandSet {
     // ==================== ANC 模式切换 ====================
 
     val ANC_NOISE_CANCEL: ByteArray = hexToBytes("08 EE 00 00 00 06 82 0E 00 01 00 00 00 8D")
@@ -19,6 +19,7 @@ object EarfreeI5CommandSet {
         AncMode.WIND_NOISE -> ANC_WIND_NOISE
         AncMode.NORMAL -> ANC_NORMAL
         AncMode.TRANSPARENT -> ANC_TRANSPARENT
+        else -> error("ANC mode not supported by EarFeel i5: $mode")
     }
 
     // ==================== 降噪深度（仅 ANC=降噪） ====================
@@ -43,6 +44,7 @@ object EarfreeI5CommandSet {
         TransparencyLevel.COMFORTABLE -> TRANS_COMFORTABLE
         TransparencyLevel.VOCAL -> TRANS_VOCAL
         TransparencyLevel.STANDARD -> TRANS_STANDARD
+        else -> error("Transparency level not supported by EarFeel i5: $level")
     }
 
     // ==================== EQ 调音 ====================
@@ -57,6 +59,7 @@ object EarfreeI5CommandSet {
         EqPreset.JAPANESE -> EQ_JAPANESE
         EqPreset.INSTRUMENT -> EQ_INSTRUMENT
         EqPreset.FRESH -> EQ_FRESH
+        else -> error("EQ preset not supported by EarFeel i5: $mode")
     }
 
     // ==================== 游戏模式 ====================
