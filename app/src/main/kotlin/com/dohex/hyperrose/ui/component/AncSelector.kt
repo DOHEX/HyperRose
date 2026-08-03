@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,7 +31,13 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+private val LABORATORY_ANC_MODES = setOf(
+    AncMode.ADAPTIVE_NOISE_CANCEL,
+    AncMode.EXTREME_NOISE_CANCEL,
+)
 
 @Composable
 fun AncSelector(
@@ -48,24 +58,42 @@ fun AncSelector(
     val modes = AncMode.entries.filter { it in supportedAncModes }
     val depths = AncDepth.entries.filter { it in supportedAncDepths }
     val transLevels = TransparencyLevel.entries.filter { it in supportedTransLevels }
+    val laboratoryModes = modes.filter { it in LABORATORY_ANC_MODES }
+    val standardModes = modes.filterNot { it in LABORATORY_ANC_MODES }
+    var showLaboratoryModes by rememberSaveable {
+        mutableStateOf(ancMode?.let { it in LABORATORY_ANC_MODES } == true)
+    }
+    val currentModeIsLaboratory = ancMode?.let { it in laboratoryModes } == true
+    val laboratoryModesVisible = showLaboratoryModes || currentModeIsLaboratory
 
     SectionCard(
         title = "噪声控制", modifier = modifier
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            modes.forEach { mode ->
-                val selected = ancMode == mode
-                AncModeIcon(
-                    mode = mode,
-                    selected = selected,
-                    enabled = enabled,
-                    onClick = { onAncModeChange(mode) },
-                )
-            }
+        AncModeRow(
+            modes = standardModes,
+            selectedMode = ancMode,
+            enabled = enabled,
+            onModeChange = onAncModeChange,
+        )
+
+        if (laboratoryModes.isNotEmpty()) {
+            SwitchPreference(
+                checked = laboratoryModesVisible,
+                onCheckedChange = { showLaboratoryModes = it },
+                title = "实验室降噪",
+                summary = "显示自适应、极限降噪",
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+
+        if (laboratoryModesVisible) {
+            AncModeRow(
+                modes = laboratoryModes,
+                selectedMode = ancMode,
+                enabled = enabled,
+                onModeChange = onAncModeChange,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
 
         if (showAncDepth && depths.isNotEmpty() && ancMode == AncMode.NOISE_CANCEL && ancDepth != null) {
@@ -99,6 +127,32 @@ fun AncSelector(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AncModeRow(
+    modes: List<AncMode>,
+    selectedMode: AncMode?,
+    enabled: Boolean,
+    onModeChange: (AncMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (modes.isEmpty()) return
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        modes.forEach { mode ->
+            AncModeIcon(
+                mode = mode,
+                selected = selectedMode == mode,
+                enabled = enabled,
+                onClick = { onModeChange(mode) },
             )
         }
     }

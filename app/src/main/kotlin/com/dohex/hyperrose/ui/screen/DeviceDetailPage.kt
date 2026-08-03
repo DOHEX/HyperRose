@@ -501,6 +501,48 @@ private fun DeviceDetailPagePreview_Mk2_Disconnected() {
     )
 }
 
+@Preview(showBackground = true, name = "Ceramics U - Connected")
+@Composable
+private fun DeviceDetailPagePreview_CeramicsU_Connected() {
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-ceramics-u"),
+            connectionState = DeviceConnectionState.CONNECTED,
+            transport = ConnectionTransport.DIRECT_RFCOMM,
+            battery = TwsBatteryState(
+                left = EarBatteryState(level = 78, isCharging = false),
+                right = EarBatteryState(level = 81, isCharging = false),
+                caseBattery = 66,
+            ),
+            ancMode = AncMode.ADAPTIVE_NOISE_CANCEL,
+            ancDepth = AncDepth.DEEP,
+            transLevel = TransparencyLevel.DEEP,
+            eqMode = EqPreset.HIFI,
+            gameMode = true,
+            lowLatency = false,
+        ),
+    )
+}
+
+@Preview(showBackground = true, name = "Ceramics U - Disconnected")
+@Composable
+private fun DeviceDetailPagePreview_CeramicsU_Disconnected() {
+    DeviceDetailPagePreview(
+        DeviceDetailPreviewState(
+            profile = previewProfile("rose-ceramics-u"),
+            connectionState = DeviceConnectionState.DISCONNECTED,
+            transport = ConnectionTransport.NONE,
+            battery = null,
+            ancMode = null,
+            ancDepth = null,
+            transLevel = null,
+            eqMode = null,
+            gameMode = false,
+            lowLatency = false,
+        ),
+    )
+}
+
 @Preview(showBackground = true, name = "i7 - Connected")
 @Composable
 private fun DeviceDetailPagePreview_I7_Connected() {
