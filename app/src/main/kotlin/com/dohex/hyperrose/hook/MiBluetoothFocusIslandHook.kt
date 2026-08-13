@@ -17,7 +17,6 @@ import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.util.FocusIslandBridge
 import com.dohex.hyperrose.util.ReflectionHelper
 import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
 /** 在 com.xiaomi.bluetooth 进程接收 SHOW_ISLAND 广播并发送超级岛。 对齐 HyperOriG 的“宿主发岛”策略。 */
@@ -28,6 +27,8 @@ object MiBluetoothFocusIslandHook {
     private const val ISLAND_TIMEOUT_SECONDS = 30
     private const val QUICK_CONTROL_REQUEST_CODE = 10086
     private var receiverRegistered = false
+    private var receiverContext: Context? = null
+    private var receiver: BroadcastReceiver? = null
     private var lastKnownCaseLevel: Int? = null
     private var lastIslandLeft = -1
     private var lastIslandRight = -1
@@ -38,9 +39,9 @@ object MiBluetoothFocusIslandHook {
     @SuppressLint("PrivateApi")
     fun init(
         module: XposedModule,
-        param: PackageLoadedParam,
+        classLoader: ClassLoader,
     ) {
-        val cl = param.defaultClassLoader
+        val cl = classLoader
         try {
             val notifClass = cl.loadClass("com.android.bluetooth.ble.app.MiuiBluetoothNotification")
             val ctor = notifClass.declaredConstructors.firstOrNull { it.parameterCount >= 1 }
@@ -199,8 +200,26 @@ object MiBluetoothFocusIslandHook {
                     }.forEach(::addAction)
             }
         context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        receiverContext = context
+        this@MiBluetoothFocusIslandHook.receiver = receiver
         receiverRegistered = true
         module.log(Log.INFO, TAG, "MiBluetoothFocusIslandHook: receiver ready")
+    }
+
+    /** 热重载前清理：注销接收器，避免旧代码残留。 */
+    fun shutdown() {
+        receiverContext?.let { ctx ->
+            receiver?.let { runCatching { ctx.unregisterReceiver(it) } }
+        }
+        receiver = null
+        receiverContext = null
+        receiverRegistered = false
+        lastKnownCaseLevel = null
+        lastIslandLeft = -1
+        lastIslandRight = -1
+        lastIslandCase = -1
+        lastIslandLeftCharging = false
+        lastIslandRightCharging = false
     }
 
     @SuppressLint("NotificationPermission")

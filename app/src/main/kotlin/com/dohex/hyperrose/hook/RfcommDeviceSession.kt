@@ -51,6 +51,7 @@ class RfcommDeviceSession(
         dataSocket = null
         connectedDevice = null
         handler.removeCallbacksAndMessages(null)
+        unregisterRefreshReceiver()
         currentBattery = null
         currentAnc = null
         currentAncDepth = null

@@ -15,8 +15,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.lifecycleScope
 import com.dohex.hyperrose.data.DeviceImageStore
 import com.dohex.hyperrose.data.LocalDeviceImageStore
+import com.dohex.hyperrose.ipc.HookStatusProvider
 import com.dohex.hyperrose.ui.navigation.AppNavHost
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
@@ -30,6 +32,7 @@ import kotlinx.coroutines.launch
 class AppEntryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        HookStatusProvider.init()
         setContent {
             val context = LocalContext.current
             val deviceControlStore = remember(context) { DeviceControlStore(context) }
@@ -79,5 +82,10 @@ class AppEntryActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch { HookStatusProvider.refresh() }
     }
 }

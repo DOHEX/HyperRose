@@ -251,7 +251,7 @@ class DeviceControlStore(
         val bonded = adapter.bondedDevices.firstOrNull { it.address == address } ?: return
 
         val profile = DeviceCatalog.findByName(bonded.name ?: "")?.profile ?: return
-        com.dohex.hyperrose.data.AuthorizedDeviceStore.add(appContext, address)
+        com.dohex.hyperrose.data.RemoteDeviceStore.add(address)
 
         _deviceName.value = bonded.name ?: address
         _profile.value = profile

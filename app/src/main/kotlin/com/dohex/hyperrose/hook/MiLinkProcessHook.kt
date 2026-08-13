@@ -11,7 +11,6 @@ import com.dohex.hyperrose.ipc.QuickControlIntentFactory
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.util.ReflectionHelper
 import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
 /**
@@ -45,6 +44,7 @@ object MiLinkProcessHook {
     private var module: XposedModule? = null
     private var context: Context? = null
     private var receiverRegistered = false
+    private var stateReceiver: BroadcastReceiver? = null
     private var currentAddress: String? = null
     private var currentName: String? = null
     private var currentLeftBattery = -1
@@ -62,18 +62,13 @@ object MiLinkProcessHook {
     @SuppressLint("PrivateApi")
     fun init(
         module: XposedModule,
-        param: PackageLoadedParam,
+        classLoader: ClassLoader,
     ) {
         this.module = module
-        val cl = param.defaultClassLoader
+        val cl = classLoader
 
-        // 加载白名单（从 App 进程 ContentProvider 查询）
-        runCatching {
-            val clazz = Class.forName("android.app.ActivityThread")
-            val appCtx =
-                clazz.getMethod("currentApplication").invoke(null) as? Context
-            if (appCtx != null) com.dohex.hyperrose.ipc.AuthorizedDeviceClient.ensureLoaded(appCtx)
-        }
+        // 加载白名单（远端偏好：framework 侧存储，实时同步）
+        RemoteDeviceWhitelist.init(module)
 
         // 先 hook 初始化方法捕获 Context（必须在注册广播接收器之前）
         hookContextEntry(module, cl)
@@ -83,6 +78,17 @@ object MiLinkProcessHook {
         hookMoreSettingsButton(module, cl)
 
         module.log(Log.INFO, LOG_TAG, "MiLinkProcessHook initialized")
+    }
+
+    /** 热重载前清理：注销状态接收器，避免旧代码残留。 */
+    fun shutdown() {
+        context?.let { ctx ->
+            stateReceiver?.let { runCatching { ctx.unregisterReceiver(it) } }
+        }
+        stateReceiver = null
+        receiverRegistered = false
+        currentAddress = null
+        currentName = null
     }
 
     // ==================== Context 捕获 ====================
@@ -253,14 +259,15 @@ object MiLinkProcessHook {
 
                 // 乐观更新 ANC 状态缓存（关键！控制中心通过 getAncState() 读取此值来更新 UI）
                 // OppoPods: currentAnc = oppoAnc; this.result = miLinkAncState()
-                currentAncMode = roseAnc
+                val mappedAnc = mapSystemAncMode(roseAnc)
+                currentAncMode = mappedAnc
 
                 // 立即广播 ANC_CHANGED（不等耳机回报！OppoPods 的 sendAncChanged 也是这样做）
                 // 让 Bluetooth 进程的 HeadsetServiceBinderHook 立即通过 callback 推送给控制中心
-                sendAncChanged(roseAnc, instanceContext)
+                sendAncChanged(mappedAnc, instanceContext)
 
                 // 转发 ANC 命令到 Bluetooth 进程（传入 instanceContext 作为兜底）
-                sendAncToBluetooth(roseAnc, instanceContext)
+                sendAncToBluetooth(mappedAnc, instanceContext)
 
                 // 通知系统 UI 刷新
                 notifyHeadsetPropertyChanged(chain.thisObject, device, 8)
@@ -268,7 +275,7 @@ object MiLinkProcessHook {
 
                 mlog(
                     Log.WARN,
-                    ">>> setAncStateBlock: miLinkMode=$miLinkMode → roseAnc=$roseAnc ancState=${miLinkAncState()} ctx=${instanceContext != null}"
+                    ">>> setAncStateBlock: miLinkMode=$miLinkMode → roseAnc=$mappedAnc ancState=${miLinkAncState()} ctx=${instanceContext != null}"
                 )
                 return@intercept miLinkAncState()
             }
@@ -339,7 +346,7 @@ object MiLinkProcessHook {
                                 "C=$currentCaseBattery anc=$currentAncMode",
                     )
                 }
-            },
+            }.also { stateReceiver = it },
             filter,
             Context.RECEIVER_EXPORTED,
         )
@@ -476,13 +483,14 @@ object MiLinkProcessHook {
                     }.getOrNull()?.let { it.applicationContext ?: it }
 
                     // 乐观更新 ANC 状态缓存（控制中心通过 getAncState() 读取此值）
-                    if (roseAnc != null) currentAncMode = roseAnc
+                    val mappedAnc = mapSystemAncMode(roseAnc)
+                    if (mappedAnc != null) currentAncMode = mappedAnc
                     // 立即广播 ANC_CHANGED，让控制中心瞬间更新（不等耳机回报）
-                    sendAncChanged(roseAnc, instanceContext)
-                    sendAncToBluetooth(roseAnc, instanceContext)
+                    sendAncChanged(mappedAnc, instanceContext)
+                    sendAncToBluetooth(mappedAnc, instanceContext)
                     mlog(
                         Log.WARN,
-                        ">>> hookAncCommand: $methodName intercepted → roseAnc=$roseAnc ancState=${miLinkAncState()} ctx=${instanceContext != null}"
+                        ">>> hookAncCommand: $methodName intercepted → roseAnc=$mappedAnc ancState=${miLinkAncState()} ctx=${instanceContext != null}"
                     )
                     return@intercept miLinkAncState()
                 }
@@ -527,7 +535,7 @@ object MiLinkProcessHook {
             return true
         }
         // 4. 检查用户白名单
-        if (com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)) {
+        if (RemoteDeviceWhitelist.isAuthorized(address)) {
             knownAddresses.add(normalized)
             currentAddress = address
             return true
@@ -553,10 +561,11 @@ object MiLinkProcessHook {
      */
     private fun miLinkAncState(): Int = when (currentAncMode) {
         AncMode.NOISE_CANCEL,
-        AncMode.WIND_NOISE,
         AncMode.ADAPTIVE_NOISE_CANCEL,
         AncMode.EXTREME_NOISE_CANCEL,
             -> 1
+        AncMode.WIND_NOISE ->
+            if (RemoteDeviceWhitelist.isNormalToWindEnabled()) 0 else 1
         AncMode.TRANSPARENT -> 2
         AncMode.NORMAL, null -> 0
     }
@@ -565,8 +574,21 @@ object MiLinkProcessHook {
     private fun roseAncFromMiLink(miLinkMode: Int): AncMode? = when (miLinkMode) {
         1 -> AncMode.NOISE_CANCEL
         2 -> AncMode.TRANSPARENT
-        else -> AncMode.NORMAL
+        else -> if (RemoteDeviceWhitelist.isNormalToWindEnabled()) {
+            AncMode.WIND_NOISE
+        } else {
+            AncMode.NORMAL
+        }
     }
+
+    private fun mapSystemAncMode(mode: AncMode?): AncMode? =
+        if (mode == AncMode.NORMAL &&
+            RemoteDeviceWhitelist.isNormalToWindEnabled()
+        ) {
+            AncMode.WIND_NOISE
+        } else {
+            mode
+        }
 
     /**
      * MiLink 电量格式：[box, left, right, boxCharging, leftCharging, rightCharging]

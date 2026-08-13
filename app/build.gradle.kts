@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.libsu.core)
     implementation(libs.libsu.service)
+    implementation(libs.libxposed.service)
     implementation(libs.miuix.blur)
     implementation(libs.miuix.icons)
     implementation(libs.miuix.navigation3.ui)

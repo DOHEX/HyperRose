@@ -16,7 +16,6 @@ import com.dohex.hyperrose.model.TransparencyLevel
 import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.util.ReflectionHelper
 import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
 
 /** com.android.bluetooth 进程的 Hook。 监听 A2DP 连接状态变化，识别目标耳机并启动 GATT 通信。 */
@@ -32,21 +31,18 @@ object BluetoothProcessHook {
     internal fun currentSession(): DeviceSession? = session
 
     private var commandReceiverRegistered = false
+    private var commandReceiverContext: Context? = null
+    private var commandReceiver: BroadcastReceiver? = null
 
     @SuppressLint("PrivateApi")
     fun init(
         module: XposedModule,
-        param: PackageLoadedParam,
+        classLoader: ClassLoader,
     ) {
-        val cl = param.defaultClassLoader
+        val cl = classLoader
 
-        // 加载白名单（从 App 进程 ContentProvider 查询）
-        runCatching {
-            val clazz = Class.forName("android.app.ActivityThread")
-            val appCtx =
-                clazz.getMethod("currentApplication").invoke(null) as? Context
-            if (appCtx != null) com.dohex.hyperrose.ipc.AuthorizedDeviceClient.ensureLoaded(appCtx)
-        }
+        // 加载白名单（远端偏好：framework 侧存储，实时同步）
+        RemoteDeviceWhitelist.init(module)
 
         // Hook A2dpService.handleConnectionStateChanged(BluetoothDevice, int, int)
         try {
@@ -123,7 +119,7 @@ object BluetoothProcessHook {
         val name = device.name ?: device.alias
         if (name != null && DeviceCatalog.findByName(name) != null) return true
         val address = device.address ?: return false
-        return com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)
+        return RemoteDeviceWhitelist.isAuthorized(address)
     }
 
     @SuppressLint("MissingPermission")
@@ -407,7 +403,22 @@ object BluetoothProcessHook {
             }
 
         context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        commandReceiverContext = context
+        commandReceiver = receiver
         commandReceiverRegistered = true
         module.log(Log.INFO, TAG, "BluetoothProcessHook: command receiver ready")
+    }
+
+    /** 热重载前清理：注销接收器、断开 GATT/RFCOMM 会话，避免旧代码残留。 */
+    fun shutdown() {
+        commandReceiverContext?.let { ctx ->
+            commandReceiver?.let { runCatching { ctx.unregisterReceiver(it) } }
+        }
+        commandReceiver = null
+        commandReceiverContext = null
+        commandReceiverRegistered = false
+        runCatching { session?.disconnect() }
+        session = null
+        bleLogEnabled = false
     }
 }

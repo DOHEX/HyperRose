@@ -39,6 +39,7 @@ class GattDeviceSession(
 
     override fun disconnect() {
         handler.removeCallbacksAndMessages(null)
+        unregisterRefreshReceiver()
         gatt?.disconnect()
         gatt?.close()
         gatt = null

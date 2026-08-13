@@ -49,6 +49,7 @@ object HeadsetServiceBinderHook {
     private var module: XposedModule? = null
     private var context: Context? = null
     private var receiverRegistered = false
+    private var statusReceiver: BroadcastReceiver? = null
     private var currentDevice: BluetoothDevice? = null
     private var currentAddress: String? = null
     private var currentName: String? = null
@@ -77,8 +78,24 @@ object HeadsetServiceBinderHook {
         classLoader: ClassLoader,
     ) {
         module = moduleRef
+        // 白名单初始化（幂等；Mi 蓝牙进程需要在此加载远端偏好）
+        RemoteDeviceWhitelist.init(moduleRef)
         hookHeadsetService(moduleRef, classLoader)
         mlog(Log.WARN, "HeadsetServiceBinderHook initialized")
+    }
+
+    /** 热重载前清理：移除定时任务、注销状态接收器，避免旧代码残留。 */
+    fun shutdown() {
+        handler.removeCallbacksAndMessages(null)
+        context?.let { ctx ->
+            statusReceiver?.let { runCatching { ctx.unregisterReceiver(it) } }
+        }
+        statusReceiver = null
+        receiverRegistered = false
+        pendingAncMode = null
+        pendingAncDepth = null
+        pendingTransLevel = null
+        pendingRetryCount = 0
     }
 
     // ==================== BluetoothHeadsetService Hook ====================
@@ -806,7 +823,7 @@ object HeadsetServiceBinderHook {
                     moduleLog("state action=${intent.action} addr=$currentAddress anc=$cachedAnc")
                     notifyCallbacks("broadcast:${intent.action}")
                 }
-            },
+            }.also { statusReceiver = it },
             filter,
             Context.RECEIVER_EXPORTED,
         )
@@ -960,7 +977,9 @@ object HeadsetServiceBinderHook {
             null -> "0100"
         }
 
-        AncMode.WIND_NOISE -> "0101"
+        AncMode.WIND_NOISE -> if (
+            RemoteDeviceWhitelist.isNormalToWindEnabled()
+        ) "0000" else "0101"
 
         // MIUI has no documented values for these ROSE-specific modes; keep NC semantics.
         AncMode.ADAPTIVE_NOISE_CANCEL, AncMode.EXTREME_NOISE_CANCEL -> "0100"
@@ -982,7 +1001,11 @@ object HeadsetServiceBinderHook {
         2 -> AncMode.TRANSPARENT
 
         // MIUI Transparency
-        else -> AncMode.NORMAL // MIUI OFF
+        else -> if (RemoteDeviceWhitelist.isNormalToWindEnabled()) {
+            AncMode.WIND_NOISE
+        } else {
+            AncMode.NORMAL
+        } // MIUI OFF
     }
 
     /**
@@ -1046,8 +1069,11 @@ object HeadsetServiceBinderHook {
             }
 
             else -> {
-                cachedAnc = AncMode.NORMAL
-                sendAncToGatt(AncMode.NORMAL)
+                val mappedAnc = if (
+                    RemoteDeviceWhitelist.isNormalToWindEnabled()
+                ) AncMode.WIND_NOISE else AncMode.NORMAL
+                cachedAnc = mappedAnc
+                sendAncToGatt(mappedAnc)
             }
         }
     }
@@ -1255,7 +1281,7 @@ object HeadsetServiceBinderHook {
             return true
         }
         // 4. 检查用户白名单
-        if (com.dohex.hyperrose.ipc.AuthorizedDeviceClient.isAuthorized(address)) {
+        if (RemoteDeviceWhitelist.isAuthorized(address)) {
             knownAddresses.add(normalized)
             return true
         }

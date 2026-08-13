@@ -27,8 +27,10 @@ object HyperRoseIpc {
     const val GAME_MODE_CHANGED = "$PREFIX.game_mode_changed"
     const val LOW_LATENCY_CHANGED = "$PREFIX.low_latency_changed"
 
-    // App → Bluetooth 进程（白名单变更通知）
-    const val WHITELIST_CHANGED = "$PREFIX.whitelist_changed"
+    // 远端偏好（libxposed service 跨进程同步白名单；App 写入，hook 进程只读）
+    const val REMOTE_PREFS_GROUP = "authorized_devices"
+    const val REMOTE_PREFS_KEY_ADDRESSES = "addresses"
+    const val REMOTE_PREFS_KEY_NORMAL_TO_WIND = "normal_to_wind"
 
     // App → Bluetooth 进程（控制命令）
     const val SET_ANC = "$PREFIX.set_anc"

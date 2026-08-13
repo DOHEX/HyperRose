@@ -214,20 +214,32 @@ abstract class DeviceSession(
     }
 
     private var refreshReceiverRegistered = false
+    private var refreshReceiverContext: Context? = null
+    private var refreshReceiver: BroadcastReceiver? = null
 
     protected fun registerRefreshReceiver() {
         if (refreshReceiverRegistered) return
         refreshReceiverRegistered = true
         val filter = IntentFilter().apply { addAction(HyperRoseAction.REFRESH_STATUS) }
-        context.registerReceiver(
+        val receiver =
             object : BroadcastReceiver() {
                 override fun onReceive(ctx: Context?, intent: Intent?) {
                     if (intent?.action == HyperRoseAction.REFRESH_STATUS) queryAllStatus()
                 }
-            },
-            filter,
-            Context.RECEIVER_EXPORTED,
-        )
+            }
+        refreshReceiver = receiver
+        refreshReceiverContext = context
+        context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+    }
+
+    /** 断开连接时注销刷新接收器，避免跨会话/热重载残留重复接收。 */
+    protected fun unregisterRefreshReceiver() {
+        refreshReceiverContext?.let { ctx ->
+            refreshReceiver?.let { runCatching { ctx.unregisterReceiver(it) } }
+        }
+        refreshReceiver = null
+        refreshReceiverContext = null
+        refreshReceiverRegistered = false
     }
 
 

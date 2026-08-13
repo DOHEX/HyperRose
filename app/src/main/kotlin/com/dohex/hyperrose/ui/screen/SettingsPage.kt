@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.dohex.hyperrose.model.ScopePackagesToRestart
 import com.dohex.hyperrose.model.restartScopePackages
+import com.dohex.hyperrose.data.RemoteDeviceStore
+import com.dohex.hyperrose.ipc.HookStatus
+import com.dohex.hyperrose.ipc.HookStatusProvider
+import com.dohex.hyperrose.ipc.HyperRoseIpc
 import com.dohex.hyperrose.ui.theme.BlurredBar
 import com.dohex.hyperrose.ui.theme.ColorModeOptions
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
@@ -112,6 +117,14 @@ fun SettingsPage(
     var showNoRootDialog by remember { mutableStateOf(false) }
     val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
     val blurActive = themeMode.enableBlur && backdrop != null
+    var normalToWind by remember {
+        mutableStateOf(
+            HookStatusProvider.remotePreferences()
+                ?.getBoolean(HyperRoseIpc.REMOTE_PREFS_KEY_NORMAL_TO_WIND, false)
+                ?: false,
+        )
+    }
+    val hookStatus by HookStatusProvider.status.collectAsState()
 
     Scaffold(
         modifier = modifier,
@@ -149,6 +162,51 @@ fun SettingsPage(
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item {
+                SmallTitle(text = "Hook 状态")
+                Card {
+                    when (hookStatus) {
+                        HookStatus.Active -> {
+                            Text(
+                                text = "Hook 运行中",
+                                modifier = Modifier.padding(12.dp),
+                            )
+                        }
+
+                        HookStatus.ScopePending -> {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(text = "模块已启用，但目标进程尚未注入 Hook")
+                                TextButton(
+                                    text = "重启作用域进程",
+                                    onClick = { showRestartDialog = true },
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
+                        }
+
+                        HookStatus.Inactive -> {
+                            Text(
+                                text = "Hook 未激活：需要 Root + LSPosed，且模块已在 LSPosed 中启用",
+                                modifier = Modifier.padding(12.dp),
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                SmallTitle(text = "系统控制")
+                Card {
+                    SwitchPreference(
+                        title = "普通模式映射为风噪模式",
+                        summary = "控制中心关闭降噪时使用无底噪的风噪模式",
+                        checked = normalToWind,
+                        onCheckedChange = { enabled ->
+                            normalToWind = enabled
+                            RemoteDeviceStore.setNormalToWind(enabled)
+                        },
+                    )
+                }
+            }
             item {
                 SmallTitle(
                     text = "主题",
