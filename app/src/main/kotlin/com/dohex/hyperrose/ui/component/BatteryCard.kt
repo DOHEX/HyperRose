@@ -19,6 +19,7 @@ import com.dohex.hyperrose.R
 import com.dohex.hyperrose.model.EarBatteryState
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
+import com.dohex.hyperrose.model.ThemeSettings
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -102,7 +103,7 @@ private fun formatBatteryLevel(level: Int?): String =
 @Preview(showBackground = true)
 @Composable
 private fun BatteryCardPreview_Full() {
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         BatteryCard(
             battery = TwsBatteryState(
                 left = EarBatteryState(level = 85, isCharging = false),
@@ -117,7 +118,7 @@ private fun BatteryCardPreview_Full() {
 @Preview(showBackground = true)
 @Composable
 private fun BatteryCardPreview_Charging() {
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         BatteryCard(
             battery = TwsBatteryState(
                 left = EarBatteryState(level = 45, isCharging = true),
@@ -132,7 +133,7 @@ private fun BatteryCardPreview_Charging() {
 @Preview(showBackground = true)
 @Composable
 private fun BatteryCardPreview_NullBattery() {
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         BatteryCard(
             battery = null,
             modifier = Modifier.padding(16.dp),

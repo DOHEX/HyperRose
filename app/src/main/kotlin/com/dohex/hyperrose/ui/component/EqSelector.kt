@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.dohex.hyperrose.model.EqPreset
+import com.dohex.hyperrose.model.ThemeSettings
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
@@ -38,7 +39,7 @@ fun EqSelector(
 @Preview(showBackground = true, name = "EQ - Classic")
 @Composable
 private fun EqSelectorPreview_Classic() {
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         EqSelector(
             eqMode = EqPreset.CLASSIC,
             onSelect = {},
@@ -51,7 +52,7 @@ private fun EqSelectorPreview_Classic() {
 @Preview(showBackground = true, name = "EQ - Japanese")
 @Composable
 private fun EqSelectorPreview_Japanese() {
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         EqSelector(
             eqMode = EqPreset.JAPANESE,
             onSelect = {},
@@ -64,7 +65,7 @@ private fun EqSelectorPreview_Japanese() {
 @Preview(showBackground = true, name = "EQ - Disabled")
 @Composable
 private fun EqSelectorPreview_Disabled() {
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         EqSelector(
             eqMode = null,
             onSelect = {},

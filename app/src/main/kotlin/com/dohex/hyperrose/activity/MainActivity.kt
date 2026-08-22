@@ -1,4 +1,4 @@
-package com.dohex.hyperrose.ui
+package com.dohex.hyperrose.activity
 
 import android.graphics.Color
 import android.os.Bundle
@@ -18,40 +18,38 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
 import com.dohex.hyperrose.data.DeviceImageStore
 import com.dohex.hyperrose.data.LocalDeviceImageStore
+import com.dohex.hyperrose.data.local.SettingsDataStore
+import com.dohex.hyperrose.data.repository.ThemeSettingsRepository
 import com.dohex.hyperrose.ipc.HookStatusProvider
-import com.dohex.hyperrose.ui.navigation.AppNavHost
+import com.dohex.hyperrose.model.ColorMode
+import com.dohex.hyperrose.model.ThemeSettings
+import com.dohex.hyperrose.ui.navigation.HyperRoseNavContainer
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
-import com.dohex.hyperrose.ui.theme.LocalCanUpdateThemeMode
-import com.dohex.hyperrose.ui.theme.LocalThemeMode
-import com.dohex.hyperrose.ui.theme.LocalUpdateThemeMode
-import com.dohex.hyperrose.ui.theme.ThemeMode
-import com.dohex.hyperrose.ui.theme.ThemeSettingsStore
 import kotlinx.coroutines.launch
 
-class AppEntryActivity : ComponentActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         HookStatusProvider.init()
         setContent {
             val context = LocalContext.current
             val deviceControlStore = remember(context) { DeviceControlStore(context) }
-            val themeStore = remember(context) { ThemeSettingsStore(context) }
+            val settingsDataStore = remember(context) { SettingsDataStore(context) }
+            val themeRepository = remember(settingsDataStore) {
+                ThemeSettingsRepository(settingsDataStore)
+            }
+            val themeSettings by themeRepository.themeSettings.collectAsState(
+                initial = ThemeSettings(),
+            )
             val deviceImageStore = remember(context) { DeviceImageStore(context) }
             val scope = rememberCoroutineScope()
-            val themeMode by themeStore.themeModeFlow.collectAsState(initial = ThemeMode())
 
             val isDarkMode =
-                when (themeMode.colorMode) {
-                    2,
-                    5,
-                        -> true
-
-                    0,
-                    3,
-                        -> isSystemInDarkTheme()
-
-                    else -> false
+                when (themeSettings.colorMode) {
+                    ColorMode.DARK -> true
+                    ColorMode.SYSTEM -> isSystemInDarkTheme()
+                    ColorMode.LIGHT -> false
                 }
 
             LaunchedEffect(isDarkMode) {
@@ -63,22 +61,27 @@ class AppEntryActivity : ComponentActivity() {
                 )
             }
 
-            val updateThemeMode: ((ThemeMode) -> ThemeMode) -> Unit =
-                remember {
-                    { transform -> scope.launch { themeStore.updateThemeMode(transform) } }
+            val updateThemeSettings: ((ThemeSettings) -> ThemeSettings) -> Unit =
+                remember(themeRepository) {
+                    { transform ->
+                        scope.launch {
+                            themeRepository.updateThemeSettings(transform)
+                        }
+                    }
                 }
-            DisposableEffect(deviceControlStore) { onDispose { deviceControlStore.release() } }
 
-            HyperRoseTheme(
-                colorMode = themeMode.colorMode,
-            ) {
+            DisposableEffect(deviceControlStore) {
+                onDispose { deviceControlStore.release() }
+            }
+
+            HyperRoseTheme(settings = themeSettings) {
                 CompositionLocalProvider(
                     LocalDeviceImageStore provides deviceImageStore,
-                    LocalThemeMode provides themeMode,
-                    LocalUpdateThemeMode provides updateThemeMode,
-                    LocalCanUpdateThemeMode provides true,
                 ) {
-                    AppNavHost(deviceControlStore = deviceControlStore)
+                    HyperRoseNavContainer(
+                        deviceControlStore = deviceControlStore,
+                        onUpdateThemeSettings = updateThemeSettings,
+                    )
                 }
             }
         }

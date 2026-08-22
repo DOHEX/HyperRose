@@ -13,8 +13,9 @@ import top.yukonga.miuix.kmp.shader.isRenderEffectSupported
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
-fun rememberBlurBackdrop(enableBlur: Boolean): LayerBackdrop? {
-    if (!enableBlur || !isRenderEffectSupported()) return null
+fun rememberBlurBackdrop(blurEnabled: Boolean): LayerBackdrop? {
+    if (!blurEnabled || !isRenderEffectSupported()) return null
+
     val surfaceColor = MiuixTheme.colorScheme.surface
     return rememberLayerBackdrop {
         drawRect(surfaceColor)
@@ -28,17 +29,23 @@ fun BlurredBar(
     blurEnabled: Boolean,
     content: @Composable () -> Unit,
 ) {
-    val blurModifier = if (blurEnabled && backdrop != null) {
-        Modifier.textureBlur(
-            backdrop = backdrop, shape = RectangleShape, blurRadius = 25f, colors = BlurColors(
-                blendColors = listOf(
-                    BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(alpha = 0.8f))
-                )
+    val blurModifier =
+        if (blurEnabled && backdrop != null) {
+            Modifier.textureBlur(
+                backdrop = backdrop,
+                shape = RectangleShape,
+                blurRadius = 25f,
+                colors = BlurColors(
+                    blendColors = listOf(
+                        BlendColorEntry(
+                            color = MiuixTheme.colorScheme.surface.copy(alpha = 0.8f),
+                        ),
+                    ),
+                ),
             )
-        )
-    } else {
-        Modifier
-    }
+        } else {
+            Modifier
+        }
 
     Box(modifier = blurModifier) {
         content()

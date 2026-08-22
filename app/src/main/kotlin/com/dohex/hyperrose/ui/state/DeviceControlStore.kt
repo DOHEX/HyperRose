@@ -81,6 +81,12 @@ class DeviceControlStore(
     private val _pairedDevices = MutableStateFlow<List<RoseDeviceItem>>(emptyList())
     val pairedDevices: StateFlow<List<RoseDeviceItem>> = _pairedDevices.asStateFlow()
 
+    private val _activeAddress = MutableStateFlow<String?>(null)
+    val activeAddress: StateFlow<String?> = _activeAddress.asStateFlow()
+
+    private val _bluetoothEnabled = MutableStateFlow(false)
+    val bluetoothEnabled: StateFlow<Boolean> = _bluetoothEnabled.asStateFlow()
+
     private val _connectionState = MutableStateFlow(DeviceConnectionState.DISCONNECTED)
     val connectionState: StateFlow<DeviceConnectionState> = _connectionState.asStateFlow()
 
@@ -126,6 +132,14 @@ class DeviceControlStore(
             intent: Intent,
         ) {
             when (intent.action) {
+                BluetoothAdapter.ACTION_STATE_CHANGED -> {
+                    _bluetoothEnabled.value =
+                        intent.getIntExtra(
+                            BluetoothAdapter.EXTRA_STATE,
+                            BluetoothAdapter.ERROR,
+                        ) == BluetoothAdapter.STATE_ON
+                }
+
                 HyperRoseAction.DEVICE_CONNECTED -> {
                     bridgeFallbackJob?.cancel()
 
@@ -144,6 +158,7 @@ class DeviceControlStore(
                     val profileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
                     val resolvedProfile = profileId?.let { DeviceCatalog.findById(it)?.profile }
                         ?: device?.name?.let { DeviceCatalog.findByName(it)?.profile }
+                    _activeAddress.value = device?.address ?: _activeAddress.value
                     _profile.value = resolvedProfile
                     _capabilities.value = resolvedProfile?.capabilities ?: DeviceCapabilities.NONE
                     _deviceName.value = device?.name ?: resolvedProfile?.displayName ?: _deviceName.value
@@ -216,19 +231,29 @@ class DeviceControlStore(
             Manifest.permission.BLUETOOTH_SCAN,
         ) == PackageManager.PERMISSION_GRANTED
         _hasBluetoothPermission.value = hasConnect && hasScan
+        _bluetoothEnabled.value = if (hasConnect) {
+            runCatching { BluetoothAdapter.getDefaultAdapter()?.isEnabled == true }
+                .getOrDefault(false)
+        } else {
+            false
+        }
     }
 
     @SuppressLint("MissingPermission")
     fun refreshBondedDevices() {
         if (!_hasBluetoothPermission.value) {
             _pairedDevices.value = emptyList()
+            _bluetoothEnabled.value = false
             return
         }
 
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: run {
             _pairedDevices.value = emptyList()
+            _bluetoothEnabled.value = false
             return
         }
+        _bluetoothEnabled.value = adapter.isEnabled
+
 
         _pairedDevices.value = adapter.bondedDevices.mapNotNull { device ->
             val name = device.name ?: device.alias ?: return@mapNotNull null
@@ -251,6 +276,7 @@ class DeviceControlStore(
         val bonded = adapter.bondedDevices.firstOrNull { it.address == address } ?: return
 
         val profile = DeviceCatalog.findByName(bonded.name ?: "")?.profile ?: return
+        _activeAddress.value = address
         com.dohex.hyperrose.data.RemoteDeviceStore.add(address)
 
         _deviceName.value = bonded.name ?: address
@@ -482,8 +508,10 @@ class DeviceControlStore(
 
     private fun registerBridgeReceiver() {
         if (receiverRegistered) return
-        val filter =
-            IntentFilter().apply { HyperRoseAction.BRIDGE_STATE_ACTIONS.forEach(::addAction) }
+        val filter = IntentFilter().apply {
+            HyperRoseAction.BRIDGE_STATE_ACTIONS.forEach(::addAction)
+            addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+        }
         appContext.registerReceiver(bridgeReceiver, filter, Context.RECEIVER_EXPORTED)
         receiverRegistered = true
     }
@@ -536,6 +564,7 @@ class DeviceControlStore(
     }
 
     private fun clearState() {
+        _activeAddress.value = null
         _deviceName.value = null
         _profile.value = null
         _battery.value = null

@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 val releaseKeystoreFile: String? = System.getenv("ANDROID_KEYSTORE_FILE")
@@ -22,8 +23,8 @@ android {
         applicationId = "com.dohex.hyperrose"
         minSdk = 35
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.1.5"
+        versionCode = 7
+        versionName = "0.1.6"
     }
     signingConfigs {
         if (hasReleaseSigningConfig) {
@@ -65,24 +66,26 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.androidx.navigation3.runtime)
     implementation(libs.compose.foundation)
+    implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.hyper.notification.focus.api)
     implementation(libs.kavaref.core)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.libsu.core)
     implementation(libs.libsu.service)
     implementation(libs.libxposed.service)
     implementation(libs.miuix.blur)
     implementation(libs.miuix.icons)
-    implementation(libs.miuix.navigation3.ui)
+    implementation(libs.miuix.nav.android)
     implementation(libs.miuix.preference)
     implementation(libs.miuix.ui)
 
     compileOnly(libs.libxposed.api)
 
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.androidx.espresso.core)

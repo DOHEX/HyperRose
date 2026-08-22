@@ -26,6 +26,7 @@ import com.dohex.hyperrose.R
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.TransparencyLevel
+import com.dohex.hyperrose.model.ThemeSettings
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -226,7 +227,7 @@ private fun AncModeIcon(
 @Preview(showBackground = true)
 @Composable
 private fun AncSelectorPreview_NoiseCancel() {
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         AncSelector(
             ancMode = AncMode.NOISE_CANCEL,
             ancDepth = AncDepth.DEEP,
@@ -246,7 +247,7 @@ private fun AncSelectorPreview_NoiseCancel() {
 @Preview(showBackground = true)
 @Composable
 private fun AncSelectorPreview_Transparent() {
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         AncSelector(
             ancMode = AncMode.TRANSPARENT,
             ancDepth = null,
@@ -266,7 +267,7 @@ private fun AncSelectorPreview_Transparent() {
 @Preview(showBackground = true)
 @Composable
 private fun AncSelectorPreview_Disabled() {
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         AncSelector(
             ancMode = AncMode.NOISE_CANCEL,
             ancDepth = AncDepth.LIGHT,

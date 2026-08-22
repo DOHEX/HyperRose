@@ -1,9 +1,8 @@
-package com.dohex.hyperrose.ui
+package com.dohex.hyperrose.activity
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -12,25 +11,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.dohex.hyperrose.data.local.SettingsDataStore
+import com.dohex.hyperrose.data.repository.ThemeSettingsRepository
+import com.dohex.hyperrose.ipc.HyperRoseIpc
 import com.dohex.hyperrose.ipc.QuickControlLaunchValidator
 import com.dohex.hyperrose.model.EarBatteryState
+import com.dohex.hyperrose.model.ThemeSettings
 import com.dohex.hyperrose.model.TwsBatteryState
 import com.dohex.hyperrose.model.asBatteryLevelOrNull
 import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.ui.screen.PopupControlPanel
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
-import com.dohex.hyperrose.ui.theme.LocalCanUpdateThemeMode
-import com.dohex.hyperrose.ui.theme.LocalThemeMode
-import com.dohex.hyperrose.ui.theme.ThemeMode
-import com.dohex.hyperrose.ui.theme.ThemeSettingsStore
-import com.dohex.hyperrose.ipc.HyperRoseIpc as HyperRoseAction
+
 
 /** 控制中心弹出面板 Activity。 由 Hook 或通知从外部启动。 */
 class QuickControlActivity : ComponentActivity() {
     companion object {
-        const val EXTRA_DEVICE_NAME = HyperRoseAction.EXTRA_DEVICE_NAME
-        const val EXTRA_FORCE_CONNECTED = HyperRoseAction.EXTRA_FORCE_CONNECTED
+        const val EXTRA_DEVICE_NAME = HyperRoseIpc.EXTRA_DEVICE_NAME
+        const val EXTRA_FORCE_CONNECTED = HyperRoseIpc.EXTRA_FORCE_CONNECTED
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,23 +43,27 @@ class QuickControlActivity : ComponentActivity() {
         runCatching { setFinishOnTouchOutside(true) }
 
         val presetDeviceName = intent.getStringExtra(EXTRA_DEVICE_NAME)
-        val presetProfileId = intent.getStringExtra(HyperRoseAction.EXTRA_PROFILE_ID)
-        val presetLeftLevel = intent.getIntExtra(HyperRoseAction.EXTRA_LEFT_LEVEL, -1)
-        val presetRightLevel = intent.getIntExtra(HyperRoseAction.EXTRA_RIGHT_LEVEL, -1)
+        val presetProfileId = intent.getStringExtra(HyperRoseIpc.EXTRA_PROFILE_ID)
+        val presetLeftLevel = intent.getIntExtra(HyperRoseIpc.EXTRA_LEFT_LEVEL, -1)
+        val presetRightLevel = intent.getIntExtra(HyperRoseIpc.EXTRA_RIGHT_LEVEL, -1)
         val forceConnected = intent.getBooleanExtra(EXTRA_FORCE_CONNECTED, false)
 
         setContent {
             val context = LocalContext.current
             val deviceControlStore = remember(context) { DeviceControlStore(context) }
-            val themeStore = remember(context) { ThemeSettingsStore(context) }
-            val themeMode by themeStore.themeModeFlow.collectAsState(initial = ThemeMode())
+            val settingsDataStore = remember(context) { SettingsDataStore(context) }
+            val themeRepository = remember(settingsDataStore) {
+                ThemeSettingsRepository(settingsDataStore)
+            }
+            val themeSettings by themeRepository.themeSettings.collectAsState(
+                initial = ThemeSettings(),
+            )
             var showDialog by remember { mutableStateOf(true) }
 
             DisposableEffect(deviceControlStore) {
                 deviceControlStore.refreshStatus()
                 onDispose { deviceControlStore.release() }
             }
-
 
             LaunchedEffect(deviceControlStore) {
                 val currentName = deviceControlStore.deviceName.value
@@ -80,20 +83,13 @@ class QuickControlActivity : ComponentActivity() {
                 }
             }
 
-            HyperRoseTheme(
-                colorMode = themeMode.colorMode,
-            ) {
-                CompositionLocalProvider(
-                    LocalThemeMode provides themeMode,
-                    LocalCanUpdateThemeMode provides false,
-                ) {
-                    PopupControlPanel(
-                        deviceControlStore = deviceControlStore,
-                        show = showDialog,
-                        onDismissRequest = { showDialog = false },
-                        onDismissFinish = { finish() },
-                    )
-                }
+            HyperRoseTheme(settings = themeSettings) {
+                PopupControlPanel(
+                    deviceControlStore = deviceControlStore,
+                    show = showDialog,
+                    onDismissRequest = { showDialog = false },
+                    onDismissFinish = { finish() },
+                )
             }
         }
     }

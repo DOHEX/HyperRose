@@ -5,17 +5,17 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -26,21 +26,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.dohex.hyperrose.model.ScopePackagesToRestart
 import com.dohex.hyperrose.model.restartScopePackages
 import com.dohex.hyperrose.data.RemoteDeviceStore
-import com.dohex.hyperrose.ipc.HookStatus
 import com.dohex.hyperrose.ipc.HookStatusProvider
 import com.dohex.hyperrose.ipc.HyperRoseIpc
 import com.dohex.hyperrose.ui.theme.BlurredBar
-import com.dohex.hyperrose.ui.theme.ColorModeOptions
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
-import com.dohex.hyperrose.ui.theme.LocalCanUpdateThemeMode
-import com.dohex.hyperrose.ui.theme.LocalThemeMode
-import com.dohex.hyperrose.ui.theme.LocalUpdateThemeMode
-import com.dohex.hyperrose.ui.theme.ThemeMode
+import com.dohex.hyperrose.ui.theme.LocalThemeSettings
+import com.dohex.hyperrose.model.ThemeSettings
 import com.dohex.hyperrose.ui.theme.rememberBlurBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -57,13 +54,10 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.ArrowPreference
-import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
-import top.yukonga.miuix.kmp.shader.isRenderEffectSupported
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 
@@ -105,18 +99,20 @@ private val ThanksGithubLinks = listOf(
 
 @Composable
 fun SettingsPage(
-    onBack: () -> Unit, modifier: Modifier = Modifier
+    onOpenThemeSettings: () -> Unit,
+    outerPadding: PaddingValues = PaddingValues(),
+    modifier: Modifier = Modifier,
+    restartRequest: Int = 0,
 ) {
-    val themeMode = LocalThemeMode.current
-    val updateThemeMode = LocalUpdateThemeMode.current
-    val canUpdateThemeMode = LocalCanUpdateThemeMode.current
+
+    val themeSettings = LocalThemeSettings.current
     val scrollBehavior = MiuixScrollBehavior()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showRestartDialog by remember { mutableStateOf(false) }
     var showNoRootDialog by remember { mutableStateOf(false) }
-    val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
-    val blurActive = themeMode.enableBlur && backdrop != null
+    val backdrop = rememberBlurBackdrop(themeSettings.blurEnabled)
+    val blurActive = themeSettings.blurEnabled && backdrop != null
     var normalToWind by remember {
         mutableStateOf(
             HookStatusProvider.remotePreferences()
@@ -124,7 +120,9 @@ fun SettingsPage(
                 ?: false,
         )
     }
-    val hookStatus by HookStatusProvider.status.collectAsState()
+    LaunchedEffect(restartRequest) {
+        if (restartRequest > 0) showRestartDialog = true
+    }
 
     Scaffold(
         modifier = modifier,
@@ -132,11 +130,7 @@ fun SettingsPage(
             BlurredBar(backdrop = backdrop, blurEnabled = blurActive) {
                 TopAppBar(
                     title = "设置",
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(MiuixIcons.ChevronBackward, contentDescription = "返回")
-                        }
-                    },
+                    largeTitle = "设置",
                     actions = {
                         IconButton(onClick = { showRestartDialog = true }) {
                             Icon(MiuixIcons.Refresh, contentDescription = "重启作用域")
@@ -154,45 +148,12 @@ fun SettingsPage(
                 .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
-            contentPadding = PaddingValues(
-                top = paddingValues.calculateTopPadding(),
-                start = 8.dp,
-                end = 8.dp,
-                bottom = paddingValues.calculateBottomPadding()
+            contentPadding = TopLevelPageDefaults.contentPadding(
+                scaffoldPadding = paddingValues,
+                outerPadding = outerPadding,
             ),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(TopLevelPageDefaults.ItemSpacing),
         ) {
-            item {
-                SmallTitle(text = "Hook 状态")
-                Card {
-                    when (hookStatus) {
-                        HookStatus.Active -> {
-                            Text(
-                                text = "Hook 运行中",
-                                modifier = Modifier.padding(12.dp),
-                            )
-                        }
-
-                        HookStatus.ScopePending -> {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(text = "模块已启用，但目标进程尚未注入 Hook")
-                                TextButton(
-                                    text = "重启作用域进程",
-                                    onClick = { showRestartDialog = true },
-                                    modifier = Modifier.padding(top = 4.dp),
-                                )
-                            }
-                        }
-
-                        HookStatus.Inactive -> {
-                            Text(
-                                text = "Hook 未激活：需要 Root + LSPosed，且模块已在 LSPosed 中启用",
-                                modifier = Modifier.padding(12.dp),
-                            )
-                        }
-                    }
-                }
-            }
             item {
                 SmallTitle(text = "系统控制")
                 Card {
@@ -209,24 +170,14 @@ fun SettingsPage(
             }
             item {
                 SmallTitle(
-                    text = "主题",
+                    text = "外观",
                 )
                 Card {
-                    OverlayDropdownPreference(
-                        title = "颜色模式",
-                        items = ColorModeOptions,
-                        selectedIndex = themeMode.colorMode.coerceIn(0, ColorModeOptions.lastIndex),
-                        enabled = canUpdateThemeMode,
-                        onSelectedIndexChange = { updateThemeMode { state -> state.copy(colorMode = it) } },
+                    ArrowPreference(
+                        title = "主题设置",
+                        summary = "颜色模式和模糊样式",
+                        onClick = onOpenThemeSettings,
                     )
-                    if (isRenderEffectSupported()) {
-                        SwitchPreference(
-                            title = "启用模糊",
-                            checked = themeMode.enableBlur,
-                            enabled = canUpdateThemeMode,
-                            onCheckedChange = { updateThemeMode { state -> state.copy(enableBlur = it) } },
-                        )
-                    }
                 }
             }
             item {
@@ -356,14 +307,8 @@ fun SettingsPage(
 @Preview(showBackground = true, name = "Settings - Default")
 @Composable
 private fun SettingsPagePreview_Default() {
-    HyperRoseTheme {
-        CompositionLocalProvider(
-            LocalThemeMode provides ThemeMode(),
-            LocalUpdateThemeMode provides {},
-            LocalCanUpdateThemeMode provides true,
-        ) {
-            SettingsPage(onBack = {})
-        }
+    HyperRoseTheme(settings = ThemeSettings()) {
+        SettingsPage(onOpenThemeSettings = {})
     }
 }
 

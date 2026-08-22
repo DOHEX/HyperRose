@@ -38,8 +38,8 @@ import com.dohex.hyperrose.data.LocalDeviceImageStore
 import com.dohex.hyperrose.model.DeviceVisuals
 import com.dohex.hyperrose.ui.theme.BlurredBar
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
-import com.dohex.hyperrose.ui.theme.LocalThemeMode
-import com.dohex.hyperrose.ui.theme.ThemeMode
+import com.dohex.hyperrose.ui.theme.LocalThemeSettings
+import com.dohex.hyperrose.model.ThemeSettings
 import com.dohex.hyperrose.ui.theme.rememberBlurBackdrop
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card
@@ -62,9 +62,9 @@ fun EarphoneColorSettingsPage(
     modifier: Modifier = Modifier,
 ) {
     val deviceImageStore = LocalDeviceImageStore.current
-    val themeMode = LocalThemeMode.current
-    val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
-    val blurActive = themeMode.enableBlur && backdrop != null
+    val themeSettings = LocalThemeSettings.current
+    val backdrop = rememberBlurBackdrop(themeSettings.blurEnabled)
+    val blurActive = themeSettings.blurEnabled && backdrop != null
     val scrollBehavior = MiuixScrollBehavior()
     val scope = rememberCoroutineScope()
 
@@ -190,10 +190,9 @@ fun EarphoneColorSettingsPage(
 private fun EarphoneColorSettingsPagePreview_I5() {
     val context = LocalContext.current
     val imageStore = remember { DeviceImageStore(context) }
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         CompositionLocalProvider(
             LocalDeviceImageStore provides imageStore,
-            LocalThemeMode provides ThemeMode(),
         ) {
             EarphoneColorSettingsPage(
                 address = "00:00:00:00:00:00",
@@ -209,10 +208,9 @@ private fun EarphoneColorSettingsPagePreview_I5() {
 private fun EarphoneColorSettingsPagePreview_MK2() {
     val context = LocalContext.current
     val imageStore = remember { DeviceImageStore(context) }
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         CompositionLocalProvider(
             LocalDeviceImageStore provides imageStore,
-            LocalThemeMode provides ThemeMode(),
         ) {
             EarphoneColorSettingsPage(
                 address = "00:00:00:00:00:01",

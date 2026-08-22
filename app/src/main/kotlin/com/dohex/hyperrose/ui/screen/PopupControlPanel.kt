@@ -11,8 +11,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dohex.hyperrose.R
 import com.dohex.hyperrose.model.AncDepth
 import com.dohex.hyperrose.model.AncMode
 import com.dohex.hyperrose.model.EqPreset
@@ -100,8 +102,8 @@ private fun PopupControlPanelContent(
 ) {
     WindowDialog(
         show = show,
-        title = state.deviceName ?: "HyperRose",
-        summary = if (state.connected) null else "未连接",
+        title = state.deviceName ?: stringResource(R.string.app_name),
+        summary = if (state.connected) null else stringResource(R.string.popup_disconnected_title),
         onDismissRequest = onDismissRequest,
         onDismissFinished = onDismissFinish,
     ) {
@@ -113,8 +115,8 @@ private fun PopupControlPanelContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(modifier)
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
@@ -139,8 +141,8 @@ private fun PopupControlPanelContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(modifier)
-                    .padding(top = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                    .padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (state.connected && state.profile != null) {
                     PopupAncSelector(state, onAncModeChange, onAncDepthChange, onTransLevelChange)
@@ -152,8 +154,8 @@ private fun PopupControlPanelContent(
                     )
                 } else {
                     SectionCard(
-                        title = "耳机未连接",
-                        subtitle = "请先在 App 主页或系统蓝牙中连接耳机",
+                        title = stringResource(R.string.popup_disconnected_title),
+                        subtitle = stringResource(R.string.popup_disconnected_summary),
                     ) {
                         Row(
                             modifier = Modifier
@@ -162,12 +164,12 @@ private fun PopupControlPanelContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             ActionButton(
-                                text = "刷新状态",
+                                text = stringResource(R.string.refresh_status),
                                 onClick = onRefreshStatus,
                                 modifier = Modifier.weight(1f),
                             )
                             ActionButton(
-                                text = "关闭",
+                                text = stringResource(R.string.close_popup),
                                 onClick = onDismissRequest,
                                 modifier = Modifier.weight(1f),
                             )
@@ -213,7 +215,7 @@ private fun PopupFeatureControls(
         val presets = EqPreset.entries.filter { it in state.capabilities.supportedEqPresets }
         Card {
             WindowDropdownPreference(
-                title = "音色",
+                title = stringResource(R.string.eq_title),
                 items = presets.map { it.label },
                 selectedIndex = presets.indexOf(state.eqMode).coerceAtLeast(0),
                 onSelectedIndexChange = { index ->
@@ -225,7 +227,7 @@ private fun PopupFeatureControls(
     if (state.capabilities.hasGameMode) {
         Card {
             SwitchPreference(
-                title = "游戏模式",
+                title = stringResource(R.string.game_mode),
                 checked = state.gameMode,
                 onCheckedChange = onGameModeChange,
             )
@@ -234,7 +236,7 @@ private fun PopupFeatureControls(
     if (state.capabilities.hasLowLatency) {
         Card {
             SwitchPreference(
-                title = "低延迟",
+                title = stringResource(R.string.low_latency),
                 checked = state.lowLatency,
                 onCheckedChange = onLowLatencyChange,
             )

@@ -45,6 +45,7 @@ import com.dohex.hyperrose.debug.BleLog
 import com.dohex.hyperrose.ipc.HyperRoseIpc
 import com.dohex.hyperrose.profile.DeviceCatalog
 import com.dohex.hyperrose.profile.DeviceProfile
+import com.dohex.hyperrose.model.ThemeSettings
 import com.dohex.hyperrose.ui.state.DeviceControlStore
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
 import top.yukonga.miuix.kmp.basic.Button
@@ -341,7 +342,7 @@ private fun HexInputField(
 @Composable
 private fun BleDebugPagePreview_I7_Empty() {
     val profile = requireNotNull(DeviceCatalog.findById("rose-earfeel-i7")?.profile)
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         BleDebugPageContent(
             profile = profile,
             entries = emptyList(),
@@ -356,7 +357,7 @@ private fun BleDebugPagePreview_I7_Empty() {
 @Composable
 private fun BleDebugPagePreview_I7_Log() {
     val profile = requireNotNull(DeviceCatalog.findById("rose-earfeel-i7")?.profile)
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         BleDebugPageContent(
             profile = profile,
             entries = listOf(

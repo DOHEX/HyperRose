@@ -45,8 +45,8 @@ import com.dohex.hyperrose.ui.state.ConnectionTransport
 import com.dohex.hyperrose.ui.state.DeviceConnectionState
 import com.dohex.hyperrose.ui.theme.BlurredBar
 import com.dohex.hyperrose.ui.theme.HyperRoseTheme
-import com.dohex.hyperrose.ui.theme.LocalThemeMode
-import com.dohex.hyperrose.ui.theme.ThemeMode
+import com.dohex.hyperrose.ui.theme.LocalThemeSettings
+import com.dohex.hyperrose.model.ThemeSettings
 import com.dohex.hyperrose.ui.theme.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -98,9 +98,9 @@ fun DeviceDetailPage(
 
     ) {
     val connected = connectionState == DeviceConnectionState.CONNECTED
-    val themeMode = LocalThemeMode.current
-    val backdrop = rememberBlurBackdrop(themeMode.enableBlur)
-    val blurActive = themeMode.enableBlur && backdrop != null
+    val themeSettings = LocalThemeSettings.current
+    val backdrop = rememberBlurBackdrop(themeSettings.blurEnabled)
+    val blurActive = themeSettings.blurEnabled && backdrop != null
     val scrollBehavior = MiuixScrollBehavior()
     val listState = rememberLazyListState()
     var showFindDialog by remember { mutableStateOf(false) }
@@ -119,7 +119,7 @@ fun DeviceDetailPage(
                         }
                     },
                     actions = {
-                        if (deviceProfile != null) {
+                        if (deviceProfile != null && connected) {
                             IconButton(onClick = onOpenBleDebug) {
                                 Icon(MiuixIcons.Info, contentDescription = "BLE 调试")
                             }
@@ -156,7 +156,7 @@ fun DeviceDetailPage(
                             .collectAsState(initial = visuals.defaultTheme())
                         Image(
                             painter = painterResource(colorTheme.caseRes),
-                            contentDescription = deviceName ?: deviceProfile?.displayName,
+                            contentDescription = deviceName ?: deviceProfile.displayName,
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -358,10 +358,9 @@ private fun previewProfile(id: String): DeviceProfile =
 private fun DeviceDetailPagePreview(state: DeviceDetailPreviewState) {
     val context = LocalContext.current
     val imageStore = remember { DeviceImageStore(context) }
-    HyperRoseTheme {
+    HyperRoseTheme(settings = ThemeSettings()) {
         CompositionLocalProvider(
             LocalDeviceImageStore provides imageStore,
-            LocalThemeMode provides ThemeMode(),
         ) {
             DeviceDetailPage(
                 address = "00:00:00:00:00:00",
