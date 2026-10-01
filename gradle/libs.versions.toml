@@ -15,7 +15,7 @@ kotlin = "2.4.10"
 libsu = "6.0.0"
 libxposed-api = "102.0.0"
 libxposed-service = "102.0.0"
-miuix = "0.9.4-rc01"
+miuix = "0.9.4"
 serialization = "1.11.0"
 
 [libraries]
