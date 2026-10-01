@@ -2,7 +2,7 @@
 activity-compose = "1.13.0"
 agp = "9.2.1"
 appcompat = "1.8.0"
-compose-bom = "2026.08.00"
+compose-bom = "2026.09.00"
 core-ktx = "1.19.0"
 coroutines = "1.11.0"
 datastore = "1.2.1"
