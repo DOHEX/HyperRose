@@ -47,6 +47,7 @@ class DeviceCatalogContractTest {
         assertEquals("EarFeel i7", DeviceCatalog.findById("rose-earfeel-i7")?.displayName)
         assertEquals("ROSE BudsFeel MK2", DeviceCatalog.findById("rose-budsfeel-mk2")?.displayName)
         assertEquals("ROSE Ceramics U", DeviceCatalog.findById("rose-ceramics-u")?.displayName)
+        assertEquals("ROSE 锆势 · 芙宁娜", DeviceCatalog.findById("rose-gaoshi")?.displayName)
     }
 
     @Test

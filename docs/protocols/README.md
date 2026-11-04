@@ -7,6 +7,7 @@
 | ROSE BudsFeel MK2 | Bluetooth Classic RFCOMM + SPP auth | `BudsFeelMk2Profile` / shared ROSE RFCOMM protocol | [budsfeel-mk2.md](budsfeel-mk2.md) | Core RFCOMM controls documented; SPP auth algorithm unresolved |
 | ROSE EARFREE i7 | Bluetooth Classic RFCOMM | `EarFeelI7Profile` / shared ROSE RFCOMM protocol | [earfree-i7.md](earfree-i7.md) | Core controls documented; advanced controls need follow-up captures |
 | ROSE Ceramics U | Bluetooth Classic RFCOMM | `CeramicsUProfile` / shared ROSE RFCOMM protocol | [ceramics-u.md](ceramics-u.md) | Extended controls documented and parser differences noted |
+| ROSE 锆势（芙宁娜联名） | Bluetooth Classic RFCOMM | `GaoshiProfile` / shared ROSE RFCOMM protocol | [gaoshi.md](gaoshi.md) | Verified on device over the shared ROSE RFCOMM family; adaptive and extreme ANC not available on this model |
 
 ## Maintenance Notes
 

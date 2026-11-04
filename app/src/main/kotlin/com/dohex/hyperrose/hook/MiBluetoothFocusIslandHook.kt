@@ -69,7 +69,7 @@ object MiBluetoothFocusIslandHook {
                                         null
                                     }
                                     )
-                    if (context != null) registerReceiver(module, context)
+                    if (context != null) ensureReceiver(module, context)
                 } catch (t: Throwable) {
                     module.log(
                         Log.ERROR,
@@ -89,6 +89,24 @@ object MiBluetoothFocusIslandHook {
         } catch (t: Throwable) {
             module.log(Log.ERROR, TAG, "MiBluetoothFocusIslandHook: failed to install hook", t)
         }
+    }
+
+    /**
+     * 幂等注册超级岛接收器。
+     *
+     * 原先只有 [init] 里 hook 到 `MiuiBluetoothNotification` 构造函数时才注册，隐含前提是
+     * 系统会给这台耳机建一个宿主通知对象。对**非小米 TWS**（例如 ROSE / 联名款）该对象
+     * 可能根本不构造，导致 `SHOW_ISLAND` 广播没有接收方、超级岛永远不出现。
+     *
+     * 因此任何已拿到 `com.xiaomi.bluetooth` Context 的 hook（如
+     * [HeadsetServiceBinderHook] 在 HeadsetService onCreate/onBind 时）都可以提前调用本方法，
+     * 两条路径共用 [receiverRegistered] 守卫，不会重复注册。
+     */
+    fun ensureReceiver(
+        module: XposedModule,
+        context: Context,
+    ) {
+        registerReceiver(module, context)
     }
 
     private fun registerReceiver(
