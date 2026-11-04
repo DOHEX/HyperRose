@@ -86,7 +86,7 @@ com.milink.service      ─→  设备身份伪装、音频切换、拦截系统
 | 设备 | 小米设备（运行 HyperOS）                         |
 | 系统 | Android 15+                              |
 | 框架 | LSPosed（API ≥ 101）                       |
-| 耳机 | ROSESELSA EARFREE i5 / ROSE BudsFeel MK2 |
+| 耳机 | ROSESELSA EARFREE i5 / ROSE BudsFeel MK2 / ROSE 锆势 |
 
 ---
 
