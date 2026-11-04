@@ -18,8 +18,8 @@ import java.util.UUID
  * UUID 逐字节一致，帧格式 `FF <seq> <len> <cmd> <payload> <CK> AA` 由共享
  * [RoseRfcommCommandSet] 编码。实机已验证连接、降噪与通透切换生效。
  *
- * 该机型**没有自适应降噪与极限降噪**（琉璃 Ultra 独有的 `0x09` 值 `0x05` / `0x06`），
- * 故能力集里不开放这两项；协议层仍保留编码能力供同族其它型号使用。
+ * 该机型**没有自适应降噪**（琉璃 Ultra 独有的 `0x09` 值 `0x05`），能力集不开放该项；
+ * 极限降噪（`0x09` 值 `0x06`）可用。协议层保留全部编码能力供同族其它型号使用。
  */
 object GaoshiProfile : DeviceProfile {
     override val id = "rose-gaoshi"
@@ -47,6 +47,7 @@ object GaoshiProfile : DeviceProfile {
             AncMode.WIND_NOISE,
             AncMode.NORMAL,
             AncMode.TRANSPARENT,
+            AncMode.EXTREME_NOISE_CANCEL,
         ),
         supportedAncDepths = setOf(AncDepth.LIGHT, AncDepth.MEDIUM, AncDepth.DEEP),
         supportedTransLevels = setOf(TransparencyLevel.STANDARD, TransparencyLevel.DEEP),
@@ -71,6 +72,7 @@ object GaoshiProfile : DeviceProfile {
         "风噪" to protocol.ancCommand(AncMode.WIND_NOISE),
         "普通" to protocol.ancCommand(AncMode.NORMAL),
         "通透" to protocol.ancCommand(AncMode.TRANSPARENT),
+        "极限降噪" to protocol.ancCommand(AncMode.EXTREME_NOISE_CANCEL),
         "HIFI" to protocol.eqCommand(EqPreset.HIFI),
         "游戏模式开" to protocol.gameModeCommand(true),
         "查找左耳" to protocol.findLeftOn,

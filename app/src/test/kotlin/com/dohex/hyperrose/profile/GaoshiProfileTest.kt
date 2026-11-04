@@ -75,16 +75,20 @@ class GaoshiProfileTest {
             bytes("FF 00 02 09 04 0E AA").toList(),
             RoseRfcommProtocol().ancCommand(AncMode.WIND_NOISE).toList(),
         )
+        assertEquals(
+            bytes("FF 00 02 09 06 10 AA").toList(),
+            RoseRfcommProtocol().ancCommand(AncMode.EXTREME_NOISE_CANCEL).toList(),
+        )
     }
 
     @Test
-    fun `gaoshi does not expose adaptive or extreme anc`() {
-        // 锆势没有自适应降噪与极限降噪（琉璃 Ultra 独有的 0x09 值 0x05 / 0x06）
+    fun `gaoshi exposes extreme anc but not adaptive`() {
+        // 锆势有极限降噪（0x09 = 0x06），没有自适应降噪（0x09 = 0x05）
         val modes = GaoshiProfile.capabilities.supportedAncModes
 
+        assertTrue(modes.contains(AncMode.EXTREME_NOISE_CANCEL))
         assertFalse(modes.contains(AncMode.ADAPTIVE_NOISE_CANCEL))
-        assertFalse(modes.contains(AncMode.EXTREME_NOISE_CANCEL))
-        assertEquals(4, modes.size)
+        assertEquals(5, modes.size)
     }
 
     @Test

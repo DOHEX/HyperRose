@@ -33,8 +33,8 @@ HyperRose 是一个 Xposed 模块，为小米 HyperOS 设备提供 **弱水时�
 | 查找耳机                |          ✓           |         —         |          ✓          |
 
 <sup>*</sup> 锆势（`GaoshiProfile`，实测蓝牙名 `Furina Endless Solo of Solitude`，原神芙宁娜联名款）
-复用 ROSE RFCOMM 协议族，实机已验证连接、降噪与通透切换；**不支持自适应降噪与极限降噪**
-（琉璃 Ultra 独有）。细节见 [docs/protocols/gaoshi.md](docs/protocols/gaoshi.md)。
+复用 ROSE RFCOMM 协议族，实机已验证连接、降噪与通透切换；**不支持自适应降噪**（琉璃 Ultra 独有），
+极限降噪可用。细节见 [docs/protocols/gaoshi.md](docs/protocols/gaoshi.md)。
 
 ---
 
