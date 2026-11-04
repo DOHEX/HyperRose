@@ -24,6 +24,7 @@ object DeviceCatalog {
             DeviceVisuals.BUDSFEEL_MK2,
         ),
         DeviceDescriptor(CeramicsUProfile, null),
+        DeviceDescriptor(GaoshiProfile, null),
     )
 
     val profiles: List<DeviceProfile> = devices.map { it.profile }

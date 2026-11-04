@@ -764,6 +764,16 @@ object HeadsetServiceBinderHook {
         if (ctx == null || receiverRegistered) return
         context = ctx.applicationContext ?: ctx
 
+        // 超级岛（SHOW_ISLAND）接收器不能依赖 MiuiBluetoothNotification 的构造：
+        // 部分 HyperOS 版本对非小米 TWS 不建该通知对象，等它触发会永远等不到。
+        // HeadsetService 的 onCreate/onBind 是必到的早期时机，先在这里注册（幂等）。
+        context?.let { appCtx ->
+            module?.let { m ->
+                runCatching { MiBluetoothFocusIslandHook.ensureReceiver(m, appCtx) }
+                    .onFailure { mlog(Log.WARN, "Island receiver early register failed: ${it.message}") }
+            }
+        }
+
         val filter = IntentFilter().apply {
             addAction(HyperRoseAction.DEVICE_CONNECTED)
             addAction(HyperRoseAction.DEVICE_DISCONNECTED)

@@ -21,16 +21,20 @@ HyperRose 是一个 Xposed 模块，为小米 HyperOS 设备提供 **弱水时�
 
 ## 设备支持
 
-| 能力                  | ROSESELSA EARFREE i5 | ROSE BudsFeel MK2 |
-|---------------------|:--------------------:|:-----------------:|
-| 连接方式                |       BLE GATT       |  Classic RFCOMM   |
-| 降噪模式 (降噪/风噪/普通/通透)  |          ✓           |         ✓         |
-| 降噪深度 (轻/中/深)        |          ✓           |         —         |
-| 通透强度 (舒适/人声/标准)     |          ✓           |         —         |
-| EQ 调音 (经典/日系/乐器/清新) |          ✓           |         —         |
-| 电量显示 (左耳/右耳/充电盒)    |          ✓           |         ✓         |
-| 游戏模式                |          ✓           |         ✓         |
-| 查找耳机                |          ✓           |         —         |
+| 能力                  | ROSESELSA EARFREE i5 | ROSE BudsFeel MK2 | ROSE 锆势<sup>*</sup> |
+|---------------------|:--------------------:|:-----------------:|:-------------------:|
+| 连接方式                |       BLE GATT       |  Classic RFCOMM   |    Classic RFCOMM   |
+| 降噪模式 (降噪/风噪/普通/通透)  |          ✓           |         ✓         |          ✓          |
+| 降噪深度 (轻/中/深)        |          ✓           |         —         |          ✓          |
+| 通透强度 (舒适/人声/标准)     |          ✓           |         —         |          ✓          |
+| EQ 调音 (经典/日系/乐器/清新) |          ✓           |         —         |          ✓          |
+| 电量显示 (左耳/右耳/充电盒)    |          ✓           |         ✓         |          ✓          |
+| 游戏模式                |          ✓           |         ✓         |          ✓          |
+| 查找耳机                |          ✓           |         —         |          ✓          |
+
+<sup>*</sup> 锆势（`GaoshiProfile`，实测蓝牙名 `Furina Endless Solo of Solitude`，原神芙宁娜联名款）
+复用 ROSE RFCOMM 协议族，实机已验证连接、降噪与通透切换；**不支持自适应降噪**（琉璃 Ultra 独有），
+极限降噪可用。细节见 [docs/protocols/gaoshi.md](docs/protocols/gaoshi.md)。
 
 ---
 
@@ -82,7 +86,7 @@ com.milink.service      ─→  设备身份伪装、音频切换、拦截系统
 | 设备 | 小米设备（运行 HyperOS）                         |
 | 系统 | Android 15+                              |
 | 框架 | LSPosed（API ≥ 101）                       |
-| 耳机 | ROSESELSA EARFREE i5 / ROSE BudsFeel MK2 |
+| 耳机 | ROSESELSA EARFREE i5 / ROSE BudsFeel MK2 / ROSE 锆势 |
 
 ---
 
